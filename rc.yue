@@ -1,0 +1,267 @@
+os.execute "clear"
+
+-- If LuaRocks is installed, make sure that packages installed through it are
+-- found (e.g. lgi). If LuaRocks is not installed, do nothing.
+pcall require, "luarocks.loader"
+
+awesome = awesome
+screen  = screen
+client  = client
+
+awful     = require "awful"
+awful.hotkeys_popup = require "awful.hotkeys_popup"
+gears     = require "gears"
+wibox     = require "wibox"
+naughty   = require "naughty"
+beautiful = require "beautiful"
+menubar   = require "menubar"
+menubar.utils.terminal = terminal
+
+-- Enable hotkeys help widget for VIM and other apps
+-- when client with a matching name is opened:
+require "awful.hotkeys_popup.keys"
+
+-- {{{ Error handling
+-- Check if awesome encountered an error during startup and fell back to
+-- another config (This code will only ever execute for the fallback config)
+naughty.connect_signal "request::display_error", (message, startup) -> naughty.notification
+	urgency: "critical"
+	title:   "Oops, an error happened " .. if startup then "during startup!" else "at runtime!"
+	message: message
+-- }}}
+
+-- {{{ Auto reload
+awful.spawn.with_line_callback [[bash -c '
+inotifywait --event modify \
+	--include '"'"'.*\.lua'"'"' \
+	--recursive ./ \
+	--monitor \
+	--quiet \
+	2> /dev/null
+']],
+	stdout: (line) -> awesome.restart()
+-- }}}
+
+-- {{{ Variable definitions
+-- Themes define colours, icons, font and wallpapers.
+beautiful.init "#{gears.filesystem.get_configuration_dir()}themes/skyyysi/theme.lua"
+
+modules = require "modules"
+util = modules.lib.util
+
+-- This is used later as the default terminal and editor to run.
+terminal = os.getenv("TERMINAL") or "xterm"
+editor =   os.getenv("EDITOR")   or "#{terminal} -e nano"
+
+-- Default modkey.
+-- Usually, Mod4 is the key with a logo between Control and Alt.
+-- If you do not like this or do not have such a key,
+-- I suggest you to remap Mod4 to another key using xmodmap or other tools.
+-- However, you can use another modifier like Mod1, but it may interact with others.
+modkey = "Mod1"
+
+main_menu = modules.boxes.main_menu
+	terminal: terminal
+
+awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
+-- }}}
+
+-- {{{ Tag layout
+-- Table of layouts to cover with awful.layout.inc, order matters.
+tag.connect_signal "request::default_layouts", () -> awful.layout.append_default_layouts
+	*	awful.layout.suit.tile
+	*	awful.layout.suit.floating
+	--*	awful.layout.suit.floating
+	--*	awful.layout.suit.tile
+	--*	awful.layout.suit.tile.left
+	--*	awful.layout.suit.tile.bottom
+	--*	awful.layout.suit.tile.top
+	--*	awful.layout.suit.fair
+	--*	awful.layout.suit.fair.horizontal
+	--*	awful.layout.suit.spiral
+	--*	awful.layout.suit.spiral.dwindle
+	--*	awful.layout.suit.max
+	--*	awful.layout.suit.max.fullscreen
+	--*	awful.layout.suit.magnifier
+	--*	awful.layout.suit.corner.nw
+-- }}}
+
+-- {{{ Wallpaper
+screen.connect_signal "request::wallpaper", (s) -> awful.wallpaper
+	screen: s,
+	widget:
+		image:                  beautiful.wallpaper
+		resize:                 true
+		horizontal_fit_policy: "fit",
+		vertical_fit_policy:   "fit",
+		widget:                 wibox.widget.imagebox
+-- }}}
+
+-- {{{ Wibar
+
+screen.connect_signal "request::desktop_decoration", (s) ->
+	-- A factor used to allow for per-screen scaling
+	s.scaling_factor = 1
+
+	-- Each screen has its own tag table.
+	awful.tag [ tostring(i) for i = 1, 10 ], s, awful.layout.layouts[1]
+
+	-- Create a promptbox for each screen
+	s.promptbox = awful.widget.prompt()
+
+	-- Create an imagebox widget which will contain an icon indicating which layout we're using.
+	-- We need one layoutbox per screen.
+	s.layoutbox = awful.widget.layoutbox
+		screen:  s
+		buttons:
+			*	awful.button {}, 1, () -> awful.layout.inc  1
+			*	awful.button {}, 3, () -> awful.layout.inc -1
+			*	awful.button {}, 4, () -> awful.layout.inc -1
+			*	awful.button {}, 5, () -> awful.layout.inc  1
+
+	-- Create a taglist widget
+	s.taglist = awful.widget.taglist
+		screen:  s
+		filter:  awful.widget.taglist.filter.all
+		buttons:
+			*	awful.button {}, 1, (t) -> t::view_only()
+			*	awful.button { modkey }, 1, (t) ->
+					if client.focus then
+						client.focus::move_to_tag client.focus, t
+			*	awful.button {}, 3, awful.tag.viewtoggle
+			*	awful.button { modkey }, 3, (t) ->
+					if client.focus then
+						client.focus::toggle_tag(t)
+			*	awful.button {}, 4, (t) -> awful.tag.viewprev t.screen
+			*	awful.button {}, 5, (t) -> awful.tag.viewnext t.screen
+
+	-- Create a tasklist widget
+	s.tasklist = awful.widget.tasklist
+		screen:  s,
+		filter:  awful.widget.tasklist.filter.currenttags,
+		layout:
+			layout: wibox.layout.flex.horizontal
+		widget_template:
+			*
+				*
+					id:     "icon_role"
+					widget: wibox.widget.imagebox
+				margins: util.scale 4
+				widget:  wibox.container.margin
+			id:     "background_role"
+			widget: wibox.container.background
+		buttons:
+			*	awful.button {}, 1, (c) -> c::activate
+					context: "tasklist"
+					action:  "toggle_minimization"
+			*	awful.button {}, 3, () -> awful.menu.client_list
+					theme:
+						width: util.scale 250
+			*	awful.button {}, 4, () -> awful.client.focus.byidx -1
+			*	awful.button {}, 5, () -> awful.client.focus.byidx  1
+
+	main_wibar_buttons = buttons:
+		*	awful.button {}, 3, () -> main_menu::toggle()
+		*	awful.button {}, 4, awful.tag.viewprev
+		*	awful.button {}, 5, awful.tag.viewnext
+
+	-- Create the wibox
+	s.main_wibar = awful.wibar
+		position: "top"
+		screen:   s
+		bg:       gears.color.transparent
+		widget:
+			modules.layouts.absolute_center(
+				{
+					{
+						{
+							{
+								awful.widget.launcher
+									image: beautiful.awesome_icon
+									menu:  main_menu
+								s.taglist
+								s.promptbox
+								layout: wibox.layout.fixed.horizontal
+							}
+							bg:     beautiful.bg_normal
+							shape:  (cr, w, h) -> gears.shape.partially_rounded_rect cr, w, h, false, false, true, false, util.scale 10
+							widget: wibox.container.background
+						}
+						right: util.scale 1
+						bottom: util.scale 1
+						widget:  wibox.container.margin
+					}
+					bg:     beautiful.fg_normal
+					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect cr, w, h, false, false, true, false, util.scale 10
+					widget: wibox.container.background
+				}, {
+					{
+						{
+							s.tasklist
+							bg:     beautiful.bg_normal
+							shape:  (cr, w, h) -> gears.shape.partially_rounded_rect cr, w, h, false, false, true, true, util.scale 10
+							widget: wibox.container.background
+						}
+						id:     "tasklist_border_role"
+						right: util.scale 1
+						bottom: util.scale 1
+						left: util.scale 1
+						widget:  wibox.container.margin
+					}
+					bg:     beautiful.fg_normal
+					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect cr, w, h, false, false, true, true, util.scale 10
+					widget: wibox.container.background
+				}, {
+					{
+						{
+							{
+								awful.widget.keyboardlayout()
+								wibox.widget.systray()
+								wibox.widget.textclock()
+								s.layoutbox
+								layout: wibox.layout.fixed.horizontal
+							}
+							bg:     beautiful.bg_normal
+							shape:  (cr, w, h) -> gears.shape.partially_rounded_rect cr, w, h, false, false, false, true, util.scale 10
+							widget: wibox.container.background
+						}
+						bottom: util.scale 1
+						left: util.scale 1
+						widget:  wibox.container.margin
+					}
+					bg:     beautiful.fg_normal
+					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect cr, w, h, false, false, false, true, util.scale 10
+					widget: wibox.container.background
+				}, main_wibar_buttons
+			)
+
+
+	s.update_dock_tasklist_separator = () =>
+		border_width = #@clients > 0 and util.scale(1) or 0
+		util.for_children @main_wibar, "tasklist_border_role", (child) ->
+			with child
+				.right = border_width
+				.bottom = border_width
+				.left = border_width
+
+	s::update_dock_tasklist_separator()
+
+	for _, t in pairs s.tags
+		t::connect_signal "property::selected", (c) -> s::update_dock_tasklist_separator()
+	s::connect_signal "property::clients", s.update_dock_tasklist_separator
+	client.connect_signal "manage",   (c) -> s::update_dock_tasklist_separator()
+	client.connect_signal "unmanage", (c) -> s::update_dock_tasklist_separator()
+-- }}}
+
+require("modules.settings.bindings")
+	menu:     main_menu
+	modkey:   modkey
+	terminal: terminal
+
+require "modules.settings.rules"
+
+-- Enable sloppy focus, so that focus follows mouse.
+client.connect_signal "mouse::enter", (c) ->
+	c::activate
+		context: "mouse_enter"
+		raise: false

@@ -1,0 +1,28 @@
+return class object
+	new: (args={}) =>
+		@__properties = args.__properties
+
+	<index>: (key) =>
+		if not rawget @, "__properties"
+			return rawget @, key
+
+		if type(key) == "string"
+			if getter = rawget @, "get_" .. key
+				return getter @, key
+
+		rawget @, key
+
+	<newindex>: (key, value) =>
+		if not rawget @, "__properties"
+			rawset @, key, value
+			return
+
+		if type(key) == "string"
+			if setter = rawget @, "set_" .. key
+				setter @, key, value
+				return
+
+		rawset @, key, value
+
+	<tostring>: =>
+		"<'#{@@name}' instance>"

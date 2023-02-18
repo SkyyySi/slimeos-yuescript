@@ -1,0 +1,38 @@
+yue = require "yue"
+
+object = require "modules.lib.object"
+
+export class exception extends object
+	new: (args={}) =>
+		@message = args.message ?? @@default_message
+
+	default_message: "An error occurred"
+
+	tostring: () =>
+		yue.traceback("\x1b[31;1m#{@@__name}\x1b[39m: #{@message}\x1b[0m")
+
+	<tostring>: (...) =>
+		@@tostring @, ...
+
+	raise: () =>
+		error @::tostring()
+
+export class type_exception extends exception
+	default_message: "Incorrect type"
+
+	assert: (value, wanted_type) =>
+		actual_type = type(value)
+		if actual_type ~= wanted_type
+			@@({
+				message: "#{@@default_message} (expected a #{wanted_type}, got a #{actual_type})"
+			})::raise()
+
+export class argument_type_exception extends type_exception
+	default_message: "Incorrect argument type"
+
+	assert: (argument, wanted_type, index) =>
+		actual_type = type(value)
+		if actual_type ~= wanted_type
+			@@({
+				message: "#{@@default_message} of argument ##{index} (expected a #{wanted_type}, got a #{actual_type})"
+			})::raise()

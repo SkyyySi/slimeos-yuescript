@@ -1,0 +1,43 @@
+awful     = require "awful"
+gears     = require "gears"
+wibox     = require "wibox"
+ruled     = require "ruled"
+beautiful = require "beautiful"
+menubar   = require "menubar"
+naughty   = require "naughty"
+
+lgi = require "lgi"
+gtk = lgi.require("Gtk", "3.0")
+
+tts = require "modules.lib.util.tts"
+
+export string = require "modules.lib.util.string"
+
+export pretty_print = (value) -> tts.prettify value
+
+export lookup_icon = (icon_name) ->
+	gtk?
+		.IconTheme?
+		.get_default()?
+		::lookup_icon(icon_name, 48, 0)?
+		::get_filename()
+
+export lookup_gicon = (gicon) ->
+	icon_name = gicon?::to_string()
+
+	if not icon_name
+		return
+
+	if icon_name::match("/")
+		return icon_name
+
+	lookup_icon icon_name
+
+--scaling_factor = 1
+scaling_factor = 0.5
+dpi = beautiful.xresources.apply_dpi
+export scale = (x, s=screen.primary) -> scaling_factor * dpi x * (s.scaling_factor or 1)
+
+export for_children = (widget, id, callback) ->
+	for _, child in ipairs widget::get_children_by_id id
+		callback child
