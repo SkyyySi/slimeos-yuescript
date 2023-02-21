@@ -7,14 +7,11 @@ do
 	local _parent_0 = object
 	local _base_0 = {
 		default_message = "An error occurred",
-		tostring = function(self)
+		print_traceback = function(self)
 			return yue.traceback("\x1b[31;1m" .. tostring(self.__class.__name) .. "\x1b[39m: " .. tostring(self.message) .. "\x1b[0m")
 		end,
-		__tostring = function(self, ...)
-			return self.__class:tostring(self, ...)
-		end,
 		raise = function(self)
-			return error(self:tostring())
+			return error(self:print_traceback())
 		end
 	}
 	for _key_0, _val_0 in pairs(_parent_0.__base) do

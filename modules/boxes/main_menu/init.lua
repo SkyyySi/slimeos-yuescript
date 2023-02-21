@@ -99,7 +99,7 @@ get_all_apps = function()
 	for _, app_info in ipairs(gio.AppInfo.get_all()) do
 		local _continue_0 = false
 		repeat
-			if not app_info:get_show_in() then
+			if app_info:get_boolean("NoDisplay") or not app_info:get_show_in() then
 				_continue_0 = true
 				break
 			end
@@ -131,12 +131,21 @@ get_all_apps = function()
 			break
 		end
 	end
-	for _, app_list in ipairs(all_apps) do
+	for k, app_list in ipairs(all_apps) do
 		table.sort(app_list[2], function(a, b)
 			return a[1]:lower() < b[1]:lower()
 		end)
 	end
-	return all_apps
+	local _accum_0 = { }
+	local _len_0 = 1
+	for _index_0 = 1, #all_apps do
+		local app_list = all_apps[_index_0]
+		if next(app_list[2]) ~= nil then
+			_accum_0[_len_0] = app_list
+			_len_0 = _len_0 + 1
+		end
+	end
+	return _accum_0
 end
 local main_menu_items = { }
 main_menu_items.awesome = {
@@ -163,7 +172,9 @@ main_menu_items.awesome = {
 	},
 	{
 		"quit",
-		awesome.quit,
+		(function()
+			return awesome.quit()
+		end),
 		util.lookup_icon("exit")
 	}
 }

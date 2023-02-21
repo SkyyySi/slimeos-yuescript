@@ -3,37 +3,38 @@ do
 	local _class_0
 	local _base_0 = {
 		__index = function(self, key)
-			if not rawget(self, "__properties") then
+			if type(key) ~= "string" or not rawget(self, "__properties") then
 				return rawget(self, key)
 			end
-			if type(key) == "string" then
-				do
-					local getter = rawget(self, "get_" .. key)
-					if getter then
-						return getter(self, key)
-					end
+			do
+				local getter = rawget(self, "get_" .. key)
+				if getter then
+					return getter(self)
 				end
 			end
-			return rawget(self, key)
+			do
+				local getter = rawget(self, "__get")
+				if getter then
+					return getter(self, key)
+				end
+			end
+			return getmetatable(self)[key]
 		end,
 		__newindex = function(self, key, value)
-			if not rawget(self, "__properties") then
+			if type(key) ~= "string" or not rawget(self, "__properties") then
 				rawset(self, key, value)
 				return
 			end
-			if type(key) == "string" then
-				do
-					local setter = rawget(self, "set_" .. key)
-					if setter then
-						setter(self, key, value)
-						return
-					end
+			do
+				local setter = rawget(self, "set_" .. key)
+				if setter then
+					setter(self, value)
+					return
 				end
 			end
-			return rawset(self, key, value)
 		end,
 		__tostring = function(self)
-			return "<'" .. tostring(self.__class.name) .. "' instance>"
+			return "<'" .. tostring(self.__class.__name) .. "' instance>"
 		end
 	}
 	if _base_0.__index == nil then

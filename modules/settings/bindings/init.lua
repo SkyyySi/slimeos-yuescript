@@ -7,8 +7,24 @@ local menubar = require("menubar")
 local naughty = require("naughty")
 return function(args)
 	local main_menu = args.menu
-	local modkey = args.modkey or "Mod4"
-	local terminal = args.terminal or "xterm"
+	local modkey
+	do
+		local _exp_0 = args.modkey
+		if _exp_0 ~= nil then
+			modkey = _exp_0
+		else
+			modkey = "Mod4"
+		end
+	end
+	local terminal
+	do
+		local _exp_0 = args.terminal
+		if _exp_0 ~= nil then
+			terminal = _exp_0
+		else
+			terminal = "xterm"
+		end
+	end
 	awful.mouse.append_global_mousebindings({
 		awful.button({ }, 3, function()
 			return main_menu:toggle()
@@ -26,11 +42,11 @@ return function(args)
 		awful.key({
 			modkey
 		}, "w", function()
-			return main_menu:show()
-		end, {
-			description = "show main menu",
-			group = "awesome"
-		}),
+			return main_menu:show(), {
+				description = "show main menu",
+				group = "awesome"
+			}
+		end),
 		awful.key({
 			modkey,
 			"Control"
@@ -47,41 +63,42 @@ return function(args)
 		}),
 		awful.key({
 			modkey
-		}, "x", function()
-			return awful.prompt.run({
-				prompt = "Run Lua code: ",
-				textbox = awful.screen.focused().mypromptbox.widget,
-				exe_callback = awful.util.eval,
-				history_path = tostring(awful.util.get_cache_dir()) .. "/history_eval"
-			})
-		end, {
+		}, "x", {
+			function()
+				return awful.prompt.run({
+					prompt = "Run Lua code: ",
+					textbox = awful.screen.focused().mypromptbox.widget,
+					exe_callback = awful.util.eval,
+					history_path = tostring(awful.util.get_cache_dir()) .. "/history_eval"
+				})
+			end,
 			description = "lua execute prompt",
 			group = "awesome"
 		}),
 		awful.key({
 			modkey
 		}, "Return", function()
-			return awful.spawn(terminal)
-		end, {
-			description = "open a terminal",
-			group = "launcher"
-		}),
+			return awful.spawn(terminal), {
+				description = "open a terminal",
+				group = "launcher"
+			}
+		end),
 		awful.key({
 			modkey
 		}, "r", function()
-			return awful.screen.focused().mypromptbox:run()
-		end, {
-			description = "run prompt",
-			group = "launcher"
-		}),
+			return awful.screen.focused().mypromptbox:run(), {
+				description = "run prompt",
+				group = "launcher"
+			}
+		end),
 		awful.key({
 			modkey
 		}, "p", function()
-			return menubar.show()
-		end, {
-			description = "show the menubar",
-			group = "launcher"
-		})
+			return menubar.show(), {
+				description = "show the menubar",
+				group = "launcher"
+			}
+		end)
 	})
 	awful.keyboard.append_global_keybindings({
 		awful.key({
@@ -122,47 +139,51 @@ return function(args)
 		end),
 		awful.key({
 			modkey
-		}, "Tab", function()
-			awful.client.focus.history.previous()
-			if client.focus then
-				return client.focus:raise()
-			end
-		end, {
+		}, "Tab", {
+			function()
+				awful.client.focus.history.previous()
+				if client.focus then
+					return client.focus:raise()
+				end
+			end,
 			description = "go back",
 			group = "client"
 		}),
 		awful.key({
 			modkey,
 			"Control"
-		}, "j", function()
-			return awful.screen.focus_relative(1)
-		end, {
+		}, "j", {
+			function()
+				return awful.screen.focus_relative(1)
+			end,
 			description = "focus the next screen",
 			group = "screen"
 		}),
 		awful.key({
 			modkey,
 			"Control"
-		}, "k", function()
-			return awful.screen.focus_relative(-1)
-		end, {
+		}, "k", {
+			function()
+				return awful.screen.focus_relative(-1)
+			end,
 			description = "focus the previous screen",
 			group = "screen"
 		}),
 		awful.key({
 			modkey,
 			"Control"
-		}, "n", function()
-			do
-				local c = awful.client.restore()
-				if c then
-					return c:activate({
-						raise = true,
-						context = "key.unminimize"
-					})
+		}, "n", {
+			function()
+				do
+					local c = awful.client.restore()
+					if c then
+						return c:activate({
+							raise = true,
+							context = "key.unminimize"
+						})
+					end
 				end
-			end
-		end, {
+			end,
 			description = "restore minimized",
 			group = "client"
 		})
@@ -171,18 +192,20 @@ return function(args)
 		awful.key({
 			modkey,
 			"Shift"
-		}, "j", function()
-			return awful.client.swap.byidx(1)
-		end, {
+		}, "j", {
+			function()
+				return awful.client.swap.byidx(1)
+			end,
 			description = "swap with next client by index",
 			group = "client"
 		}),
 		awful.key({
 			modkey,
 			"Shift"
-		}, "k", function()
-			return awful.client.swap.byidx(-1)
-		end, {
+		}, "k", {
+			function()
+				return awful.client.swap.byidx(-1)
+			end,
 			description = "swap with previous client by index",
 			group = "client"
 		}),
@@ -194,70 +217,78 @@ return function(args)
 		}),
 		awful.key({
 			modkey
-		}, "l", function()
-			return awful.tag.incmwfact(0.05)
-		end, {
+		}, "l", {
+			function()
+				return awful.tag.incmwfact(0.05)
+			end,
 			description = "increase master width factor",
 			group = "layout"
 		}),
 		awful.key({
 			modkey
-		}, "h", function()
-			return awful.tag.incmwfact(-0.05)
-		end, {
+		}, "h", {
+			function()
+				return awful.tag.incmwfact(-0.05)
+			end,
 			description = "decrease master width factor",
 			group = "layout"
 		}),
 		awful.key({
 			modkey,
 			"Shift"
-		}, "h", function()
-			return awful.tag.incnmaster1, nil, true
-		end, {
+		}, "h", {
+			function()
+				return awful.tag.incnmaster(1, nil, true)
+			end,
 			description = "increase the number of master clients",
 			group = "layout"
 		}),
 		awful.key({
 			modkey,
 			"Shift"
-		}, "l", function()
-			return awful.tag.incnmaster(-1, nil, true)
-		end, {
+		}, "l", {
+			function()
+				return awful.tag.incnmaster(-1, nil, true)
+			end,
 			description = "decrease the number of master clients",
 			group = "layout"
 		}),
 		awful.key({
 			modkey,
 			"Control"
-		}, "h", function()
-			return awful.tag.incncol1, nil, true
-		end, {
+		}, "h", {
+			function()
+				return awful.tag.incncol(1, nil, true)
+			end,
 			description = "increase the number of columns",
 			group = "layout"
 		}),
 		awful.key({
 			modkey,
 			"Control"
-		}, "l", function()
-			return awful.tag.incncol(-1, nil, true)
-		end, {
+		}, "l", {
+			function()
+				return awful.tag.incncol(-1, nil, true)
+			end,
 			description = "decrease the number of columns",
 			group = "layout"
 		}),
 		awful.key({
 			modkey
-		}, "space", function()
-			return awful.layout.inc(1)
-		end, {
+		}, "space", {
+			function()
+				return awful.layout.inc(1)
+			end,
 			description = "select next",
 			group = "layout"
 		}),
 		awful.key({
 			modkey,
 			"Shift"
-		}, "space", function()
-			return awful.layout.inc(-1)
-		end, {
+		}, "space", {
+			function()
+				return awful.layout.inc(-1)
+			end,
 			description = "select previous",
 			group = "layout"
 		})
@@ -344,7 +375,14 @@ return function(args)
 				do
 					local t = awful.screen.focused().selected_tag
 					if t then
-						t.layout = t.layouts[index] or t.layout
+						do
+							local _exp_0 = t.layouts[index]
+							if _exp_0 ~= nil then
+								t.layout = _exp_0
+							else
+								t.layout = t.layout
+							end
+						end
 					end
 				end
 			end
@@ -379,10 +417,11 @@ return function(args)
 		return awful.keyboard.append_client_keybindings({
 			awful.key({
 				modkey
-			}, "f", function(c)
-				c.fullscreen = not c.fullscreen
-				return c:raise()
-			end, {
+			}, "f", {
+				function(c)
+					c.fullscreen = not c.fullscreen
+					return c:raise()
+				end,
 				description = "toggle fullscreen",
 				group = "client"
 			}),
@@ -390,11 +429,11 @@ return function(args)
 				modkey,
 				"Shift"
 			}, "c", function(c)
-				return c:kill()
-			end, {
-				description = "close",
-				group = "client"
-			}),
+				return c:kill(), {
+					description = "close",
+					group = "client"
+				}
+			end),
 			awful.key({
 				modkey,
 				"Control"
@@ -414,53 +453,57 @@ return function(args)
 			awful.key({
 				modkey
 			}, "o", function(c)
-				return c:move_to_screen()
-			end, {
-				description = "move to screen",
-				group = "client"
-			}),
+				return c:move_to_screen(), {
+					description = "move to screen",
+					group = "client"
+				}
+			end),
 			awful.key({
 				modkey
-			}, "t", function(c)
+			}, "t", (function(c)
 				c.ontop = not c.ontop
-			end, {
+			end), {
 				description = "toggle keep on top",
 				group = "client"
 			}),
 			awful.key({
 				modkey
-			}, "n", function(c)
-				c.minimized = true
-			end, {
+			}, "n", {
+				function(c)
+					c.minimized = true
+				end,
 				description = "minimize",
 				group = "client"
 			}),
 			awful.key({
 				modkey
-			}, "m", function(c)
-				c.maximized = not c.maximized
-				return c:raise()
-			end, {
+			}, "m", {
+				function(c)
+					c.maximized = not c.maximized
+					return c:raise()
+				end,
 				description = "(un)maximize",
 				group = "client"
 			}),
 			awful.key({
 				modkey,
 				"Control"
-			}, "m", function(c)
-				c.maximized_vertical = not c.maximized_vertical
-				return c:raise()
-			end, {
+			}, "m", {
+				function(c)
+					c.maximized_vertical = not c.maximized_vertical
+					return c:raise()
+				end,
 				description = "(un)maximize vertically",
 				group = "client"
 			}),
 			awful.key({
 				modkey,
 				"Shift"
-			}, "m", function(c)
-				c.maximized_horizontal = not c.maximized_horizontal
-				return c:raise()
-			end, {
+			}, "m", {
+				function(c)
+					c.maximized_horizontal = not c.maximized_horizontal
+					return c:raise()
+				end,
 				description = "(un)maximize horizontally",
 				group = "client"
 			})

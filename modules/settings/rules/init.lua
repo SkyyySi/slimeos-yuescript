@@ -50,11 +50,9 @@ ruled.client.connect_signal("request::rules", function()
 	return ruled.client.append_rule({
 		id = "titlebars",
 		rule_any = {
-			type = {
-				"normal",
-				"dialog"
-			}
+			type = "normal"
 		},
+		"dialog",
 		properties = {
 			titlebars_enabled = true
 		}

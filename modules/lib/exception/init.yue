@@ -1,6 +1,8 @@
-yue = require "yue"
+yue = require("yue")
 
-object = require "modules.lib.object"
+object = require("modules.lib.object")
+
+--- TO BE TESTED!!!
 
 export class exception extends object
 	new: (args={}) =>
@@ -8,14 +10,11 @@ export class exception extends object
 
 	default_message: "An error occurred"
 
-	tostring: () =>
+	print_traceback: () =>
 		yue.traceback("\x1b[31;1m#{@@__name}\x1b[39m: #{@message}\x1b[0m")
 
-	<tostring>: (...) =>
-		@@tostring @, ...
-
 	raise: () =>
-		error @::tostring()
+		error(@print_traceback())
 
 export class type_exception extends exception
 	default_message: "Incorrect type"

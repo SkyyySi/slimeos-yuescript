@@ -1,7 +1,7 @@
 object = require("modules.lib.object")
 util   = require("modules.lib.util")
 
-return class list extends object
+return class tuple extends object
 	new: (items={}) =>
 		for k, v in ipairs(items)
 			@[k] = v
@@ -11,14 +11,17 @@ return class list extends object
 
 	<tostring>: () =>
 		if next(@) == nil
-			return "[]"
+			return "()"
 
-		out = "[ "
+		out = "( "
 
 		for k, v in ipairs(@)
 			if next(@, k) == nil
-				out ..= "#{util.pretty_print(v)} ]"
+				out ..= "#{util.pretty_print(v)} )"
 			else
 				out ..= "#{util.pretty_print(v)}, "
 
 		out
+
+	<newindex>: (key, value) =>
+		error("ERROR: Attempted to modify a tuple, which is read-only")

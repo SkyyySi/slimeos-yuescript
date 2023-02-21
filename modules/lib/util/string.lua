@@ -25,7 +25,7 @@ join = function(str_list, joiner)
 		return ""
 	end
 	local out = ""
-	for k, v in ipairs(str_list) do
+	for k, str in ipairs(str_list) do
 		if next(str_list, k) == nil then
 			out = out .. str
 		else

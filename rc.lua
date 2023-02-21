@@ -41,7 +41,7 @@ beautiful.init(tostring(gears.filesystem.get_configuration_dir()) .. "themes/sky
 local modules = require("modules")
 local util = modules.lib.util
 local terminal = os.getenv("TERMINAL") or "xterm"
-local editor = os.getenv("EDITOR") or tostring(terminal) .. " -e nano"
+local editor = os.getenv("EDITOR") or terminal .. " -e nano"
 local modkey = "Mod1"
 local main_menu = modules.boxes.main_menu({
 	terminal = terminal
@@ -58,15 +58,9 @@ tag.connect_signal("request::default_layouts", function()
 	})
 end)
 screen.connect_signal("request::wallpaper", function(s)
-	return awful.wallpaper({
-		screen = s,
-		widget = {
-			image = beautiful.wallpaper,
-			resize = true,
-			horizontal_fit_policy = "fit",
-			vertical_fit_policy = "fit",
-			widget = wibox.widget.imagebox
-		}
+	return awful.spawn({
+		"nitrogen",
+		"--restore"
 	})
 end)
 screen.connect_signal("request::desktop_decoration", function(s)
@@ -266,16 +260,25 @@ screen.connect_signal("request::desktop_decoration", function(s)
 		end)
 	end
 	s:update_dock_tasklist_separator()
-	for _, t in pairs(s.tags) do
-		t:connect_signal("property::selected", function(c)
-			return s:update_dock_tasklist_separator()
+	s.on_bar_refresh = function(self, callback)
+		local _list_0 = s.tags
+		for _index_0 = 1, #_list_0 do
+			local tag = _list_0[_index_0]
+			tag:connect_signal("property::selected", function(c)
+				return callback()
+			end)
+		end
+		s:connect_signal("property::clients", function(s)
+			return callback()
+		end)
+		client.connect_signal("manage", function(c)
+			return callback()
+		end)
+		return client.connect_signal("unmanage", function(c)
+			return callback()
 		end)
 	end
-	s:connect_signal("property::clients", s.update_dock_tasklist_separator)
-	client.connect_signal("manage", function(c)
-		return s:update_dock_tasklist_separator()
-	end)
-	return client.connect_signal("unmanage", function(c)
+	return s:on_bar_refresh(function()
 		return s:update_dock_tasklist_separator()
 	end)
 end)

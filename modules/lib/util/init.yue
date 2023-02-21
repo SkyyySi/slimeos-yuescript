@@ -1,17 +1,22 @@
-awful     = require "awful"
-gears     = require "gears"
-wibox     = require "wibox"
-ruled     = require "ruled"
-beautiful = require "beautiful"
-menubar   = require "menubar"
-naughty   = require "naughty"
+awful     = require("awful")
+gears     = require("gears")
+wibox     = require("wibox")
+ruled     = require("ruled")
+beautiful = require("beautiful")
+menubar   = require("menubar")
+naughty   = require("naughty")
 
-lgi = require "lgi"
+lgi = require("lgi")
 gtk = lgi.require("Gtk", "3.0")
 
-tts = require "modules.lib.util.tts"
+tts = require("modules.lib.util.tts")
 
-export string = require "modules.lib.util.string"
+export string = require("modules.lib.util.string")
+
+export notify = (...) ->
+	naughty.notification {
+		message: string.join({...}, ", ")
+	}
 
 export pretty_print = (value) -> tts.prettify value
 
@@ -33,8 +38,7 @@ export lookup_gicon = (gicon) ->
 
 	lookup_icon icon_name
 
---scaling_factor = 1
-scaling_factor = 0.5
+scaling_factor = 1
 dpi = beautiful.xresources.apply_dpi
 export scale = (x, s=screen.primary) -> scaling_factor * dpi x * (s.scaling_factor or 1)
 

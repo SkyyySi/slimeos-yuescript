@@ -11,6 +11,15 @@ local gtk = lgi.require("Gtk", "3.0")
 local tts = require("modules.lib.util.tts")
 local string = require("modules.lib.util.string")
 _module_0["string"] = string
+local notify
+notify = function(...)
+	return naughty.notification({
+		message = string.join({
+			...
+		}, ", ")
+	})
+end
+_module_0["notify"] = notify
 local pretty_print
 pretty_print = function(value)
 	return tts.prettify(value)
@@ -51,7 +60,7 @@ lookup_gicon = function(gicon)
 	return lookup_icon(icon_name)
 end
 _module_0["lookup_gicon"] = lookup_gicon
-local scaling_factor = 0.5
+local scaling_factor = 1
 local dpi = beautiful.xresources.apply_dpi
 local scale
 scale = function(x, s)

@@ -23,15 +23,15 @@ t.bg_minimize   = "#445744574457"
 t.bg_systray    = t.bg_normal
 
 t.fg_normal     = "#FFFFFAFFF499"
-t.fg_focus      = "#FFFFFAFFF499"
-t.fg_urgent     = "#FFFFFAFFF499"
-t.fg_minimize   = "#FFFFFAFFF499"
+t.fg_focus      = t.fg_normal
+t.fg_urgent     = t.fg_normal
+t.fg_minimize   = t.fg_normal
 
-t.useless_gap         = scale 2
-t.border_width        = scale 1
-t.border_color_normal = "#000000"
-t.border_color_active = "#535d6c"
-t.border_color_marked = "#91231c"
+t.useless_gap         = scale(2)
+t.border_width        = scale(1)
+t.border_color_normal = t.bg_normal
+t.border_color_active = t.bg_focus
+t.border_color_marked = "#FFFFB9FF0000"
 
 -- There are other variable sets
 -- overriding the default one when
@@ -46,7 +46,7 @@ t.border_color_marked = "#91231c"
 --theme.taglist_bg_focus = "#ff0000"
 
 -- Generate taglist squares:
-local taglist_square_size = scale 4
+local taglist_square_size = scale(4)
 t.taglist_squares_sel = theme_assets.taglist_squares_sel(
     taglist_square_size, t.fg_normal
 )
@@ -64,8 +64,8 @@ t.taglist_squares_unsel = theme_assets.taglist_squares_unsel(
 -- menu_[bg|fg]_[normal|focus]
 -- menu_[border_color|border_width]
 --t.menu_submenu_icon = load_icon("submenu.png")
-t.menu_height = scale 50
-t.menu_width  = scale 350
+t.menu_height = scale( 25)
+t.menu_width  = scale(200)
 
 -- You can add as many variables as
 -- you wish and access them by using
