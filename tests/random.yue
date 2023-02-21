@@ -1,0 +1,52 @@
+math = math
+
+export String = (args={}) ->
+	with args
+		.max_length ??= 30
+		.min_length ??= .max_length
+		.lowest_char ??= 32
+		.highest_char ??= 127
+		.seed ??= 0
+
+	math.randomseed(os.clock())
+
+	str = ""
+
+	for char in *[ string.char(math.random(args.lowest_char, args.highest_char)) for i = 1, math.random(args.min_length, args.max_length) ]
+		str ..= char
+
+	str
+
+export Number = (args={}) ->
+	with args
+		.floor ??= 0
+		.cieling ??= 100_000
+		.use_decimals ??= true
+
+	math.randomseed(os.clock())
+
+	if args.use_decimals
+		math.random() + math.random(args.floor, args.cieling)
+	else
+		math.random(args.floor, args.cieling)
+
+export Table = (args={}) ->
+	with args
+		.keys ??= {"number", "string"}
+		.values ??= {"number", "string"}
+		.length ??= 30
+		.constructors ??= {}
+		.constructors.number ??= () -> Number()
+		.constructors.string ??= () -> String()
+
+	math.randomseed(os.clock())
+
+	out = {}
+
+	for i = 1, args.length
+		out[args.constructors[args.keys[math.random(1, #args.keys)]]()] = (() ->
+			math.randomseed(os.clock() + 0.1)
+			args.constructors[args.values[math.random(1, #args.values)]]()
+		)()
+
+	out
