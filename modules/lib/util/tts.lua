@@ -11,6 +11,7 @@ setmetatable(mytable, mt)
 local math = math
 local setmetatable = setmetatable
 local type = type
+local string = string
 local tostring = tostring
 local pairs = pairs
 
@@ -60,34 +61,33 @@ setmetatable(tts, tts.mt)
 
 --- Replace escape sequences with their litteral representation.
 ---@param s string
----@return string, integer
+---@return string
 function tts.util.string_escape(s)
-	return s:gsub("\a", [[\a]])
-		:gsub("\b", [[\b]])
-		:gsub("\f", [[\f]])
-		:gsub("\n", [[\n]])
-		:gsub("\r", [[\r]])
-		:gsub("\t", [[\t]])
-		:gsub("\v", [[\v]])
-		:gsub("\\", [[\\]])
-		:gsub("\"", [[\"]])
-		:gsub("\'", [[\']])
-end
-
----@param s string
----@return string, integer
-function tts.util.string_escape(s)
-	-- "\x1b[1m" "\x1b[0m"
-	return s:gsub("\\", "\x1b[1m\\\\\x1b[22m")
-		:gsub("\a", "\x1b[1m\\a\x1b[22m")
-		:gsub("\b", "\x1b[1m\\b\x1b[22m")
-		:gsub("\f", "\x1b[1m\\f\x1b[22m")
-		:gsub("\n", "\x1b[1m\\n\x1b[22m")
-		:gsub("\r", "\x1b[1m\\r\x1b[22m")
-		:gsub("\t", "\x1b[1m\\t\x1b[22m")
-		:gsub("\v", "\x1b[1m\\v\x1b[22m")
+	s = s:gsub("\\", "\x1b[1m\\\\\x1b[22m")
+		:gsub("\a", "\x1b[1m\\a\x1b[22m")--:gsub("\7", "\x1b[1m\\a\x1b[22m")
+		:gsub("\b", "\x1b[1m\\b\x1b[22m")--:gsub("\8", "\x1b[1m\\b\x1b[22m")
+		:gsub("\f", "\x1b[1m\\f\x1b[22m")--:gsub("\12", "\x1b[1m\\f\x1b[22m")
+		:gsub("\n", "\x1b[1m\\n\x1b[22m")--
+		:gsub("\r", "\x1b[1m\\r\x1b[22m")--:gsub("\13", "\x1b[1m\\r\x1b[22m")
+		:gsub("\t", "\x1b[1m\\t\x1b[22m")--:gsub("\9", "\x1b[1m\\t\x1b[22m")
+		:gsub("\v", "\x1b[1m\\v\x1b[22m")--:gsub("\11", "\x1b[1m\\v\x1b[22m")
 		:gsub("\"", '\x1b[1m\\"\x1b[22m')
-		:gsub("\'", "\x1b[1m\\'\x1b[22m")
+		:gsub("\127", "\x1b[1m\\127\x1b[22m") -- DEL / delete key
+
+	--- See: https://www.asciitable.com/
+	for i = 1, 26 do
+		local c = string.char(i)
+		s = s:gsub(c, "\x1b[1m\\" .. tostring(i) .. "\x1b[22m")
+	end
+
+	for i = 28, 31 do
+		local c = string.char(i)
+		s = s:gsub(c, "\x1b[1m\\" .. tostring(i) .. "\x1b[22m")
+	end
+
+	s = s:gsub("\127", "\x1b[1m\\127\x1b[22m")
+
+	return s
 end
 
 ---@param str string
@@ -138,13 +138,15 @@ local function in_list(list, obj)
     return false
 end
 
--- -@param t table
--- -@param indent? string
--- -@param depth? integer
--- -@param parent? table
--- -@return string
---function tts.tts(t, indent, depth, parent)
----@param args {table: table, indent?: string, depth?: integer, parent?: table, bracket_depth?: integer, encountered_tables?: table[]}
+---@class tts._args
+---@field table table
+---@field indent string|nil
+---@field depth integer|nil
+---@field parent table|nil
+---@field bracket_depth integer|nil
+---@field encountered_tables table[]|nil
+
+---@param args tts._args
 ---@return string
 function tts.tts(args)
 	args.table = args.table
@@ -227,7 +229,7 @@ function tts.prettify.table(tb)
 	--- use that, because this can mean that you probably should not
 	--- blindly print its contents
 	if mt then
-		if mt.__call then
+		if mt.__tostring then
 			return tostring(tb)
 		end
 
