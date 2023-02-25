@@ -2,13 +2,52 @@ return class Object
 	new: (...) =>
 		@__properties = {}
 		@__private = {
-			is_initialized: false
+			initialized: false
+
+			--- If `true`, a `FrozenObjectMutationException` will be thrown when
+			--- trying to set a new field on the object.
+			--- NOTE: Already set fields 
+			frozen: false
 		}
 
 		if @init
 			@init(...)
 
-		@__private.is_initialized = true
+		@__private.initialized = true
+
+	inspect: () =>
+		print(@)
+		print("-------------------")
+		for k, v in pairs(@)
+			if type(k) == "string" and k:match("^__")
+				continue
+
+			print(k, v)
+
+	connect_signal: (signal_name, callback) =>
+		@__signals[signal_name] = @__signals[signal_name] ?? {}
+
+		for signal in *@__signals[signal_name]
+			if callback == signal
+				return
+
+		table.insert(@__signals[signal_name], callback)
+
+	disconnect_signal: (signal_name, callback) =>
+		if not @__signals[signal_name]
+			return
+
+		for k, signal in ipairs(@__signals[signal_name])
+			if callback == signal
+				@__signals[signal_name][k] = nil
+				return
+
+	emit_signal: (signal_name, ...) =>
+		if not @__signals[signal_name]
+			return
+
+		for signal in *@__signals[signal_name]
+			signal(...)
 
 	<index>: (key) =>
 		if type(key) != "string" or not rawget(@, "__properties")
@@ -29,6 +68,10 @@ return class Object
 
 		if setter = rawget(@, "set_" .. key)
 			setter(@, value)
+			return
+
+		if setter = rawget(@, "__set")
+			setter(@, key, value)
 			return
 
 		rawset(@, key, value)
