@@ -1,8 +1,8 @@
-os.execute "clear"
+os.execute("clear")
 
 -- If LuaRocks is installed, make sure that packages installed through it are
 -- found (e.g. lgi). If LuaRocks is not installed, do nothing.
-pcall require, "luarocks.loader"
+pcall(require, "luarocks.loader")
 
 awesome = awesome
 screen  = screen
@@ -15,9 +15,8 @@ wibox     = require("wibox")
 naughty   = require("naughty")
 beautiful = require("beautiful")
 menubar   = require("menubar")
-menubar.utils.terminal = terminal
 
--- Enable hotkeys help widget for VIM and other apps
+-- Enable hrtkeys help widget for VIM and other apps
 -- when client with a matching name is opened:
 require("awful.hotkeys_popup.keys")
 
@@ -26,7 +25,7 @@ require("awful.hotkeys_popup.keys")
 -- another config (This code will only ever execute for the fallback config)
 naughty.connect_signal("request::display_error", (message, startup) -> naughty.notification {
 	urgency: "critical"
-	title:   "Oops, an error happened " .. if startup then "during startup!" else "at runtime!"
+	title:   "Oops, an error happened during " .. startup and "startup!" or "runtime!"
 	message: message
 })
 -- }}}
@@ -39,19 +38,21 @@ inotifywait --event modify \
 	--monitor \
 	--quiet \
 	2> /dev/null
-']], stdout: (line) -> awesome.restart())
+']], { stdout: (line) -> awesome.restart() })
 -- }}}
 
 -- {{{ Variable definitions
 -- Themes define colours, icons, font and wallpapers.
-beautiful.init("#{gears.filesystem.get_configuration_dir()}themes/skyyysi/theme.lua")
+beautiful.init(gears.filesystem.get_configuration_dir() .. "themes/skyyysi/theme.lua")
 
 modules = require("modules")
-util = modules.lib.util
+import util from modules.lib
 
 -- This is used later as the default terminal and editor to run.
 terminal = os.getenv("TERMINAL") or "xterm"
 editor =   os.getenv("EDITOR")   or terminal .. " -e nano"
+
+menubar.utils.terminal = terminal
 
 -- Default modkey.
 -- Usually, Mod4 is the key with a logo between Control and Alt.
@@ -66,6 +67,26 @@ main_menu = modules.boxes.main_menu {
 
 awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
 -- }}}
+
+do
+	print("---------------------------------")
+
+	import List, Map, Tuple from require("modules.lib.collection")
+	l, m, t = List({"foo", "bar", "biz", "baz"}), Map({ foo: "bar", biz: "baz"}), Tuple({"foo", "bar", "biz", "baz"})
+
+	print("List  -> #{l}")
+	print("Map   -> #{m}")
+	print("Tuple -> #{t}")
+
+--[[
+	l[]   = "lua"
+	m.yue = "lua"
+	t[]   = "lua" -- Should crash!
+
+	print("List  -> #{l}")
+	print("Map   -> #{m}")
+	print("Tuple -> #{t}")
+--]]
 
 -- {{{ Tag layout
 -- Table of layouts to cover with awful.layout.inc, order matters.
@@ -88,10 +109,20 @@ tag.connect_signal("request::default_layouts", () -> awful.layout.append_default
 })
 -- }}}
 
+awful.spawn.with_bash = (cmd) ->
+	awful.spawn("bash -c '" .. cmd::gsub([[']], [['"'"']]) .. "'")
+
+awful.spawn.with_bash_silently = (cmd) ->
+	awful.spawn("bash -c '" .. cmd::gsub([[']], [['"'"']]) .. " &> /dev/null'")
+
 -- {{{ Wallpaper
-screen.connect_signal("request::wallpaper", (s) ->
-	awful.spawn { "nitrogen", "--restore" }
-)
+do
+	run_silently = (cmd) ->
+		awful.spawn.with_bash_silently(cmd)
+
+	screen.connect_signal("request::wallpaper", (s) ->
+		run_silently("nitrogen --restore")
+	)
 -- }}}
 
 -- {{{ Wibar
@@ -100,7 +131,7 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 	s.scaling_factor = 1
 
 	-- Each screen has its own tag table.
-	awful.tag [ tostring(i) for i = 1, 10 ], s, awful.layout.layouts[1]
+	awful.tag([ tostring(i) for i = 1, 10 ], s, awful.layout.layouts[1])
 
 	-- Create a promptbox for each screen
 	s.promptbox = awful.widget.prompt()
@@ -122,25 +153,28 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 		screen:  s
 		filter:  awful.widget.taglist.filter.all
 		buttons: {
-			awful.button {}, 1, (t) -> t::view_only()
-			awful.button { modkey }, 1, (t) ->
+			awful.button({}, 1, (t) -> t::view_only())
+			awful.button({ modkey }, 1, (t) ->
 				if client.focus then
-					client.focus::move_to_tag client.focus, t
-			awful.button {}, 3, awful.tag.viewtoggle
-			awful.button { modkey }, 3, (t) ->
+					client.focus::move_to_tag(client.focus, t)
+			)
+			awful.button({}, 3, awful.tag.viewtoggle)
+			awful.button({ modkey }, 3, (t) ->
 				if client.focus then
-					client.focus::toggle_tag t
-			awful.button {}, 4, (t) -> awful.tag.viewprev t.screen
-			awful.button {}, 5, (t) -> awful.tag.viewnext t.screen
+					client.focus::toggle_tag(t)
+			)
+			awful.button({}, 4, (t) -> awful.tag.viewprev(t.screen))
+			awful.button({}, 5, (t) -> awful.tag.viewnext(t.screen))
 		}
 	}
 
 	-- Create a tasklist widget
 	s.tasklist = awful.widget.tasklist {
-		screen:  s,
-		filter:  awful.widget.tasklist.filter.currenttags,
-		layout:
+		screen:  s
+		filter:  awful.widget.tasklist.filter.currenttags
+		layout: {
 			layout: wibox.layout.flex.horizontal
+		}
 		widget_template: {
 			{
 				{
@@ -166,9 +200,9 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 	}
 
 	main_wibar_buttons = buttons: {
-		awful.button {}, 3, () -> main_menu::toggle()
-		awful.button {}, 4, awful.tag.viewprev
-		awful.button {}, 5, awful.tag.viewnext
+		awful.button({}, 3, () -> main_menu::toggle())
+		awful.button({}, 4, awful.tag.viewprev)
+		awful.button({}, 5, awful.tag.viewnext)
 	}
 
 	-- Create the wibox
@@ -181,9 +215,10 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 				{
 					{
 						{
-							awful.widget.launcher
+							awful.widget.launcher {
 								image: beautiful.awesome_icon
 								menu:  main_menu
+							}
 							s.taglist
 							s.promptbox
 							layout: wibox.layout.fixed.horizontal

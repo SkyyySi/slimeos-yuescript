@@ -1,6 +1,14 @@
-return class object
-	new: (args={}) =>
-		@__properties = args.__properties
+return class Object
+	new: (...) =>
+		@__properties = {}
+		@__private = {
+			is_initialized: false
+		}
+
+		if @init
+			@init(...)
+
+		@__private.is_initialized = true
 
 	<index>: (key) =>
 		if type(key) != "string" or not rawget(@, "__properties")
@@ -22,6 +30,8 @@ return class object
 		if setter = rawget(@, "set_" .. key)
 			setter(@, value)
 			return
+
+		rawset(@, key, value)
 
 	<tostring>: =>
 		"<'#{@@__name}' instance>"

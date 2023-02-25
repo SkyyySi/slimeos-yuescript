@@ -50,9 +50,11 @@ ruled.client.connect_signal("request::rules", function()
 	return ruled.client.append_rule({
 		id = "titlebars",
 		rule_any = {
-			type = "normal"
+			type = {
+				"normal",
+				"dialog"
+			}
 		},
-		"dialog",
 		properties = {
 			titlebars_enabled = true
 		}
@@ -68,6 +70,9 @@ ruled.notification.connect_signal("request::rules", function()
 	})
 end)
 return naughty.connect_signal("request::display", function(n)
+	if n.urgency == "critical" then
+		c.timeout = 0
+	end
 	return naughty.layout.box({
 		notification = n
 	})

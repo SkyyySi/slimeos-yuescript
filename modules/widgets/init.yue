@@ -1,1 +1,1 @@
-export class widgets
+export button = require("modules.widgets.button")

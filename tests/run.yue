@@ -1,0 +1,7 @@
+package.path ..= "/usr/share/awesome/lib"
+global awesome, client, screen, mouse = {}, {}, {}, {}
+global mousegrabber = () ->
+
+tests = require("tests")
+
+

@@ -10,18 +10,11 @@ local wibox = require("wibox")
 local naughty = require("naughty")
 local beautiful = require("beautiful")
 local menubar = require("menubar")
-menubar.utils.terminal = terminal
 require("awful.hotkeys_popup.keys")
 naughty.connect_signal("request::display_error", function(message, startup)
 	return naughty.notification({
 		urgency = "critical",
-		title = "Oops, an error happened " .. (function()
-			if startup then
-				return "during startup!"
-			else
-				return "at runtime!"
-			end
-		end)(),
+		title = "Oops, an error happened during " .. startup and "startup!" or "runtime!",
 		message = message
 	})
 end)
@@ -37,11 +30,16 @@ inotifywait --event modify \
 		return awesome.restart()
 	end
 })
-beautiful.init(tostring(gears.filesystem.get_configuration_dir()) .. "themes/skyyysi/theme.lua")
+beautiful.init(gears.filesystem.get_configuration_dir() .. "themes/skyyysi/theme.lua")
 local modules = require("modules")
-local util = modules.lib.util
+local util
+do
+	local _obj_0 = modules.lib
+	util = _obj_0.util
+end
 local terminal = os.getenv("TERMINAL") or "xterm"
 local editor = os.getenv("EDITOR") or terminal .. " -e nano"
+menubar.utils.terminal = terminal
 local modkey = "Mod1"
 local main_menu = modules.boxes.main_menu({
 	terminal = terminal
@@ -51,18 +49,52 @@ awful.spawn({
 	"-merge",
 	os.getenv("HOME") .. "/.Xresources"
 })
+do
+	print("---------------------------------")
+	local List, Map, Tuple
+	do
+		local _obj_0 = require("modules.lib.collection")
+		List, Map, Tuple = _obj_0.List, _obj_0.Map, _obj_0.Tuple
+	end
+	local l, m, t = List({
+		"foo",
+		"bar",
+		"biz",
+		"baz"
+	}), Map({
+		foo = "bar",
+		biz = "baz"
+	}), Tuple({
+		"foo",
+		"bar",
+		"biz",
+		"baz"
+	})
+	print("List  -> " .. tostring(l))
+	print("Map   -> " .. tostring(m))
+	print("Tuple -> " .. tostring(t))
+end
 tag.connect_signal("request::default_layouts", function()
 	return awful.layout.append_default_layouts({
 		awful.layout.suit.tile,
 		awful.layout.suit.floating
 	})
 end)
-screen.connect_signal("request::wallpaper", function(s)
-	return awful.spawn({
-		"nitrogen",
-		"--restore"
-	})
-end)
+awful.spawn.with_bash = function(cmd)
+	return awful.spawn("bash -c '" .. cmd:gsub([[']], [['"'"']]) .. "'")
+end
+awful.spawn.with_bash_silently = function(cmd)
+	return awful.spawn("bash -c '" .. cmd:gsub([[']], [['"'"']]) .. " &> /dev/null'")
+end
+do
+	local run_silently
+	run_silently = function(cmd)
+		return awful.spawn.with_bash_silently(cmd)
+	end
+	screen.connect_signal("request::wallpaper", function(s)
+		return run_silently("nitrogen --restore")
+	end)
+end
 screen.connect_signal("request::desktop_decoration", function(s)
 	s.scaling_factor = 1
 	awful.tag((function()

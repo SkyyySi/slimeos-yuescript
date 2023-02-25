@@ -77,4 +77,9 @@ for_children = function(widget, id, callback)
 	end
 end
 _module_0["for_children"] = for_children
+local is_private
+is_private = function(key)
+	return not not (type(key) == "string" and key:match("^__"))
+end
+_module_0["is_private"] = is_private
 return _module_0

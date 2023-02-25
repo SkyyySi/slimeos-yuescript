@@ -2,7 +2,6 @@
 _DISPLAY=':4'
 CONFIG_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$CONFIG_DIR" || exit 1
-echo " ==> Launching in $(pwd) <== "
 
 #Xephyr "$_DISPLAY" -dpi 96x96 -ac -br -noreset -screen 1600x900&
 Xephyr "$_DISPLAY" -dpi 96x96 -ac -br -noreset -screen 1920x1080 \
@@ -14,9 +13,9 @@ export DISPLAY="$_DISPLAY"
 # If virtualgl is installed
 if command -v vglclient 2> /dev/null; then
 	vglclient -detach
-	vglrun awesome --config "$CONFIG_DIR/rc.lua"&
+	env -C "$HOME" vglrun awesome --config "$CONFIG_DIR/rc.lua"&
 else
-	awesome --config "$CONFIG_DIR/rc.lua"&
+	env -C "$HOME" awesome --config "$CONFIG_DIR/rc.lua"&
 fi
 
 # Allow commands to be typed in the VScode debug terminal.

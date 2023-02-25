@@ -1,6 +1,4 @@
-return {
-	collection: require("modules.lib.collection")
-	exception:  require("modules.lib.exception")
-	object:     require("modules.lib.object")
-	util:       require("modules.lib.util")
-}
+export collection = require("modules.lib.collection")
+export exception  = require("modules.lib.exception")
+export Object     = require("modules.lib.Object")
+export util       = require("modules.lib.util")

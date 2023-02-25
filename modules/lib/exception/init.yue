@@ -1,10 +1,10 @@
 yue = require("yue")
 
-object = require("modules.lib.object")
+Object = require("modules.lib.Object")
 
 --- TO BE TESTED!!!
 
-export class exception extends object
+export class Exception extends Object
 	new: (args={}) =>
 		@message = args.message ?? @@default_message
 
@@ -16,7 +16,7 @@ export class exception extends object
 	raise: () =>
 		error(@print_traceback())
 
-export class type_exception extends exception
+export class TypeException extends Exception
 	default_message: "Incorrect type"
 
 	assert: (value, wanted_type) =>
@@ -26,7 +26,7 @@ export class type_exception extends exception
 				message: "#{@@default_message} (expected a #{wanted_type}, got a #{actual_type})"
 			})::raise()
 
-export class argument_type_exception extends type_exception
+export class ArgumentTypeException extends TypeException
 	default_message: "Incorrect argument type"
 
 	assert: (argument, wanted_type, index) =>

@@ -5,65 +5,63 @@ local ruled = require("ruled")
 local beautiful = require("beautiful")
 local menubar = require("menubar")
 local naughty = require("naughty")
+local Tuple = require("modules.lib.collection.Tuple")
 return function(args)
-	local main_menu = args.menu
-	local modkey
-	do
-		local _exp_0 = args.modkey
-		if _exp_0 ~= nil then
-			modkey = _exp_0
-		else
-			modkey = "Mod4"
-		end
+	if args == nil then
+		args = { }
 	end
-	local terminal
-	do
-		local _exp_0 = args.terminal
-		if _exp_0 ~= nil then
-			terminal = _exp_0
-		else
-			terminal = "xterm"
-		end
+	if args.menu == nil then
+		args.menu = {
+			show = function() end,
+			hide = function() end,
+			toggle = function() end
+		}
+	end
+	if args.modkey == nil then
+		args.modkey = "Mod4"
+	end
+	if args.terminal == nil then
+		args.terminal = "xterm"
 	end
 	awful.mouse.append_global_mousebindings({
 		awful.button({ }, 3, function()
-			return main_menu:toggle()
+			return args.menu:toggle()
 		end),
 		awful.button({ }, 4, awful.tag.viewprev),
 		awful.button({ }, 5, awful.tag.viewnext)
 	})
 	awful.keyboard.append_global_keybindings({
-		awful.key({
-			modkey
-		}, "s", awful.hotkeys_popup.show_help, {
+		awful.key(Tuple({
+			args.modkey
+		}), "s", awful.hotkeys_popup.show_help, {
 			description = "show help",
 			group = "awesome"
 		}),
-		awful.key({
-			modkey
-		}, "w", function()
-			return main_menu:show(), {
+		awful.key(Tuple({
+			args.modkey
+		}), "w", function()
+			return args.menu:show(), {
 				description = "show main menu",
 				group = "awesome"
 			}
 		end),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Control"
-		}, "r", awesome.restart, {
+		}), "r", awesome.restart, {
 			description = "reload awesome",
 			group = "awesome"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Shift"
-		}, "q", awesome.quit, {
+		}), "q", awesome.quit, {
 			description = "quit awesome",
 			group = "awesome"
 		}),
-		awful.key({
-			modkey
-		}, "x", {
+		awful.key(Tuple({
+			args.modkey
+		}), "x", {
 			function()
 				return awful.prompt.run({
 					prompt = "Run Lua code: ",
@@ -75,25 +73,25 @@ return function(args)
 			description = "lua execute prompt",
 			group = "awesome"
 		}),
-		awful.key({
-			modkey
-		}, "Return", function()
-			return awful.spawn(terminal), {
+		awful.key(Tuple({
+			args.modkey
+		}), "Return", function()
+			return awful.spawn(args.terminal), {
 				description = "open a terminal",
 				group = "launcher"
 			}
 		end),
-		awful.key({
-			modkey
-		}, "r", function()
+		awful.key(Tuple({
+			args.modkey
+		}), "r", function()
 			return awful.screen.focused().mypromptbox:run(), {
 				description = "run prompt",
 				group = "launcher"
 			}
 		end),
-		awful.key({
-			modkey
-		}, "p", function()
+		awful.key(Tuple({
+			args.modkey
+		}), "p", function()
 			return menubar.show(), {
 				description = "show the menubar",
 				group = "launcher"
@@ -101,45 +99,45 @@ return function(args)
 		end)
 	})
 	awful.keyboard.append_global_keybindings({
-		awful.key({
-			modkey
-		}, "Left", awful.tag.viewprev, {
+		awful.key(Tuple({
+			args.modkey
+		}), "Left", awful.tag.viewprev, {
 			description = "view previous",
 			group = "tag"
 		}),
-		awful.key({
-			modkey
-		}, "Right", awful.tag.viewnext, {
+		awful.key(Tuple({
+			args.modkey
+		}), "Right", awful.tag.viewnext, {
 			description = "view next",
 			group = "tag"
 		}),
-		awful.key({
-			modkey
-		}, "Escape", awful.tag.history.restore, {
+		awful.key(Tuple({
+			args.modkey
+		}), "Escape", awful.tag.history.restore, {
 			description = "go back",
 			group = "tag"
 		})
 	})
 	awful.keyboard.append_global_keybindings({
-		awful.key({
-			modkey
-		}, "j", function()
+		awful.key(Tuple({
+			args.modkey
+		}), "j", function()
 			return awful.client.focus.byidx(1, {
 				description = "focus next by index",
 				group = "client"
 			})
 		end),
-		awful.key({
-			modkey
-		}, "k", function()
+		awful.key(Tuple({
+			args.modkey
+		}), "k", function()
 			return awful.client.focus.byidx(-1, {
 				description = "focus previous by index",
 				group = "client"
 			})
 		end),
-		awful.key({
-			modkey
-		}, "Tab", {
+		awful.key(Tuple({
+			args.modkey
+		}), "Tab", {
 			function()
 				awful.client.focus.history.previous()
 				if client.focus then
@@ -149,30 +147,30 @@ return function(args)
 			description = "go back",
 			group = "client"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Control"
-		}, "j", {
+		}), "j", {
 			function()
 				return awful.screen.focus_relative(1)
 			end,
 			description = "focus the next screen",
 			group = "screen"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Control"
-		}, "k", {
+		}), "k", {
 			function()
 				return awful.screen.focus_relative(-1)
 			end,
 			description = "focus the previous screen",
 			group = "screen"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Control"
-		}, "n", {
+		}), "n", {
 			function()
 				do
 					local c = awful.client.restore()
@@ -189,103 +187,103 @@ return function(args)
 		})
 	})
 	awful.keyboard.append_global_keybindings({
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Shift"
-		}, "j", {
+		}), "j", {
 			function()
 				return awful.client.swap.byidx(1)
 			end,
 			description = "swap with next client by index",
 			group = "client"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Shift"
-		}, "k", {
+		}), "k", {
 			function()
 				return awful.client.swap.byidx(-1)
 			end,
 			description = "swap with previous client by index",
 			group = "client"
 		}),
-		awful.key({
-			modkey
-		}, "u", awful.client.urgent.jumpto, {
+		awful.key(Tuple({
+			args.modkey
+		}), "u", awful.client.urgent.jumpto, {
 			description = "jump to urgent client",
 			group = "client"
 		}),
-		awful.key({
-			modkey
-		}, "l", {
+		awful.key(Tuple({
+			args.modkey
+		}), "l", {
 			function()
 				return awful.tag.incmwfact(0.05)
 			end,
 			description = "increase master width factor",
 			group = "layout"
 		}),
-		awful.key({
-			modkey
-		}, "h", {
+		awful.key(Tuple({
+			args.modkey
+		}), "h", {
 			function()
 				return awful.tag.incmwfact(-0.05)
 			end,
 			description = "decrease master width factor",
 			group = "layout"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Shift"
-		}, "h", {
+		}), "h", {
 			function()
 				return awful.tag.incnmaster(1, nil, true)
 			end,
 			description = "increase the number of master clients",
 			group = "layout"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Shift"
-		}, "l", {
+		}), "l", {
 			function()
 				return awful.tag.incnmaster(-1, nil, true)
 			end,
 			description = "decrease the number of master clients",
 			group = "layout"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Control"
-		}, "h", {
+		}), "h", {
 			function()
 				return awful.tag.incncol(1, nil, true)
 			end,
 			description = "increase the number of columns",
 			group = "layout"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Control"
-		}, "l", {
+		}), "l", {
 			function()
 				return awful.tag.incncol(-1, nil, true)
 			end,
 			description = "decrease the number of columns",
 			group = "layout"
 		}),
-		awful.key({
-			modkey
-		}, "space", {
+		awful.key(Tuple({
+			args.modkey
+		}), "space", {
 			function()
 				return awful.layout.inc(1)
 			end,
 			description = "select next",
 			group = "layout"
 		}),
-		awful.key({
-			modkey,
+		awful.key(Tuple({
+			args.modkey,
 			"Shift"
-		}, "space", {
+		}), "space", {
 			function()
 				return awful.layout.inc(-1)
 			end,
@@ -295,9 +293,9 @@ return function(args)
 	})
 	awful.keyboard.append_global_keybindings({
 		awful.key({
-			modifiers = {
-				modkey
-			},
+			modifiers = Tuple({
+				args.modkey
+			}),
 			keygroup = "numrow",
 			description = "only view tag",
 			group = "tag",
@@ -310,10 +308,10 @@ return function(args)
 			end
 		}),
 		awful.key({
-			modifiers = {
-				modkey,
+			modifiers = Tuple({
+				args.modkey,
 				"Control"
-			},
+			}),
 			keygroup = "numrow",
 			description = "toggle tag",
 			group = "tag",
@@ -326,10 +324,10 @@ return function(args)
 			end
 		}),
 		awful.key({
-			modifiers = {
-				modkey,
+			modifiers = Tuple({
+				args.modkey,
 				"Shift"
-			},
+			}),
 			keygroup = "numrow",
 			description = "move focused client to tag",
 			group = "tag",
@@ -345,11 +343,11 @@ return function(args)
 			end
 		}),
 		awful.key({
-			modifiers = {
-				modkey,
+			modifiers = Tuple({
+				args.modkey,
 				"Control",
 				"Shift"
-			},
+			}),
 			keygroup = "numrow",
 			description = "toggle focused client on tag",
 			group = "tag",
@@ -365,9 +363,9 @@ return function(args)
 			end
 		}),
 		awful.key({
-			modifiers = {
-				modkey
-			},
+			modifiers = Tuple({
+				args.modkey
+			}),
 			keygroup = "numpad",
 			description = "select layout directly",
 			group = "layout",
@@ -395,17 +393,17 @@ return function(args)
 					context = "mouse_click"
 				})
 			end),
-			awful.button({
-				modkey
-			}, 1, function(c)
+			awful.button(Tuple({
+				args.modkey
+			}), 1, function(c)
 				return c:activate({
 					context = "mouse_click",
 					action = "mouse_move"
 				})
 			end),
-			awful.button({
-				modkey
-			}, 3, function(c)
+			awful.button(Tuple({
+				args.modkey
+			}), 3, function(c)
 				return c:activate({
 					context = "mouse_click",
 					action = "mouse_resize"
@@ -415,9 +413,9 @@ return function(args)
 	end)
 	return client.connect_signal("request::default_keybindings", function()
 		return awful.keyboard.append_client_keybindings({
-			awful.key({
-				modkey
-			}, "f", {
+			awful.key(Tuple({
+				args.modkey
+			}), "f", {
 				function(c)
 					c.fullscreen = not c.fullscreen
 					return c:raise()
@@ -425,59 +423,59 @@ return function(args)
 				description = "toggle fullscreen",
 				group = "client"
 			}),
-			awful.key({
-				modkey,
+			awful.key(Tuple({
+				args.modkey,
 				"Shift"
-			}, "c", function(c)
+			}), "c", function(c)
 				return c:kill(), {
 					description = "close",
 					group = "client"
 				}
 			end),
-			awful.key({
-				modkey,
+			awful.key(Tuple({
+				args.modkey,
 				"Control"
-			}, "space", awful.client.floating.toggle, {
+			}), "space", awful.client.floating.toggle, {
 				description = "toggle floating",
 				group = "client"
 			}),
-			awful.key({
-				modkey,
+			awful.key(Tuple({
+				args.modkey,
 				"Control"
-			}, "Return", function(c)
+			}), "Return", function(c)
 				return c:swap(awful.client.getmaster(), {
 					description = "move to master",
 					group = "client"
 				})
 			end),
-			awful.key({
-				modkey
-			}, "o", function(c)
+			awful.key(Tuple({
+				args.modkey
+			}), "o", function(c)
 				return c:move_to_screen(), {
 					description = "move to screen",
 					group = "client"
 				}
 			end),
-			awful.key({
-				modkey
-			}, "t", (function(c)
+			awful.key(Tuple({
+				args.modkey
+			}), "t", (function(c)
 				c.ontop = not c.ontop
 			end), {
 				description = "toggle keep on top",
 				group = "client"
 			}),
-			awful.key({
-				modkey
-			}, "n", {
+			awful.key(Tuple({
+				args.modkey
+			}), "n", {
 				function(c)
 					c.minimized = true
 				end,
 				description = "minimize",
 				group = "client"
 			}),
-			awful.key({
-				modkey
-			}, "m", {
+			awful.key(Tuple({
+				args.modkey
+			}), "m", {
 				function(c)
 					c.maximized = not c.maximized
 					return c:raise()
@@ -485,10 +483,10 @@ return function(args)
 				description = "(un)maximize",
 				group = "client"
 			}),
-			awful.key({
-				modkey,
+			awful.key(Tuple({
+				args.modkey,
 				"Control"
-			}, "m", {
+			}), "m", {
 				function(c)
 					c.maximized_vertical = not c.maximized_vertical
 					return c:raise()
@@ -496,10 +494,10 @@ return function(args)
 				description = "(un)maximize vertically",
 				group = "client"
 			}),
-			awful.key({
-				modkey,
+			awful.key(Tuple({
+				args.modkey,
 				"Shift"
-			}, "m", {
+			}), "m", {
 				function(c)
 					c.maximized_horizontal = not c.maximized_horizontal
 					return c:raise()

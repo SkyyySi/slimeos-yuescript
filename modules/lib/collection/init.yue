@@ -1,4 +1,3 @@
-return {
-	list:  require("modules.lib.collection.list")
-	map:   require("modules.lib.collection.map")
-}
+export List  = require("modules.lib.collection.List")
+export Map   = require("modules.lib.collection.Map")
+export Tuple = require("modules.lib.collection.Tuple")

@@ -1,10 +1,10 @@
 local _module_0 = { }
 local yue = require("yue")
-local object = require("modules.lib.object")
-local exception
+local Object = require("modules.lib.Object")
+local Exception
 do
 	local _class_0
-	local _parent_0 = object
+	local _parent_0 = Object
 	local _base_0 = {
 		default_message = "An error occurred",
 		print_traceback = function(self)
@@ -38,7 +38,7 @@ do
 			end
 		end,
 		__base = _base_0,
-		__name = "exception",
+		__name = "Exception",
 		__parent = _parent_0
 	}, {
 		__index = function(cls, name)
@@ -62,13 +62,13 @@ do
 	if _parent_0.__inherited then
 		_parent_0.__inherited(_parent_0, _class_0)
 	end
-	exception = _class_0
+	Exception = _class_0
 end
-_module_0["exception"] = exception
-local type_exception
+_module_0["Exception"] = Exception
+local TypeException
 do
 	local _class_0
-	local _parent_0 = exception
+	local _parent_0 = Exception
 	local _base_0 = {
 		default_message = "Incorrect type",
 		assert = function(self, value, wanted_type)
@@ -94,7 +94,7 @@ do
 			return _class_0.__parent.__init(self, ...)
 		end,
 		__base = _base_0,
-		__name = "type_exception",
+		__name = "TypeException",
 		__parent = _parent_0
 	}, {
 		__index = function(cls, name)
@@ -118,13 +118,13 @@ do
 	if _parent_0.__inherited then
 		_parent_0.__inherited(_parent_0, _class_0)
 	end
-	type_exception = _class_0
+	TypeException = _class_0
 end
-_module_0["type_exception"] = type_exception
-local argument_type_exception
+_module_0["TypeException"] = TypeException
+local ArgumentTypeException
 do
 	local _class_0
-	local _parent_0 = type_exception
+	local _parent_0 = TypeException
 	local _base_0 = {
 		default_message = "Incorrect argument type",
 		assert = function(self, argument, wanted_type, index)
@@ -150,7 +150,7 @@ do
 			return _class_0.__parent.__init(self, ...)
 		end,
 		__base = _base_0,
-		__name = "argument_type_exception",
+		__name = "ArgumentTypeException",
 		__parent = _parent_0
 	}, {
 		__index = function(cls, name)
@@ -174,7 +174,7 @@ do
 	if _parent_0.__inherited then
 		_parent_0.__inherited(_parent_0, _class_0)
 	end
-	argument_type_exception = _class_0
+	ArgumentTypeException = _class_0
 end
-_module_0["argument_type_exception"] = argument_type_exception
+_module_0["ArgumentTypeException"] = ArgumentTypeException
 return _module_0

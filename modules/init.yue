@@ -1,7 +1,5 @@
-return {
-	boxes:    require("modules.boxes")
-	layouts:  require("modules.layouts")
-	lib:      require("modules.lib")
-	settings: require("modules.settings")
-	widgets:  require("modules.widgets")
-}
+export boxes    = require("modules.boxes")
+export layouts  = require("modules.layouts")
+export lib      = require("modules.lib")
+export settings = require("modules.settings")
+export widgets  = require("modules.widgets")

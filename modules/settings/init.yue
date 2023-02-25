@@ -1,4 +1,2 @@
-return {
-	bindings: require("modules.settings.bindings")
-	rules:    require("modules.settings.rules")
-}
+export bindings = require("modules.settings.bindings")
+export rules    = require("modules.settings.rules")
