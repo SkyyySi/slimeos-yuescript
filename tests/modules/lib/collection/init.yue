@@ -1,0 +1,1 @@
+export List = require("tests.modules.lib.collection.List")

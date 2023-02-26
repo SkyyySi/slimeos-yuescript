@@ -110,7 +110,7 @@ return (args={}) ->
 		awful.key(Tuple({ args.modkey }), "Tab",  {
 			() ->
 				awful.client.focus.history.previous()
-				if client.focus then
+				if client.focus
 					client.focus::raise()
 			description: "go back"
 			group: "client"
@@ -133,7 +133,7 @@ return (args={}) ->
 		awful.key(Tuple({ args.modkey, "Control" }), "n", {
 			() ->
 				-- Focus restored client
-				if c = awful.client.restore() then
+				if c = awful.client.restore()
 					c::activate {
 						raise: true
 						context: "key.unminimize"
@@ -231,7 +231,7 @@ return (args={}) ->
 			on_press:    (index) ->
 				screen = awful.screen.focused()
 				tag = screen.tags[index]
-				if tag then
+				if tag
 					tag::view_only()
 		}
 
@@ -243,7 +243,7 @@ return (args={}) ->
 			on_press:    (index) ->
 				screen = awful.screen.focused()
 				tag = screen.tags[index]
-				if tag then
+				if tag
 					awful.tag.viewtoggle(tag)
 		}
 
@@ -253,8 +253,8 @@ return (args={}) ->
 			description: "move focused client to tag"
 			group:       "tag",
 			on_press:    (index) ->
-				if client.focus then
-					if tag = client.focus.screen.tags[index] then
+				if client.focus
+					if tag = client.focus.screen.tags[index]
 						client.focus::move_to_tag(tag)
 		}
 
@@ -264,8 +264,8 @@ return (args={}) ->
 			description: "toggle focused client on tag",
 			group:       "tag",
 			on_press:    (index) ->
-				if client.focus then
-					if tag = client.focus.screen.tags[index] then
+				if client.focus
+					if tag = client.focus.screen.tags[index]
 						client.focus::toggle_tag(tag)
 		}
 
@@ -275,7 +275,7 @@ return (args={}) ->
 			description: "select layout directly",
 			group:       "layout",
 			on_press:    (index) ->
-				if t = awful.screen.focused().selected_tag then
+				if t = awful.screen.focused().selected_tag
 					t.layout = t.layouts[index] ?? t.layout
 		}
 	}

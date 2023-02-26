@@ -38,7 +38,7 @@ return (left, center, right, buttons) ->
 		layout: wibox.layout.align.horizontal
 	}
 
-	if callback then
+	if callback
 		callback(center_container)
 
 	center_container

@@ -2,11 +2,13 @@ module_name = "modules.lib.collection.List"
 
 List = require(module_name)
 
-l = List({"foo", "bar", "biz", "baz"})
+util = require("modules.lib.util")
 
 do
+	l = List({"foo", "bar", "biz", "baz"})
+
 	l_str = tostring(l)
 	l_str_expected = '["foo", "bar", "biz", "baz"]'
 	assert(l_str == l_str_expected, "ERROR for '#{module_name}': String conversion unsuccessful (expected: '#{l_str_expected}', got: '#{l_str}')")
 
-print("Module 'module_name' tested successfully!")
+print("Module '#{module_name}' tested successfully!")

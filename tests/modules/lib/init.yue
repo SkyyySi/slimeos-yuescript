@@ -1,0 +1,2 @@
+export collection = require("tests.modules.lib.collection")
+export Object = require("tests.modules.lib.Object")

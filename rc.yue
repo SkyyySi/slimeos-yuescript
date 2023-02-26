@@ -69,7 +69,7 @@ awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
 -- }}}
 
 do
-	print("---------------------------------")
+	util.terminal.print_stroke()
 
 	import List, Map, Tuple from require("modules.lib.collection")
 	l, m, t = List({"foo", "bar", "biz", "baz"}), Map({ foo: "bar", biz: "baz"}), Tuple({"foo", "bar", "biz", "baz"})
@@ -155,12 +155,12 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 		buttons: {
 			awful.button({}, 1, (t) -> t::view_only())
 			awful.button({ modkey }, 1, (t) ->
-				if client.focus then
+				if client.focus
 					client.focus::move_to_tag(client.focus, t)
 			)
 			awful.button({}, 3, awful.tag.viewtoggle)
 			awful.button({ modkey }, 3, (t) ->
-				if client.focus then
+				if client.focus
 					client.focus::toggle_tag(t)
 			)
 			awful.button({}, 4, (t) -> awful.tag.viewprev(t.screen))
@@ -313,3 +313,134 @@ client.connect_signal("mouse::enter", (c) ->
 		raise: false
 	}
 )
+
+do
+	--[[
+	print(util.pretty_print({
+		foo: "bar"
+		biz: "baz"
+		function: "test"
+		"loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong"
+	}))
+
+	print(util.pretty_print_monochrome({
+		foo: "bar"
+		biz: "baz"
+		function: "test"
+		"loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong"
+	}))
+	--]]
+
+	--[[
+	import List, Map, Tuple from require("modules.lib.collection")
+
+	map = Map {
+		biz: "baz"
+	}
+
+	print(util.pretty_print({
+		foo: "bar"
+		map: map
+	}))
+	--]]
+
+	--[[
+	with util.terminal
+		.log.block("Only a single line", {
+			shadow: true
+			empty_shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+		})
+
+		print()
+
+		.log.block("Line #1\nLine #2\nLine #3\nLine #4\n", {
+			shadow: true
+			empty_shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+		})
+	--]]
+
+	--[ [
+	with util.terminal
+		.log.matrix({
+			{ { "left", "foo" }, { "right", "bar" } }
+			{ { "left", "biz" }, { "right", "baz" } }
+			{ { "left", "lua" }, { "right", "yue" } }
+		}, {
+			shadow: true
+			empty_shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+			columns: 2
+			rows: 3
+		})
+	--]]
+
+	--[[
+		print(.log.block("With shadow, even-", {
+			shadow: true
+			empty_shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+		}))
+
+		print()
+
+		print(.log.block("With shadow, odd-", {
+			shadow: true
+			empty_shadow: true
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+		}))
+
+		print()
+		.print_stroke()
+		print()
+
+		print(.log.block("Without shadow, even", {
+			shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+		}))
+
+		print()
+
+		print(.log.block("Without shadow, odd", {
+			shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+		}))
+	--]]
+
+	--[[
+	Object = require("modules.lib.Object")
+
+	with cls = Object
+		mt = getmetatable(cls)
+		print(cls, cls())
+		print(cls::__tostring(), cls()::__tostring())
+		--print(mt.__tostring(cls), mt.__tostring(cls()))
+		print(cls::__repr(), cls()::__repr())
+
+	print("---------------------------------")
+
+	class SubObject extends Object
+
+	with cls = SubObject
+		mt = getmetatable(cls)
+		print(cls, cls())
+		print(cls::__tostring(), cls()::__tostring())
+		--print(mt.__tostring(cls), mt.__tostring(cls()))
+		print(cls::__repr(), Object()::__repr())
+	--]]
+
+--[[
+do
+	print("##############################################")
+	print("#           Beginning testing now!           #")
+	print("##############################################")
+	require("tests")
+--]]

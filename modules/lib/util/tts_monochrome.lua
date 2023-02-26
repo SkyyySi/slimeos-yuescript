@@ -19,15 +19,15 @@ local tts = {
 	-- Contains format strings
 	prettify = {
 		style = {
-			string = '\x1b[33m"%s"\x1b[0m',
-			number = "\x1b[34m%s\x1b[0m",
-			["function"] = "\x1b[35;1m%s\x1b[0m",
-			thread = "\x1b[35;1m%s\x1b[0m", -- coroutine
-			userdata = "\x1b[36;1m%s\x1b[0m",
+			string = '"%s"',
+			number = "%s",
+			["function"] = "%s",
+			thread = "%s", -- coroutine
+			userdata = "%s",
 			table = {
 				---@type string[] An array of colors that will be cycled through
-				bracket = { "%s", "\x1b[35m%s\x1b[0m", "\x1b[32m%s\x1b[0m", "\x1b[36m%s\x1b[0m" },
-				indent = "\x1b[2m|---\x1b[0m",
+				bracket = { "%s" },
+				indent = "    ",
 			},
 		},
 	},
@@ -110,22 +110,6 @@ function tts.util.string_multiply(str, n)
 	return outs
 end
 
---- Cycle through a table
-function tts.util.cycle(tb, i)
-	return tb[((i - 1) % #tb) + 1]
-end
-
-local function bracket_color_inc(args, bracket)
-	local ret = tts.util.cycle(tts.prettify.style.table.bracket, args.bracket_depth):format(bracket)
-	args.bracket_depth = args.bracket_depth + 1
-	return ret
-end
-
-local function bracket_color_dec(args, bracket)
-	args.bracket_depth = args.bracket_depth - 1
-	return tts.util.cycle(tts.prettify.style.table.bracket, args.bracket_depth):format(bracket)
-end
-
 local function in_list(list, obj)
     for _, v in ipairs(list) do
         if v == obj then
@@ -198,7 +182,7 @@ do
 		["while"] = true,
 	}
 
-	function tts.util.quote_key(key, args)
+	function tts.util.quote_key(key)
 		local tk = type(key)
 		local key_pretty = tts.prettify[tk](key)
 
@@ -210,7 +194,7 @@ do
 			return key_pretty
 		end
 
-		return bracket_color_inc(args, "[") .. key_pretty .. bracket_color_dec(args, "]")
+		return "[" .. key_pretty .. "]"
 	end
 end
 
@@ -232,19 +216,6 @@ function tts.util.get_length_of_longest_line(s)
 
 	return longest
 end
-
----@class tts._args
----@field table table
----@field root_args table|nil
----@field indent string|nil
----@field depth integer|nil
----@field parent table|nil
----@field bracket_depth integer|nil
----@field encountered_tables table[]|nil
----@field max_line_length integer|nil
----@field current_outs string|nil
----@field force_long boolean|nil
----@field line_prefix string|nil
 
 ---@param args tts._args
 ---@return string
@@ -283,43 +254,34 @@ function tts.tts(args)
 	end
 
 	if next(args.table) == nil then
-		return bracket_color_inc(args, "{")..bracket_color_dec(args, "}")
+		return "{}"
 	end
 
-	local outs = bracket_color_inc(args, "{")..spacer
+	local outs = "{"..spacer
 
 	for k, v in pairs(args.table) do
 		local tv = type(v)
 		local tk = type(k)
 
-		local line_prefix = (one_liner and "" or full_indent) .. tts.util.quote_key(k, args) .. " = "
+		local line_prefix = (one_liner and "" or full_indent) .. tts.util.quote_key(k) .. " = "
 
 		if tv == "table" then
-			local mt_v = getmetatable(v)
-
-			--- If a table already has a string conversion, we should just
-			--- use that, because this can means that you probably should not
-			--- blindly print its contents
-			if mt_v and mt_v.__tostring then
-				v = tostring(v)
-			else
-				--- Prevent infinite recursion
-				if args.table == args.parent or in_list(args.encountered_tables, args.table) then
-					return "\x1b[2m...\x1b[0m"
-				end
-
-				local depth_add = one_liner and 0 or 1
-				v = tts.tts {
-					table = v,
-					depth = args.depth + depth_add,
-					bracket_depth = args.bracket_depth + depth_add,
-					parent = args.table,
-					current_outs = outs,
-					line_prefix = (one_liner and "" or bracket_indent) .. tts.util.quote_key(k, args) .. " = ",
-				}
-
-				--table.insert(args.encountered_tables, args.table)
+			--- Prevent infinite recursion
+			if args.table == args.parent or in_list(args.encountered_tables, args.table) then
+				return "\x1b[2m...\x1b[0m"
 			end
+
+			local depth_add = one_liner and 0 or 1
+			v = tts.tts {
+				table = v,
+				depth = args.depth + depth_add,
+				bracket_depth = args.bracket_depth + depth_add,
+				parent = args.table,
+				current_outs = outs,
+				line_prefix = (one_liner and "" or bracket_indent) .. tts.util.quote_key(k) .. " = ",
+			}
+
+			--table.insert(args.encountered_tables, args.table)
 		else
 			v = tts.prettify[tv](v)
 		end
@@ -327,7 +289,7 @@ function tts.tts(args)
 		outs = ("%s%s%s%s%s"):format(outs, line_prefix, v, (next(args.table, k) ~= nil and "," or ""), spacer)
 	end
 
-	outs = outs..(one_liner and "" or bracket_indent)..bracket_color_dec(args, "}")
+	outs = outs..(one_liner and "" or bracket_indent).."}"
 
 	if not args.root_args.force_long then
 		local longest = #tts.util.strip_colors(args.line_prefix) + tts.util.get_length_of_longest_line(outs) + #args.table
@@ -371,6 +333,9 @@ end
 function tts.prettify.table(tb)
 	local mt = getmetatable(tb)
 
+	--- If a table already has a string conversion, we should just
+	--- use that, because this can mean that you probably should not
+	--- blindly print its contents
 	if mt then
 		if mt.__tostring then
 			return tostring(tb)

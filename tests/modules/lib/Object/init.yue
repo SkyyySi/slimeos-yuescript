@@ -1,0 +1,29 @@
+module_name = "modules.lib.Object"
+
+error_for = (msg) -> "\027[31;1mERROR\027[39m for '#{module_name}':\027[0m #{msg}"
+
+Object = require(module_name)
+
+do
+	obj = Object()
+
+	successful, result = pcall(() -> obj::inspect())
+	
+	assert(successful, error_for("`::inspect()` failed"))
+
+	assert(result == "Object", error_for("Inspection should return 'Object', got: '#{result}'"))
+
+do
+	obj = Object()
+
+	successful, result = pcall(() -> obj.foo = "bar")
+	
+	assert(successful, error_for("Object insertion failed"))
+
+do
+	obj = Object()
+	obj.__private.frozen = true
+
+	successful, result = pcall(() -> obj.foo = "bar")
+	
+	assert(not successful, error_for("Object insertion succeeded when it should have failed (`.__private.frozen == #{obj.__private.frozen}`)"))

@@ -9,7 +9,7 @@ return class List extends Object
 	sort: () =>
 		table.sort(@)
 
-	<tostring>: () =>
+	repr: () =>
 		out = "["
 
 		first = true
@@ -24,5 +24,23 @@ return class List extends Object
 				continue
 
 			out ..= ", " .. util.pretty_print(v)
+
+		out.."]"
+
+	<tostring>: () =>
+		out = "["
+
+		first = true
+
+		for k, v in ipairs(@)
+			if util.is_private(k)
+				continue
+
+			if first
+				first = false
+				out ..= util.pretty_print_monochrome(v)
+				continue
+
+			out ..= ", " .. util.pretty_print_monochrome(v)
 
 		out.."]"

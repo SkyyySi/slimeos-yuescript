@@ -1,2 +1,3 @@
 *.lua
 !modules/lib/util/tts.lua
+!modules/lib/util/tts_monochrome.lua

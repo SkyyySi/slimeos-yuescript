@@ -13,6 +13,48 @@ math   = math
 --- retrun value of `::gsub
 export strip = (str, char="%s") -> ""..str::gsub("^#{char}+", "")::gsub("#{char}+$", "")
 
+export split = (str, delimiter="%s") ->
+	if not str::match(delimiter)
+		return {str}
+	
+	sections = {}
+
+	last_pos = 1
+
+	for pos in str::gmatch("()#{delimiter}")
+		section = str::sub(last_pos, pos - 1)
+
+		if not section
+			last_pos = pos + 1
+			continue
+
+		sections[] = section
+		last_pos = pos + 1
+
+	do
+		section = str::sub(last_pos, #str)
+
+		if section and section != ""
+			sections[] = section
+
+	sections
+
+--[[
+--- Test for `split()`; should print:
+---
+--- ```
+--- >>> [1]: 'foo'
+--- >>> [2]: 'bar'
+--- >>> [3]: ''
+--- >>> [4]: ''
+--- >>> [5]: 'biz'
+--- >>> [6]: 'baz'
+--- ```
+with x = split("foo\nbar\n\n\nbiz\nbaz")
+	for k, v in pairs(x)
+		print(">>> [#{k}]: '#{v}'")
+--]]
+
 export join = (str_list, joiner=", ") ->
 	if #str_list == 0
 		return ""
@@ -44,3 +86,23 @@ export pad_left = (str, len, char=" ") ->
 
 export pad_right = (str, len, char=" ") ->
 	rep(char, len) .. str
+
+export center = (str, width, prefix="", suffix="") ->
+	str = str
+		--|> strip()
+		|> string.sub(1, width - 6)
+		|> pad_left( (width / 2) - (#str / 2) - prefix)
+		|> pad_right((width / 2) - (#str / 2) - suffix)
+
+	str
+
+export align = (str, block_width, side="center", char=" ", str_length, char_length) ->
+	str = str::sub(1, block_width)
+
+	if side == "left"
+		str .. rep(char, (block_width - (str_length ?? #str)) / (char_length ?? #char))
+	elseif side == "center"
+		spacing_length = ((block_width - (str_length ?? #str)) / (char_length ?? #char)) / 2
+		rep(char, math.floor(spacing_length)) .. str .. rep(char, math.ceil(spacing_length))
+	else
+		rep(char, (block_width - (str_length ?? #str)) / (char_length ?? #char)) .. str

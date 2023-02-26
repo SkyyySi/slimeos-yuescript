@@ -1,17 +1,17 @@
 yue = require("yue")
 
-Object = require("modules.lib.Object")
+--Object = require("modules.lib.Object")
 
 --- TO BE TESTED!!!
 
-export class Exception extends Object
+export class Exception --extends Object
 	new: (args={}) =>
 		@message = args.message ?? @@default_message
 
 	default_message: "An error occurred"
 
 	print_traceback: () =>
-		yue.traceback("\x1b[31;1m#{@@__name}\x1b[39m: #{@message}\x1b[0m")
+		yue.traceback("\027[31;1m#{@@__name}\027[39m: #{@message}\027[0m")
 
 	raise: () =>
 		error(@print_traceback())
@@ -35,3 +35,6 @@ export class ArgumentTypeException extends TypeException
 			@@({
 				message: "#{@@default_message} of argument ##{index} (expected a #{wanted_type}, got a #{actual_type})"
 			})::raise()
+
+export class FrozenObjectMutationException extends Exception
+	default_message: "Attempted to modify a frozen (immutable) object"

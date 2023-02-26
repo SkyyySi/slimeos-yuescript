@@ -10,19 +10,23 @@ lgi = require("lgi")
 gtk = lgi.require("Gtk", "3.0")
 
 tts = require("modules.lib.util.tts")
+tts_monochrome = require("modules.lib.util.tts_monochrome")
 
-export string = require("modules.lib.util.string")
+export string   = require("modules.lib.util.string")
+export terminal = require("modules.lib.util.terminal")
 
 export notify = (...) ->
 	naughty.notification {
 		message: string.join({...}, ", ")
 	}
 
-export pretty_print = (value) -> tts.prettify value
+export pretty_print = (value) -> tts.prettify(value)
+
+export pretty_print_monochrome = (value) -> tts_monochrome.prettify(value)
 
 export lookup_icon = (icon_name) ->
-	gtk?
-		.IconTheme?
+	gtk
+		.IconTheme
 		.get_default()?
 		::lookup_icon(icon_name, 48, 0)?
 		::get_filename()
@@ -47,3 +51,9 @@ export for_children = (widget, id, callback) ->
 		callback child
 
 export is_private = (key) -> not not (type(key) == "string" and key::match("^__"))
+
+export quote_key = (key) ->
+	if type(key) == "string" and key::match("^[a-zA-Z_][a-zA-Z0-9_]*$")
+		return key
+	
+	"[#{pretty_print(key)}]"
