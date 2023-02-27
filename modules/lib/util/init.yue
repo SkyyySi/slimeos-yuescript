@@ -57,3 +57,8 @@ export quote_key = (key) ->
 		return key
 	
 	"[#{pretty_print(key)}]"
+
+export gen_properties = (obj, props={}, get=true, set=true) ->
+	for prop in *props
+		obj["get_"..prop] = () => @[prop]
+		obj["set_"..prop] = (value) => @[prop] = value

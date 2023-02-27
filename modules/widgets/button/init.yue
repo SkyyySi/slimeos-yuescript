@@ -1,2 +1,14 @@
+awful     = require("awful")
+gears     = require("gears")
+wibox     = require("wibox")
+ruled     = require("ruled")
+beautiful = require("beautiful")
+menubar   = require("menubar")
+naughty   = require("naughty")
+
 Object = require("modules.lib.Object")
 util   = require("modules.lib.util")
+
+class button using wibox.container.background
+	new: (...) =>
+		gears.table.crush(@, wibox.container.background(...))

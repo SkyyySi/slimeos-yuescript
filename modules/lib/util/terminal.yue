@@ -209,12 +209,14 @@ log.block = (msg, args={}) ->
 	print(outs)
 	outs
 
+--[[
 log.block("'" .. ustring.align("Foobar", 50, "left") .. "'\n'" .. ustring.align("Foobar", 50, "center") .. "'\n'" .. ustring.align("Foobar", 50, "right") .. "'", {
 	shadow: true
 	empty_shadow: false
 	foreground: color.foreground.normal.black
 	background: color.background.normal.blue
 })
+--]]
 
 -- TODO: This should be reworked to have a generic "print block" function, that
 --       can then write as many rows and columns as needed, as supposed to
@@ -228,24 +230,29 @@ log.matrix = (matrix, args={}) ->
 		.background   ??= ""
 		.foreground   ??= ""
 		-- TODO: Add forced_columns / forced_rows options
-		-- These will be auto-determined.
+		-- These will be auto-determined if not defined.
 		-- .columns      ??= 2
 		-- .rows         ??= 2
 
-	columns = 1
-	for v in *matrix
-		columns = #v > columns and #v or columns
+	columns = if args.columns
+		args.columns
+	else
+		x = 1
+		for v in *matrix
+			x = #v > x and #v or x
+		x
 
 	style = block_styles[args.style_name]
 	width = geometry().width
+	colwidth = math.floor(width / columns)
 
 	msg = "foobar"
 
 	local top, bottom
 	with style
-		table_width_modulus = width % columns
+		table_width_modulus = width % columns + ((width % 2 == 0) and 1 or 0)
 
-		stroke_base = math.floor(width / columns / .horizontal[2])
+		stroke_base = math.floor(colwidth / .horizontal[2] + 0.5)
 
 		do
 			_rest = table_width_modulus
@@ -307,30 +314,36 @@ log.matrix = (matrix, args={}) ->
 	else
 		bottom
 
-	shadow_corner    = color.format.invert .. (args.empty_shadow and " " or style.top_right[1]) .. color.reset.invert
-	shadow_right_bar = color.format.invert .. (args.empty_shadow and " " or style.vertical[1])  .. color.reset.invert
+	shadow_corner    = args.background .. args.foreground .. color.format.invert .. (args.empty_shadow and " " or style.top_right[1]) .. color.reset.all
+	shadow_right_bar = args.background .. args.foreground .. color.format.invert .. (args.empty_shadow and " " or style.vertical[1])  .. color.reset.all
+
+	outs = args.background .. args.foreground .. "#{top}\n"
 
 	-- ustring.align(line, width - (args.shadow and 3 or 2), "center", " ", #line, style.vertical[2])
 	formatted_matrix = {}
 	do
-		block_width = math.floor(width / columns) - (style.vertical[2] * 2) - (style.cross[2] * ((columns > 2) and (columns - 2) or 0))
+		block_width = colwidth - (style.vertical[2] * 2) - (style.cross[2] * ((columns > 2) and (columns - 2) or 0))
 
 		for k_row, row in ipairs(matrix)
 			formatted_matrix[k_row] = {}
 
 			for k_col, col in ipairs(row)
+				formatted_matrix[k_row][k_col] = {}
+
 				lines = ustring.split(tostring(col[2]), "\n")
 
 				for line in lines
 					--print(line)
 					line = line::sub(1, block_width)
-					col[] = ustring.align(line, block_width, col[1] ?? "center", " ", #line, 1)
-					print("'#{col[#col]}'")
+					line = ustring.align(line, block_width, col[1] ?? "center", " ", #line, 1)
+					formatted_matrix[k_row][k_col][] = line
+	--[==[
+					--print("'#{col[#col]}'")
 			--[[
 			content = tostring(col[2])
 
 			if not content::match("\n")
-				formatted_matrix[k_row][k_col] = ustring.align(content, width / columns)
+				formatted_matrix[k_row][k_col] = ustring.align(content, colwidth)
 				continue
 
 			last_pos = 1
@@ -369,8 +382,6 @@ log.matrix = (matrix, args={}) ->
 				last_pos = pos + 1
 			--]]
 
-	outs = args.background .. args.foreground .. "#{top}\n"
-
 	--[[
 	for k_row, row in ipairs(formatted_matrix)
 		first = true
@@ -387,6 +398,7 @@ log.matrix = (matrix, args={}) ->
 
 				outs ..= "\n"
 	--]]
+	--]==]
 
 	outs ..= bottom
 

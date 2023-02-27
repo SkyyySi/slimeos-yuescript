@@ -48,6 +48,33 @@ beautiful.init(gears.filesystem.get_configuration_dir() .. "themes/skyyysi/theme
 modules = require("modules")
 import util from modules.lib
 
+logblock = (msg) ->
+	with util.terminal
+		print()
+		.print_stroke()
+		print()
+
+		.log.block(msg, {
+			shadow: true
+			empty_shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+		})
+
+		print()
+
+with util.terminal
+	.log.block("Welcome to SlimeOS!", {
+		shadow: true
+		empty_shadow: false
+		foreground: .color.foreground.normal.black
+		background: .color.background.normal.blue
+	})
+
+	print()
+	.print_stroke()
+	print()
+
 -- This is used later as the default terminal and editor to run.
 terminal = os.getenv("TERMINAL") or "xterm"
 editor =   os.getenv("EDITOR")   or terminal .. " -e nano"
@@ -69,7 +96,9 @@ awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
 -- }}}
 
 do
+	print()
 	util.terminal.print_stroke()
+	print()
 
 	import List, Map, Tuple from require("modules.lib.collection")
 	l, m, t = List({"foo", "bar", "biz", "baz"}), Map({ foo: "bar", biz: "baz"}), Tuple({"foo", "bar", "biz", "baz"})
@@ -314,7 +343,7 @@ client.connect_signal("mouse::enter", (c) ->
 	}
 )
 
-do
+--do
 	--[[
 	print(util.pretty_print({
 		foo: "bar"
@@ -363,8 +392,27 @@ do
 		})
 	--]]
 
-	--[ [
+	--[[
 	with util.terminal
+		.log.matrix({
+			{ { "left", "foo" }, { "right", "bar" } }
+			{ { "left", "biz" }, { "right", "baz" } }
+			{ { "left", "lua" }, { "right", "yue" } }
+			{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
+			{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
+		}, {
+			shadow: false
+			empty_shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+			--columns: 2
+			--rows: 3
+		})
+
+		print()
+		.print_stroke()
+		print()
+
 		.log.matrix({
 			{ { "left", "foo" }, { "right", "bar" } }
 			{ { "left", "biz" }, { "right", "baz" } }
@@ -376,8 +424,27 @@ do
 			empty_shadow: false
 			foreground: .color.foreground.normal.black
 			background: .color.background.normal.blue
-			columns: 2
-			rows: 3
+			--columns: 2
+			--rows: 3
+		})
+
+		print()
+		.print_stroke()
+		print()
+
+		.log.matrix({
+			{ { "left", "foo" }, { "right", "bar" } }
+			{ { "left", "biz" }, { "right", "baz" } }
+			{ { "left", "lua" }, { "right", "yue" } }
+			{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
+			{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
+		}, {
+			shadow: true
+			empty_shadow: true
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.blue
+			--columns: 2
+			--rows: 3
 		})
 	--]]
 
@@ -447,3 +514,22 @@ do
 	print("##############################################")
 	require("tests")
 --]]
+
+with button = modules.widgets.button
+	logblock("Testing button")
+
+	placement = () => awful.placement.top_left(@, { honor_workarea: true, margins: util.scale(20) })
+
+	wb = wibox {
+		ontop:     true
+		visible:   true
+		width:     util.scale(50)
+		height:    util.scale(50)
+		bg:        gears.color.transparent
+		widget: {
+			bg:     "#FF0000"
+			widget: button
+		}
+	}
+
+	placement(wb)
