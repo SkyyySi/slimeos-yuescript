@@ -369,6 +369,8 @@ do
 			{ { "left", "foo" }, { "right", "bar" } }
 			{ { "left", "biz" }, { "right", "baz" } }
 			{ { "left", "lua" }, { "right", "yue" } }
+			{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
+			{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
 		}, {
 			shadow: true
 			empty_shadow: false
@@ -380,6 +382,7 @@ do
 	--]]
 
 	--[[
+	with util.terminal
 		print(.log.block("With shadow, even-", {
 			shadow: true
 			empty_shadow: false

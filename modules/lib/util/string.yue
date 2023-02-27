@@ -14,10 +14,19 @@ math   = math
 export strip = (str, char="%s") -> ""..str::gsub("^#{char}+", "")::gsub("#{char}+$", "")
 
 export split = (str, delimiter="%s") ->
-	if not str::match(delimiter)
-		return {str}
-	
 	sections = {}
+
+	do
+		local i
+		setmetatable(sections, {
+			__call: () =>
+				i, ret = next(self, i)
+				ret
+		})
+
+	if not str::match(delimiter)
+		sections[] = str
+		return sections
 
 	last_pos = 1
 

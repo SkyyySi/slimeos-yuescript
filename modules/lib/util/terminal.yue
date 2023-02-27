@@ -188,7 +188,7 @@ log.block = (msg, args={}) ->
 
 	first = true
 	for line in *lines
-		outs ..= "#{style.vertical[1]}#{ustring.align(line, width - (args.shadow and 3 or 2), "center", " ", #line, style.vertical[2])}#{style.vertical[1]}"
+		outs ..= "#{style.vertical[1]}#{ustring.align(line, width - (args.shadow and 3 or 2), "center", " ", #line, 1)}#{style.vertical[1]}"
 
 		if args.shadow
 			if first
@@ -268,6 +268,27 @@ log.matrix = (matrix, args={}) ->
 			top ..= right_stroke .. .top_right[1]
 
 		do
+			_rest = table_width_modulus
+			update_rest = () ->
+				if _rest > 0
+					_rest -= 1
+					return 1
+				
+				return 0
+
+			left_stroke  = ustring.rep(.horizontal[1], stroke_base - .bottom_left[2]  - update_rest())
+			right_stroke = ustring.rep(.horizontal[1], stroke_base - .bottom_right[2] - update_rest() - (args.shadow and .bottom_right[2] or 0))
+
+			bottom = .bottom_left[1] .. left_stroke .. .t_bottom[1]
+
+			if columns > 2
+				for i = 1, columns - 2
+					bottom ..= ustring.rep(.horizontal[1], stroke_base - .t_bottom[2] - update_rest()) .. .t_bottom[1]
+
+			bottom ..= right_stroke .. .bottom_right[1]
+
+		--[[
+		do
 			left_stroke  = ustring.rep(.horizontal[1], stroke_base - .bottom_left[2])
 			right_stroke = ustring.rep(.horizontal[1], stroke_base - .bottom_right[2] - (args.shadow and .bottom_right[2] or 0))
 
@@ -279,6 +300,7 @@ log.matrix = (matrix, args={}) ->
 					bottom ..= center_stroke .. .t_bottom[1]
 
 			bottom ..= right_stroke .. .bottom_right[1]
+		--]]
 
 	shadow_bottom = color.reset.all .. " " .. args.background .. args.foreground .. color.format.invert .. if args.empty_shadow
 		ustring.rep(" ", width - 1)
@@ -288,11 +310,23 @@ log.matrix = (matrix, args={}) ->
 	shadow_corner    = color.format.invert .. (args.empty_shadow and " " or style.top_right[1]) .. color.reset.invert
 	shadow_right_bar = color.format.invert .. (args.empty_shadow and " " or style.vertical[1])  .. color.reset.invert
 
+	-- ustring.align(line, width - (args.shadow and 3 or 2), "center", " ", #line, style.vertical[2])
 	formatted_matrix = {}
-	for k_row, row in ipairs(matrix)
-		formatted_matrix[k_row] = {}
-		for k_col, col in ipairs(row)
+	do
+		block_width = math.floor(width / columns) - (style.vertical[2] * 2) - (style.cross[2] * ((columns > 2) and (columns - 2) or 0))
 
+		for k_row, row in ipairs(matrix)
+			formatted_matrix[k_row] = {}
+
+			for k_col, col in ipairs(row)
+				lines = ustring.split(tostring(col[2]), "\n")
+
+				for line in lines
+					--print(line)
+					line = line::sub(1, block_width)
+					col[] = ustring.align(line, block_width, col[1] ?? "center", " ", #line, 1)
+					print("'#{col[#col]}'")
+			--[[
 			content = tostring(col[2])
 
 			if not content::match("\n")
@@ -301,7 +335,7 @@ log.matrix = (matrix, args={}) ->
 
 			last_pos = 1
 			for pos in content::gmatch("()\n")
-				line = ustring.strip(content::sub(last_pos, pos - 1))
+				line = content::sub(last_pos, pos - 1)
 
 				if not line or line == ""
 					last_pos = pos + 1
@@ -312,6 +346,7 @@ log.matrix = (matrix, args={}) ->
 
 				formatted_matrix[k_row][] = line
 				last_pos = pos + 1
+			--]]
 			--[[
 			content = tostring(col[2])
 
@@ -336,21 +371,21 @@ log.matrix = (matrix, args={}) ->
 
 	outs = args.background .. args.foreground .. "#{top}\n"
 
-	-- ustring.align(line, width - (args.shadow and 3 or 2), "center", " ", #line, style.vertical[2])
 	--[[
 	for k_row, row in ipairs(formatted_matrix)
 		first = true
 		for k_col, col in ipairs(row)
-			outs ..= "#{style.left[1]}#{ustring.align(line, width, style.left[2], style.right[2])}#{style.right[1]}"
+			for k_line, line in ipairs(col)
+				outs ..= "#{style.left[1]}#{ustring.align(line, width, style.left[2], style.right[2])}#{style.right[1]}"
 
-			if args.shadow
-				if first
-					first = false
-					outs ..= shadow_corner
-				else
-					outs ..= shadow_right_bar
+				if args.shadow
+					if first
+						first = false
+						outs ..= shadow_corner
+					else
+						outs ..= shadow_right_bar
 
-			outs ..= "\n"
+				outs ..= "\n"
 	--]]
 
 	outs ..= bottom
