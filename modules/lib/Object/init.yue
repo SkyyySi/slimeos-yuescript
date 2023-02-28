@@ -62,10 +62,16 @@ class Object
 
 	__repr: () => "\027[3m<\027[0m\027[1m'#{@@__name}'\027[0m\027[3m instance>\027[0m"
 
-	<tostring>: => "<'#{@@__name}' instance>"
+	<tostring>: => "<'#{(@@?__name) ?? "UNKNOWN"}' instance>"
 
 	<index>: (key) =>
-		if type(key) != "string" or not rawget(@, "__properties")
+		if type(key) == "string"
+			if key::match("^get_")
+				return rawget(@, key) ?? getmetatable(@)[key]
+		elseif not rawget(@, "__properties")
+			if getter = rawget(@, "__get")
+				return getter(@, key)
+
 			return rawget(@, key)
 
 		if getter = rawget(@, "get_" .. key)
@@ -80,7 +86,14 @@ class Object
 		if @__private?.frozen
 			FrozenObjectMutationException()::raise()
 
-		if type(key) != "string" or not rawget(@, "__properties")
+		if tk == type(key)
+			if key::match("^set_")
+				return rawget(@, key)(@, value)
+		elseif not rawget(@, "__properties")
+			if setter = rawget(@, "__set")
+				setter(@, key, value)
+				return
+
 			rawset(@, key, value)
 			return
 

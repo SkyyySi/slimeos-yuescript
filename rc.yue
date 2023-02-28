@@ -63,6 +63,23 @@ logblock = (msg) ->
 
 		print()
 
+logerror = (msg) ->
+	with util.terminal
+		.log.block("ERROR: #{msg}", {
+			shadow: true
+			empty_shadow: false
+			foreground: .color.foreground.normal.black
+			background: .color.background.normal.red
+		})
+
+		print()
+
+try_or_log = (fn, ...) ->
+	success, output = xpcall(fn, debug.traceback, ...)
+	if not success
+		--logerror(output)
+		print(output)
+
 with util.terminal
 	.log.block("Welcome to SlimeOS!", {
 		shadow: true
@@ -515,21 +532,35 @@ do
 	require("tests")
 --]]
 
-with button = modules.widgets.button
+with Button = modules.widgets.Button
 	logblock("Testing button")
 
-	placement = () => awful.placement.top_left(@, { honor_workarea: true, margins: util.scale(20) })
+	placement = () => awful.placement.centered(@, { honor_workarea: true, margins: util.scale(20) })
 
-	wb = wibox {
-		ontop:     true
-		visible:   true
-		width:     util.scale(50)
-		height:    util.scale(50)
-		bg:        gears.color.transparent
-		widget: {
-			bg:     "#FF0000"
-			widget: button
+	local wb
+	try_or_log(() ->
+		wb = wibox {
+			ontop:     true
+			visible:   true
+			width:     util.scale(200)
+			height:    util.scale(100)
+			bg:        gears.color.transparent
+			widget: {
+				bg: "#000000"
+				shape_border_color: "#FFFFFF"
+				shape_border_width: util.scale(2)
+				widget: wibox.container.background
+			}
 		}
-	}
 
-	placement(wb)
+		wb.widget = wibox.widget {
+			on_click: (button) => print("Clicked on Button with mouse button ##{button}!")
+			widget: Button
+		}
+	)
+
+	if wb
+		placement(wb)
+
+		print(wb)
+		print(wb.widget)
