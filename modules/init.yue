@@ -1,5 +1,0 @@
-export boxes    = require("modules.boxes")
-export layouts  = require("modules.layouts")
-export lib      = require("modules.lib")
-export settings = require("modules.settings")
-export widgets  = require("modules.widgets")

@@ -1,0 +1,114 @@
+import FrozenObjectMutationException from require("slimeos.lib.exception")
+util = require("slimeos.lib.util")
+
+class Object
+	new: (...) =>
+		@__properties = {}
+		@__private = {
+			initialized: false
+
+			--- If `true`, a `FrozenObjectMutationException` will be thrown when
+			--- trying to set a new field on the object.
+			--- NOTE: Already set fields will not be effected by this!
+			frozen: false
+		}
+
+		if @init
+			@init(...)
+
+		@__private.initialized = true
+
+	inspect: () =>
+		out = @@__name
+
+		if next(@) == nil
+			return
+
+		out ..= "-------------------"
+
+		for k, v in pairs(@)
+			if util.is_private(k)
+				continue
+
+			out ..= "#{k}: #{v}"
+
+		print(out)
+		out
+
+	connect_signal: (signal_name, callback) =>
+		@__signals[signal_name] ??= {}
+
+		for signal in *@__signals[signal_name]
+			if callback == signal
+				return
+
+		table.insert(@__signals[signal_name], callback)
+
+	disconnect_signal: (signal_name, callback) =>
+		if not @__signals[signal_name]
+			return
+
+		for k, signal in ipairs(@__signals[signal_name])
+			if callback == signal
+				@__signals[signal_name][k] = nil
+				return
+
+	emit_signal: (signal_name, ...) =>
+		if not @__signals[signal_name]
+			return
+
+		for signal in *@__signals[signal_name]
+			signal(...)
+
+	__repr: () => "\027[3m<\027[0m\027[1m'#{@@__name}'\027[0m\027[3m instance>\027[0m"
+
+	<tostring>: => "<'#{(@@?__name) ?? "UNKNOWN"}' instance>"
+
+	<index>: (key) =>
+		if type(key) == "string"
+			if key::match("^get_")
+				return rawget(@, key) ?? getmetatable(@)[key]
+		elseif not rawget(@, "__properties")
+			if getter = rawget(@, "__get")
+				return getter(@, key)
+
+			return rawget(@, key)
+
+		if getter = rawget(@, "get_" .. key)
+			return getter(@)
+
+		if getter = rawget(@, "__get")
+			return getter(@, key)
+
+		getmetatable(@)[key]
+
+	<newindex>: (key, value) =>
+		if @__private?.frozen
+			FrozenObjectMutationException()::raise()
+
+		if tk == type(key)
+			if key::match("^set_")
+				return rawget(@, key)(@, value)
+		elseif not rawget(@, "__properties")
+			if setter = rawget(@, "__set")
+				setter(@, key, value)
+				return
+
+			rawset(@, key, value)
+			return
+
+		if setter = rawget(@, "set_" .. key)
+			setter(@, value)
+			return
+
+		if setter = rawget(@, "__set")
+			setter(@, key, value)
+			return
+
+		rawset(@, key, value)
+
+with getmetatable(Object)
+	.__tostring = () => "<class '#{Object.__name}'>"
+	.__repr = () => "\027[3m<class \027[0m\027[1m'#{Object.__name}'\027[0m\027[3m>\027[0m"
+
+return Object

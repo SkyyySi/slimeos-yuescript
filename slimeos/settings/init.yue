@@ -1,0 +1,2 @@
+export bindings = require("slimeos.settings.bindings")
+export rules    = require("slimeos.settings.rules")

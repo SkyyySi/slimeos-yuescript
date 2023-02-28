@@ -25,9 +25,15 @@ require("awful.hotkeys_popup.keys")
 -- another config (This code will only ever execute for the fallback config)
 naughty.connect_signal("request::display_error", (message, startup) -> naughty.notification {
 	urgency: "critical"
-	title:   "Oops, an error happened during " .. startup and "startup!" or "runtime!"
+	title:   "Oops, an error occured during " .. startup and "startup!" or "runtime!"
 	message: message
 })
+
+do
+	_error = error
+	error = (msg, ...) ->
+		naughty.emit_signal(msg)
+		_error(msg, ...)
 -- }}}
 
 -- {{{ Auto reload
@@ -41,17 +47,26 @@ inotifywait --event modify \
 ']], { stdout: (line) -> awesome.restart() })
 -- }}}
 
+-- {{{ App autostart
+-- Picom, for transparency and other compositing effects.
+-- Note: You should really be using the glx backend, which is OpenGL accelerated.
+-- The reason xrender is used here is purely because Xephyr does not work
+-- with glx at all, with the window just showing a "screenshot" of when picom
+-- was started.
+awful.spawn.once { "picom", "--backend=xrender" }
+-- }}}
+
 -- {{{ Variable definitions
 -- Themes define colours, icons, font and wallpapers.
 beautiful.init(gears.filesystem.get_configuration_dir() .. "themes/skyyysi/theme.lua")
 
-modules = require("modules")
+modules = require("slimeos")
 import util from modules.lib
 
 logblock = (msg) ->
 	with util.terminal
 		print()
-		.print_stroke()
+		.log.stroke()
 		print()
 
 		.log.block(msg, {
@@ -89,7 +104,7 @@ with util.terminal
 	})
 
 	print()
-	.print_stroke()
+	.log.stroke()
 	print()
 
 -- This is used later as the default terminal and editor to run.
@@ -114,10 +129,10 @@ awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
 
 do
 	print()
-	util.terminal.print_stroke()
+	util.terminal.log.stroke()
 	print()
 
-	import List, Map, Tuple from require("modules.lib.collection")
+	import List, Map, Tuple from require("slimeos.lib.collection")
 	l, m, t = List({"foo", "bar", "biz", "baz"}), Map({ foo: "bar", biz: "baz"}), Tuple({"foo", "bar", "biz", "baz"})
 
 	print("List  -> #{l}")
@@ -344,13 +359,13 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 )
 -- }}}
 
-require("modules.settings.bindings") {
+require("slimeos.settings.bindings") {
 	menu:     main_menu
 	modkey:   modkey
 	terminal: terminal
 }
 
-require("modules.settings.rules")
+require("slimeos.settings.rules")
 
 -- Enable sloppy focus, so that focus follows mouse.
 client.connect_signal("mouse::enter", (c) ->
@@ -360,182 +375,10 @@ client.connect_signal("mouse::enter", (c) ->
 	}
 )
 
---do
-	--[[
-	print(util.pretty_print({
-		foo: "bar"
-		biz: "baz"
-		function: "test"
-		"loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong"
-	}))
-
-	print(util.pretty_print_monochrome({
-		foo: "bar"
-		biz: "baz"
-		function: "test"
-		"loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong"
-	}))
-	--]]
-
-	--[[
-	import List, Map, Tuple from require("modules.lib.collection")
-
-	map = Map {
-		biz: "baz"
-	}
-
-	print(util.pretty_print({
-		foo: "bar"
-		map: map
-	}))
-	--]]
-
-	--[[
-	with util.terminal
-		.log.block("Only a single line", {
-			shadow: true
-			empty_shadow: false
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-		})
-
-		print()
-
-		.log.block("Line #1\nLine #2\nLine #3\nLine #4\n", {
-			shadow: true
-			empty_shadow: false
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-		})
-	--]]
-
-	--[[
-	with util.terminal
-		.log.matrix({
-			{ { "left", "foo" }, { "right", "bar" } }
-			{ { "left", "biz" }, { "right", "baz" } }
-			{ { "left", "lua" }, { "right", "yue" } }
-			{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
-			{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
-		}, {
-			shadow: false
-			empty_shadow: false
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-			--columns: 2
-			--rows: 3
-		})
-
-		print()
-		.print_stroke()
-		print()
-
-		.log.matrix({
-			{ { "left", "foo" }, { "right", "bar" } }
-			{ { "left", "biz" }, { "right", "baz" } }
-			{ { "left", "lua" }, { "right", "yue" } }
-			{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
-			{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
-		}, {
-			shadow: true
-			empty_shadow: false
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-			--columns: 2
-			--rows: 3
-		})
-
-		print()
-		.print_stroke()
-		print()
-
-		.log.matrix({
-			{ { "left", "foo" }, { "right", "bar" } }
-			{ { "left", "biz" }, { "right", "baz" } }
-			{ { "left", "lua" }, { "right", "yue" } }
-			{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
-			{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
-		}, {
-			shadow: true
-			empty_shadow: true
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-			--columns: 2
-			--rows: 3
-		})
-	--]]
-
-	--[[
-	with util.terminal
-		print(.log.block("With shadow, even-", {
-			shadow: true
-			empty_shadow: false
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-		}))
-
-		print()
-
-		print(.log.block("With shadow, odd-", {
-			shadow: true
-			empty_shadow: true
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-		}))
-
-		print()
-		.print_stroke()
-		print()
-
-		print(.log.block("Without shadow, even", {
-			shadow: false
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-		}))
-
-		print()
-
-		print(.log.block("Without shadow, odd", {
-			shadow: false
-			foreground: .color.foreground.normal.black
-			background: .color.background.normal.blue
-		}))
-	--]]
-
-	--[[
-	Object = require("modules.lib.Object")
-
-	with cls = Object
-		mt = getmetatable(cls)
-		print(cls, cls())
-		print(cls::__tostring(), cls()::__tostring())
-		--print(mt.__tostring(cls), mt.__tostring(cls()))
-		print(cls::__repr(), cls()::__repr())
-
-	print("---------------------------------")
-
-	class SubObject extends Object
-
-	with cls = SubObject
-		mt = getmetatable(cls)
-		print(cls, cls())
-		print(cls::__tostring(), cls()::__tostring())
-		--print(mt.__tostring(cls), mt.__tostring(cls()))
-		print(cls::__repr(), Object()::__repr())
-	--]]
-
---[[
-do
-	print("##############################################")
-	print("#           Beginning testing now!           #")
-	print("##############################################")
-	require("tests")
---]]
-
 with Button = modules.widgets.Button
 	logblock("Testing button")
 
-	placement = () => awful.placement.centered(@, { honor_workarea: true, margins: util.scale(20) })
+	placement = () => awful.placement.left(@, { honor_workarea: true, margins: util.scale(10) })
 
 	local wb
 	try_or_log(() ->
@@ -546,6 +389,33 @@ with Button = modules.widgets.Button
 			height:    util.scale(100)
 			bg:        gears.color.transparent
 			widget: {
+				{
+					{
+						nil,
+						{
+							{
+								image:  util.lookup_icon("system-restart-symbolic")
+								halign: "center"
+								valign: "center"
+								forced_width:  util.scale(30)
+								forced_height: util.scale(30)
+								widget: wibox.widget.imagebox
+							}
+							{
+								markup: "<b>Restart awesome</b>"
+								halign: "center"
+								valign: "center"
+								widget: wibox.widget.textbox
+							}
+							spacing: util.scale(10)
+							layout:  wibox.layout.fixed.horizontal
+						}
+						expand: "outside"
+						layout: wibox.layout.align.horizontal
+					}
+					on_click: (button) => if button == 1 then awesome.restart()
+					widget: Button
+				}
 				bg: "#000000"
 				shape_border_color: "#FFFFFF"
 				shape_border_width: util.scale(2)
@@ -553,14 +423,21 @@ with Button = modules.widgets.Button
 			}
 		}
 
-		wb.widget = wibox.widget {
-			on_click: (button) => print("Clicked on Button with mouse button ##{button}!")
-			widget: Button
-		}
+		placement(wb)
 	)
 
-	if wb
-		placement(wb)
-
-		print(wb)
-		print(wb.widget)
+with util.terminal
+	.log.matrix2({
+		{ { "left", "foo" }, { "right", "bar" } }
+		{ { "left", "biz" }, { "right", "baz" } }
+		{ { "left", "lua" }, { "right", "yue" } }
+		{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
+		{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
+	}, {
+		shadow: false
+		empty_shadow: false
+		foreground: .color.foreground.normal.black
+		background: .color.background.normal.blue
+		--columns: 2
+		--rows: 3
+	})

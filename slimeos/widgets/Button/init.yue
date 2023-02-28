@@ -1,0 +1,72 @@
+awful     = require("awful")
+gears     = require("gears")
+wibox     = require("wibox")
+ruled     = require("ruled")
+beautiful = require("beautiful")
+menubar   = require("menubar")
+naughty   = require("naughty")
+
+import Object, util, wrap from require("slimeos.lib")
+import FrozenObjectMutationException from require("slimeos.lib.exception")
+
+class Button extends wrap.GearsObject(wibox.container.background(), "wibox.widget")
+	init: (args={}) =>
+		p = @__private
+
+		with args
+			p.on_click = .on_click ?? ->
+
+			p.bg_normal   = .bg_normal   ?? "#FFFFFF00"
+			p.bg_selected = .bg_selected ?? "#FFFFFF20"
+			p.bg_press    = .bg_press    ?? "#FFFFFF40"
+
+			p.fg_normal   = .fg_normal
+			p.fg_selected = .fg_selected
+			p.fg_press    = .fg_press
+
+			@bg = .initial_bg ?? p.bg_normal
+			@fg = .initial_fg ?? p.fg_normal
+
+		util.gen_properties {
+			object: @
+			properties: {
+				"on_click"
+				"bg_normal"
+				"bg_selected"
+				"bg_press"
+				"fg_normal"
+				"fg_selected"
+				"fg_press"
+			}
+		}
+
+		p.pressed = false
+		p.below_cursor = false
+
+		@connect_signal("mouse::enter", () ->
+			@bg = p.bg_selected ?? "#FFFFFF20"
+			@bg = p.bg_selected ?? "#FFFFFF20"
+			p.below_cursor = true
+		)
+
+		@connect_signal("mouse::leave", () ->
+			@bg = p.bg_normal ?? "#FFFFFF00"
+			p.below_cursor = false
+		)
+
+		@connect_signal("button::press", (_, _, _, button) ->
+			@bg = p.bg_press ?? "#FFFFFF40"
+			p.pressed = true
+		)
+
+		@connect_signal("button::release", (_, _, _, button) ->
+			@bg = p.bg_selected ?? "#FFFFFF20"
+
+			if p.pressed and p.below_cursor
+				@on_click(button)
+
+			p.pressed = false
+		)
+
+		@__name = "Button"
+		@.<tostring> = => "<Widget '#{@__name}' instance>"

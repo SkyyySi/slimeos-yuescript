@@ -1,0 +1,72 @@
+yue = require("yue")
+uterminal = require("slimeos.lib.util.terminal")
+
+local error_without_traceback
+do
+	mt = { __tostring: () => @[1] }
+	error_without_traceback = (msg) -> error(setmetatable({ msg }, mt))
+
+export class Exception --extends Object
+	new: (args={}) =>
+		@message = args.message ?? @@default_message
+
+	default_message: "An error occurred"
+
+	get_traceback: () =>
+		fg = uterminal.color.foreground.normal.black
+		bg = uterminal.color.background.normal.red
+		--yue.traceback("#{uterminal.color.format.bold}#{@@__name}:#{uterminal.color.reset.all}#{bg}#{fg} #{@message}")::gsub("\r", "")
+		--yue.traceback("#{@@__name}: #{@message}")::gsub("\r", "")
+		"#{uterminal.color.format.bold}#{@@__name}:#{uterminal.color.reset.all}#{bg}#{fg} #{@message}", yue.traceback()::gsub("\r", "")
+
+	raise: (log=true) =>
+		--with uterminal
+		--	.log.exception(@get_traceback(), {
+		--		shadow: true
+		--		empty_shadow: false
+		--		align: "left"
+		--		foreground: .color.foreground.normal.black
+		--		background: .color.background.normal.red
+		--	})
+		heading, traceback = @get_traceback()
+		msg = uterminal.log.exception(heading, traceback)
+		if log
+			error_without_traceback(msg)
+		msg
+
+	<tostring>: () => @raise(false)
+
+export class TypeException extends Exception
+	default_message: "Incorrect type"
+
+	assert: (value, wanted_type) =>
+		actual_type = type(value)
+		if actual_type != wanted_type
+			@@({
+				message: "#{@default_message} (expected a #{wanted_type}, got a #{actual_type})"
+			})::raise()
+
+export class ArgumentTypeException extends TypeException
+	default_message: "Incorrect argument type"
+
+	assert: (argument, wanted_type, index) =>
+		actual_type = type(value)
+		if actual_type != wanted_type
+			@@({
+				message: "#{@default_message} of argument ##{index} (expected a #{wanted_type}, got a #{actual_type})"
+			})::raise()
+
+export class MissingParameterException extends Exception
+	default_message: "Missing required positional parameter"
+
+	assert: (value, arg_name, fn_name) =>
+		if value == nil
+			@@({
+				message: "#{@default_message} '#{arg_name}' for '#{fn_name}'"
+			})::raise()
+
+export class MissingArgumentException extends MissingParameterException
+	default_message: "Missing required table argument"
+
+export class FrozenObjectMutationException extends Exception
+	default_message: "Attempted to modify a frozen (immutable) object"

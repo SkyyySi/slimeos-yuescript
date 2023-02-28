@@ -1,2 +1,0 @@
-export bindings = require("modules.settings.bindings")
-export rules    = require("modules.settings.rules")

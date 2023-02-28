@@ -1,0 +1,5 @@
+export collection = require("slimeos.lib.collection")
+export exception  = require("slimeos.lib.exception")
+export Object     = require("slimeos.lib.Object")
+export util       = require("slimeos.lib.util")
+export wrap       = require("slimeos.lib.wrap")

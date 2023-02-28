@@ -1,0 +1,5 @@
+export boxes    = require("slimeos.boxes")
+export layouts  = require("slimeos.layouts")
+export lib      = require("slimeos.lib")
+export settings = require("slimeos.settings")
+export widgets  = require("slimeos.widgets")

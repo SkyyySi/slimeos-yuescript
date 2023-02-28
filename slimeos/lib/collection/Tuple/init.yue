@@ -1,0 +1,31 @@
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+return class Tuple extends Object
+	init: (items={}) =>
+		for k, v in ipairs(items)
+			@[k] = v
+
+	<tostring>: () =>
+		out = "("
+
+		first = true
+
+		for k, v in ipairs(@)
+			if util.is_private(k)
+				continue
+
+			if first
+				first = false
+				out ..= util.pretty_print(v)
+				continue
+
+			out ..= ", " .. util.pretty_print(v)
+
+		out..")"
+
+	<newindex>: (key, value) =>
+		if @__private?.is_initialized
+			error("ERROR: Attempted to modify a tuple, which is read-only")
+		
+		rawset(@, key, value)

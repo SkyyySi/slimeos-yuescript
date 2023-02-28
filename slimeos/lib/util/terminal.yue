@@ -1,0 +1,521 @@
+ustring = require("slimeos.lib.util.string")
+
+export geometry = () ->
+	cols = 80
+	lines = 40
+
+	do
+		successful, result = pcall(io.popen, "tput cols")
+
+		if successful
+			cols = tonumber(result::read("*a"))
+			result::close()
+
+	do
+		successful, result = pcall(io.popen, "tput lines")
+
+		if successful
+			lines = tonumber(result::read("*a"))
+			result::close()
+
+	{ width: cols, height: lines }
+
+export color = {
+	format: {
+		bold: "\027[1m"
+		dim:  "\027[2m"
+		underlined: "\027[4m"
+		blink: "\027[5m" -- Support for this varies between diferent terminal emulators
+		invert: "\027[7m" -- Also known as "reversed"
+		invisible: "\027[8m"
+	}
+	reset: {
+		all: "\027[0m"
+		bold: "\027[21m"
+		dim:  "\027[22m"
+		underlined: "\027[24m"
+		blink: "\027[25m"
+		invert: "\027[27m"
+		invisible: "\027[28m"
+		foreground: "\027[39m"
+		background: "\027[49m"
+	}
+	foreground: {
+		normal: {
+			black:   "\027[30m"
+			red:     "\027[31m"
+			green:   "\027[32m"
+			yellow:  "\027[33m"
+			blue:    "\027[34m"
+			magenta: "\027[35m"
+			cyan:    "\027[36m"
+			white:   "\027[37m"
+		}
+		bright: {
+			black:   "\027[90m"
+			red:     "\027[91m"
+			green:   "\027[92m"
+			yellow:  "\027[93m"
+			blue:    "\027[94m"
+			magenta: "\027[95m"
+			cyan:    "\027[96m"
+			white:   "\027[97m"
+		}
+	}
+	background: {
+		normal: {
+			black:   "\027[40m"
+			red:     "\027[41m"
+			green:   "\027[42m"
+			yellow:  "\027[43m"
+			blue:    "\027[44m"
+			magenta: "\027[45m"
+			cyan:    "\027[46m"
+			white:   "\027[47m"
+		}
+		bright: {
+			black:   "\027[100m"
+			red:     "\027[101m"
+			green:   "\027[102m"
+			yellow:  "\027[103m"
+			blue:    "\027[104m"
+			magenta: "\027[105m"
+			cyan:    "\027[106m"
+			white:   "\027[107m"
+		}
+	}
+	xterm256: [ ("\027[38;5;#{i}m") for i = 0, 255 ]
+}
+
+--[[
+--- To print a test pattern for the xterm256 colors, run this:
+for i, color in ipairs(xterm256)
+	io.stdout::write("\027[48;5;#{i}m   #{('%.03d')::format(i)}  \027[0m" .. ((i + 3) % 6 == 0 and "\n" or ""))
+--]]
+
+export log = {}
+
+export block_styles = {
+	--- Preview:
+	--- ┌─────┬─────┐
+	--- │ Foo │ Bar │
+	--- ├─────┼─────┤
+	--- │ Biz │ Baz │
+	--- └─────┴─────┘
+	box: {
+		top_left:     { "┌", 1 }, horizontal: { "─", 1 }, t_top:    { "┬", 1 }, top_right:    { "┐", 1 }
+		t_left:       { "├", 1 },                         cross:    { "┼", 1 }, t_left:       { "┤", 1 }
+		left:         { "│", 1 }
+		bottom_left:  { "└", 1 },                         t_bottom: { "┴", 1 }, bottom_right: { "┘", 1 }
+	}
+
+	--- Preview:
+	--- ┏━━━━━┳━━━━━┓
+	--- ┃ Foo ┃ Bar ┃
+	--- ┣━━━━━╋━━━━━┫
+	--- ┃ Biz ┃ Baz ┃
+	--- ┗━━━━━┻━━━━━┛
+	box_thick: {
+		top_left:     { "┏", 1 }, horizontal: { "━", 1 }, t_top:    { "┳", 1 }, top_right:    { "┓", 1 }
+		t_left:       { "┣", 1 },                         cross:    { "╋", 1 }, t_left:       { "┫", 1 }
+		vertical:     { "┃", 1 }
+		bottom_left:  { "┗", 1 },                         t_bottom: { "┻", 1 }, bottom_right: { "┛", 1 }
+	}
+
+	--- Preview:
+	--- ╭─────┬─────╮
+	--- │ Foo │ Bar │
+	--- ├─────┼─────┤
+	--- │ Biz │ Baz │
+	--- ╰─────┴─────╯
+	round: {
+		top_left:     { "╭", 1 }, horizontal: { "─", 1 }, t_top:    { "┬", 1 }, top_right:    { "╮", 1 }
+		t_left:       { "├", 1 },                         cross:    { "┼", 1 }, t_left:       { "┤", 1 }
+		vertical:     { "│", 1 }
+		bottom_left:  { "╰", 1 },                         t_bottom: { "┴", 1 }, bottom_right: { "╯", 1 }
+	}
+
+	--- Preview:
+	--- ╔═════╦═════╗
+	--- ║ Foo ║ Bar ║
+	--- ╠═════╬═════╣
+	--- ║ Biz ║ Baz ║
+	--- ╚═════╩═════╝
+	double: {
+		top_left:     { "╔", 1 }, horizontal: { "═", 1 }, t_top:    { "╦", 1 }, top_right:    { "╗", 1 }
+		t_left:       { "╠", 1 },                         cross:    { "╬", 1 }, t_left:       { "╣", 1 }
+		vertical:     { "║", 1 }
+		bottom_left:  { "╚", 1 },                         t_bottom: { "╩", 1 }, bottom_right: { "╝", 1 }
+	}
+
+	--- Preview:
+	---              
+	---   Foo   Bar  
+	---              
+	---   Biz   Baz  
+	---              
+	plain: {
+		top_left:     { " ", 1 }, horizontal: { " ", 1 }, t_top:    { " ", 1 }, top_right:    { " ", 1 }
+		t_left:       { " ", 1 },                         cross:    { " ", 1 }, t_left:       { " ", 1 }
+		vertical:     { " ", 1 }
+		bottom_left:  { " ", 1 },                         t_bottom: { " ", 1 }, bottom_right: { " ", 1 }
+	}
+}
+
+setmetatable(block_styles, {
+	<index>: () => @round
+})
+
+export stroke = (char=block_styles.box.horizontal, width, relative=false) ->
+	if relative
+		width = geometry().width + width
+	else
+		width ??= geometry().width
+
+	ustring.rep(char[1], width / char[2])
+
+xor = (a, b) -> (a or b) and not (a and b)
+
+log.stroke = (...) -> print(stroke(...))
+
+log.block = (msg, args={}) ->
+	msg = tostring(msg)
+	with args
+		.style_name   ??= "round"
+		.print        ??= true
+		.shadow       ??= false
+		.empty_shadow ??= false
+		.background   ??= ""
+		.foreground   ??= ""
+		.align        ??= "center"
+
+	style = block_styles[args.style_name]
+	width = geometry().width - 0
+
+	top    = args.background .. args.foreground .. style.top_left[1]    .. ustring.rep(style.horizontal[1], (width / style.horizontal[2]) - style.top_left[2]    - style.top_right[2]    - (args.shadow and (args.empty_shadow and 1 or style.top_right[2])    or 0)) .. style.top_right[1]    .. color.reset.all
+	bottom = args.background .. args.foreground .. style.bottom_left[1] .. ustring.rep(style.horizontal[1], (width / style.horizontal[2]) - style.bottom_left[2] - style.bottom_right[2] - (args.shadow and (args.empty_shadow and 1 or style.bottom_right[2]) or 0)) .. style.bottom_right[1] .. color.reset.all
+
+	shadow_bottom = "#{color.reset.all} #{args.background}#{args.foreground}#{color.format.invert}#{args.empty_shadow and ustring.rep(" ", width - 1) or bottom}#{color.reset.all}"
+
+	shadow_corner    = "#{args.background}#{args.foreground}#{color.format.invert}#{args.empty_shadow and " " or style.top_right[1]}#{color.reset.invert}#{color.reset.all}"
+	shadow_right_bar = "#{args.background}#{args.foreground}#{color.format.invert}#{args.empty_shadow and " " or style.vertical[1] }#{color.reset.invert}#{color.reset.all}"
+
+	max_line_width = width - ((args.shadow and not args.empty_shadow) and 1 or 0) - (style.horizontal[2] * (args.empty_shadow and 3 or 2))
+	lines = [ str::sub(1, max_line_width) for str in *ustring.split(msg, "\n") ]
+
+	outs = "#{args.background}#{args.foreground}#{top}\n"
+
+	first = true
+	for line in *lines
+		outs ..= "#{args.background}#{args.foreground}#{style.vertical[1]}#{ustring.align(line, width - (args.shadow and 3 or 2), "left", " ", ustring.length(line), 1)}#{style.vertical[1]}#{color.reset.all}"
+
+		if args.shadow
+			if first
+				first = false
+				outs ..= shadow_corner
+			else
+				outs ..= shadow_right_bar
+
+		outs ..= "\n"
+
+	outs ..= bottom
+
+	if args.shadow
+		outs ..= "#{shadow_right_bar}\n#{shadow_bottom}"
+
+	outs ..= color.reset.all
+
+	if args.print
+		print(outs)
+
+	outs
+
+log.exception = (heading, traceback) ->
+	msg = traceback
+		|> ustring.strip()
+		|> string.gsub("Stack Traceback", heading, 1)
+		|> string.gsub("===============", stroke(nil, -4, true), 1)
+	
+	log.block(msg, {
+		shadow: true
+		empty_shadow: true
+		print: false
+		align: "left"
+		foreground: color.foreground.normal.black
+		background: color.background.normal.red
+	})
+
+--[[
+log.block("'" .. ustring.align("Foobar", 50, "left") .. "'\n'" .. ustring.align("Foobar", 50, "center") .. "'\n'" .. ustring.align("Foobar", 50, "right") .. "'", {
+	shadow: true
+	empty_shadow: false
+	foreground: color.foreground.normal.black
+	background: color.background.normal.blue
+})
+--]]
+
+log.matrix2 = (matrix, args={}) ->
+	with args
+		.style_name   ??= "round"
+		.print        ??= true
+		.shadow       ??= false
+		.empty_shadow ??= false
+		.background   ??= ""
+		.foreground   ??= ""
+		-- These will be auto-determined if not defined.
+		-- .columns
+		-- .rows
+
+	style = block_styles[args.style_name]
+	width = geometry().width
+
+	padding_right = if args.shadow
+		1 -- Width of a space (" ") character
+	else
+		0
+
+	limit_line_widths = (lines, max_with) ->
+		[ s::sub(1, max_width) for s in *lines ]
+
+	pad_lines = (lines, width, align) ->
+		[ ustring.align(s, width, align) for s in *lines ]
+
+	format_cell = (content, cell_width) ->
+		align = content[1]
+		content[2]
+			|> tostring()
+			|> ustring.split("\n")
+			|> limit_line_widths(cell_width)
+			|> pad_lines(cell_width, align)
+			|> ustring.join("\n")
+
+	do
+		p = (...) -> print(ustring.join({...}, " | "))
+		print(">>>")
+		for row in *matrix
+			p(format_cell(row[1], 40), format_cell(row[1], 40))
+		print("<<<")
+		return
+
+	unify_cell_lengths_of_row = (row) ->
+		longest_cell_length = 1
+		cells_with_length = {}
+
+		for cell in *row
+			cell_length = select(2, cell::gsub("\n", "\n")) + 1
+			cells_with_length[] = { content: cell, length: cell_length }
+
+			longest_cell_length = if cell_length > longest_cell_length
+				cell_length
+			else
+				longest_cell_length
+
+		row_width = math.floor(width / #row + 0.5) - padding_right
+		unified_row = {}
+		for cell in *cells_with_length
+			if cell_length >= longest_cell_length
+				unified_column[] = cell.content
+				continue
+
+			unified_column[] = cell.content .. string.rep("\n", longest_cell_length - cell.length)
+
+		unified_row
+
+	formatted_matrix = matrix
+
+	if args.print
+		print(formatted_matrix)
+
+	formatted_matrix
+
+-- TODO: This should be reworked to have a generic "print block" function, that
+--       can then write as many rows and columns as needed, as supposed to
+--       writing a new function for each type of block content.
+
+log.matrix = (matrix, args={}) ->
+	with args
+		.style_name   ??= "round"
+		.shadow       ??= false
+		.empty_shadow ??= false
+		.background   ??= ""
+		.foreground   ??= ""
+		-- TODO: Add forced_columns / forced_rows options
+		-- These will be auto-determined if not defined.
+		-- .columns      ??= 2
+		-- .rows         ??= 2
+
+	columns = if args.columns
+		args.columns
+	else
+		x = 1
+		for v in *matrix
+			x = #v > x and #v or x
+		x
+
+	style = block_styles[args.style_name]
+	width = geometry().width
+	colwidth = math.floor(width / columns)
+
+	msg = "foobar"
+
+	local top, bottom
+	with style
+		table_width_modulus = width % columns + ((width % 2 == 0) and 1 or 0)
+
+		stroke_base = math.floor(colwidth / .horizontal[2] + 0.5)
+
+		do
+			_rest = table_width_modulus
+			update_rest = () ->
+				if _rest > 0
+					_rest -= 1
+					return 1
+				
+				return 0
+
+			left_stroke  = ustring.rep(.horizontal[1], stroke_base - .top_left[2]  - update_rest())
+			right_stroke = ustring.rep(.horizontal[1], stroke_base - .top_right[2] - update_rest() - (args.shadow and .top_right[2] or 0))
+
+			top = .top_left[1] .. left_stroke .. .t_top[1]
+
+			if columns > 2
+				for i = 1, columns - 2
+					top ..= ustring.rep(.horizontal[1], stroke_base - .t_top[2] - update_rest()) .. .t_top[1]
+
+			top ..= right_stroke .. .top_right[1]
+
+		do
+			_rest = table_width_modulus
+			update_rest = () ->
+				if _rest > 0
+					_rest -= 1
+					return 1
+				
+				return 0
+
+			left_stroke  = ustring.rep(.horizontal[1], stroke_base - .bottom_left[2]  - update_rest())
+			right_stroke = ustring.rep(.horizontal[1], stroke_base - .bottom_right[2] - update_rest() - (args.shadow and .bottom_right[2] or 0))
+
+			bottom = .bottom_left[1] .. left_stroke .. .t_bottom[1]
+
+			if columns > 2
+				for i = 1, columns - 2
+					bottom ..= ustring.rep(.horizontal[1], stroke_base - .t_bottom[2] - update_rest()) .. .t_bottom[1]
+
+			bottom ..= right_stroke .. .bottom_right[1]
+
+		--[[
+		do
+			left_stroke  = ustring.rep(.horizontal[1], stroke_base - .bottom_left[2])
+			right_stroke = ustring.rep(.horizontal[1], stroke_base - .bottom_right[2] - (args.shadow and .bottom_right[2] or 0))
+
+			bottom = .bottom_left[1] .. left_stroke .. .t_bottom[1]
+
+			if columns > 2
+				center_stroke = ustring.rep(.horizontal[1], stroke_base - .t_bottom[2])
+				for i = 1, columns - 2
+					bottom ..= center_stroke .. .t_bottom[1]
+
+			bottom ..= right_stroke .. .bottom_right[1]
+		--]]
+
+	shadow_bottom = color.reset.all .. " " .. args.background .. args.foreground .. color.format.invert .. if args.empty_shadow
+		ustring.rep(" ", width - 1)
+	else
+		bottom
+
+	shadow_corner    = args.background .. args.foreground .. color.format.invert .. (args.empty_shadow and " " or style.top_right[1]) .. color.reset.all
+	shadow_right_bar = args.background .. args.foreground .. color.format.invert .. (args.empty_shadow and " " or style.vertical[1])  .. color.reset.all
+
+	outs = args.background .. args.foreground .. "#{top}\n"
+
+	-- ustring.align(line, width - (args.shadow and 3 or 2), "center", " ", ustring.length(line), style.vertical[2])
+	formatted_matrix = {}
+	do
+		block_width = colwidth - (style.vertical[2] * 2) - (style.cross[2] * ((columns > 2) and (columns - 2) or 0))
+
+		for k_row, row in ipairs(matrix)
+			formatted_matrix[k_row] = {}
+
+			for k_col, col in ipairs(row)
+				formatted_matrix[k_row][k_col] = {}
+
+				lines = ustring.split(tostring(col[2]), "\n")
+
+				for line in lines
+					--print(line)
+					line = line::sub(1, block_width)
+					line = ustring.align(line, block_width, col[1] ?? "center", " ", ustring.length(line), 1)
+					formatted_matrix[k_row][k_col][] = line
+	--[==[
+					--print("'#{col[#col]}'")
+			--[[
+			content = tostring(col[2])
+
+			if not content::match("\n")
+				formatted_matrix[k_row][k_col] = ustring.align(content, colwidth)
+				continue
+
+			last_pos = 1
+			for pos in content::gmatch("()\n")
+				line = content::sub(last_pos, pos - 1)
+
+				if not line or line == ""
+					last_pos = pos + 1
+					continue
+
+				if #line % 2 != 0 and not args.shadow
+					line = " " .. line
+
+				formatted_matrix[k_row][] = line
+				last_pos = pos + 1
+			--]]
+			--[[
+			content = tostring(col[2])
+
+			if not content::match("\n")
+				formatted_matrix[k_row][] = content
+				continue
+
+			last_pos = 1
+			for pos in content::gmatch("()\n")
+				line = ustring.strip(content::sub(last_pos, pos - 1))
+
+				if not line or line == ""
+					last_pos = pos + 1
+					continue
+
+				if (#line % 2 != 0 and args.shadow) or (not args.shadow)
+					line = " " .. line
+
+				formatted_matrix[k_row][] = line
+				last_pos = pos + 1
+			--]]
+
+	--[[
+	for k_row, row in ipairs(formatted_matrix)
+		first = true
+		for k_col, col in ipairs(row)
+			for k_line, line in ipairs(col)
+				outs ..= "#{style.left[1]}#{ustring.align(line, width, style.left[2], style.right[2])}#{style.right[1]}"
+
+				if args.shadow
+					if first
+						first = false
+						outs ..= shadow_corner
+					else
+						outs ..= shadow_right_bar
+
+				outs ..= "\n"
+	--]]
+	--]==]
+
+	outs ..= bottom
+
+	if args.shadow
+		outs ..= "#{shadow_right_bar}\n#{shadow_bottom}"
+
+	outs ..= color.reset.all
+
+	print(outs)
+	outs

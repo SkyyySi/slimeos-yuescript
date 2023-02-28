@@ -1,0 +1,94 @@
+awful     = require("awful")
+gears     = require("gears")
+wibox     = require("wibox")
+ruled     = require("ruled")
+beautiful = require("beautiful")
+menubar   = require("menubar")
+naughty   = require("naughty")
+
+lgi = require("lgi")
+gtk = lgi.require("Gtk", "3.0")
+
+tts = require("slimeos.lib.util.tts")
+tts_monochrome = require("slimeos.lib.util.tts_monochrome")
+
+export string   = require("slimeos.lib.util.string")
+export terminal = require("slimeos.lib.util.terminal")
+
+export notify = (...) ->
+	naughty.notification {
+		message: string.join({...}, ", ")
+	}
+
+export pretty_print = (value) -> tts.prettify(value)
+
+export pretty_print_monochrome = (value) -> tts_monochrome.prettify(value)
+
+export lookup_icon = (icon_name) ->
+	gtk
+		.IconTheme
+		.get_default()?
+		::lookup_icon(icon_name, 48, 0)?
+		::get_filename()
+
+export lookup_gicon = (gicon) ->
+	icon_name = gicon?::to_string()
+
+	if not icon_name
+		return
+
+	if icon_name::match("/")
+		return icon_name
+
+	lookup_icon icon_name
+
+scaling_factor = 1
+dpi = beautiful.xresources.apply_dpi
+export scale = (x, s=screen.primary) -> scaling_factor * dpi x * (s.scaling_factor or 1)
+
+export for_children = (widget, id, callback) ->
+	for _, child in ipairs widget::get_children_by_id id
+		callback child
+
+export is_private = (key) -> not not (type(key) == "string" and key::match("^__"))
+
+export quote_key = (key) ->
+	if type(key) == "string" and key::match("^[a-zA-Z_][a-zA-Z0-9_]*$")
+		return key
+	
+	"[#{pretty_print(key)}]"
+
+
+make_getter = (field) -> () => rawget(@__private, field)
+make_setter = (field) -> (value) => rawset(@__private, field, value)
+
+import MissingArgumentException from require("slimeos.lib.exception")
+
+export gen_properties = (args) ->
+	with args
+		.object ??= args[1]
+		MissingArgumentException::assert(.object, "object", "util.gen_properties")
+		.properties ??= args[2]
+		MissingArgumentException::assert(.properties, "properties", "util.gen_properties")
+		.get ??= true
+		.set ??= true
+		.raw ??= true
+
+	if args.raw
+		if args.get
+			for prop in *args.properties
+				rawset(args.object, "get_"..prop, make_getter(args.object, prop))
+
+		if args.set
+			for prop in *args.properties
+				rawset(args.object, "set_"..prop, make_setter(args.object, prop, value))
+		
+		return
+
+	if args.get
+		for prop in *args.properties
+			args.object["get_"..prop] = make_getter(args.object, prop)
+
+	if args.set
+		for prop in *args.properties
+			args.object["set_"..prop] = make_setter(args.object, prop, value)

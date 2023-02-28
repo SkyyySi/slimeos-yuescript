@@ -1,1 +1,0 @@
-export Button = require("modules.widgets.Button")

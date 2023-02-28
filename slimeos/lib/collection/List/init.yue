@@ -1,0 +1,46 @@
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+return class List extends Object
+	init: (items={}) =>
+		for k, v in ipairs(items)
+			@[k] = v
+
+	sort: () =>
+		table.sort(@)
+
+	repr: () =>
+		out = "["
+
+		first = true
+
+		for k, v in ipairs(@)
+			if util.is_private(k)
+				continue
+
+			if first
+				first = false
+				out ..= util.pretty_print(v)
+				continue
+
+			out ..= ", " .. util.pretty_print(v)
+
+		out.."]"
+
+	<tostring>: () =>
+		out = "["
+
+		first = true
+
+		for k, v in ipairs(@)
+			if util.is_private(k)
+				continue
+
+			if first
+				first = false
+				out ..= util.pretty_print_monochrome(v)
+				continue
+
+			out ..= ", " .. util.pretty_print_monochrome(v)
+
+		out.."]"

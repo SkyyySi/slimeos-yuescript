@@ -1,0 +1,1 @@
+export absolute_center = require("slimeos.layouts.absolute_center")

@@ -1,0 +1,25 @@
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+return class Map extends Object
+	init: (items={}) =>
+		for k, v in pairs(items)
+			@[k] = v
+
+	<tostring>: () =>
+		out = "{"
+
+		first = true
+
+		for k, v in pairs(@)
+			if util.is_private(k)
+				continue
+
+			if first
+				first = false
+				out ..= "#{util.quote_key(k)}: #{util.pretty_print(v)}"
+				continue
+
+			out ..= ", #{util.quote_key(k)}: #{util.pretty_print(v)}"
+
+		out.."}"

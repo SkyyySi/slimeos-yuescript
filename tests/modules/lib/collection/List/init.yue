@@ -2,7 +2,7 @@ module_name = "modules.lib.collection.List"
 
 List = require(module_name)
 
-util = require("modules.lib.util")
+util = require("slimeos.lib.util")
 
 do
 	l = List({"foo", "bar", "biz", "baz"})

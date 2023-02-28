@@ -1,3 +1,0 @@
-export List  = require("modules.lib.collection.List")
-export Map   = require("modules.lib.collection.Map")
-export Tuple = require("modules.lib.collection.Tuple")
