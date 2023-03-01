@@ -1,3 +1,2 @@
-return {
-	main_menu: require("slimeos.boxes.main_menu")
-}
+export main_menu = require("slimeos.boxes.main_menu")
+export ShapedWibox = require("slimeos.boxes.ShapedWibox")

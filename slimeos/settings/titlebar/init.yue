@@ -1,0 +1,90 @@
+awful     = require("awful")
+gears     = require("gears")
+wibox     = require("wibox")
+ruled     = require("ruled")
+beautiful = require("beautiful")
+menubar   = require("menubar")
+naughty   = require("naughty")
+
+import Object, util, wrap from require("slimeos.lib")
+
+-- {{{ Titlebars
+-- Add a titlebar if titlebars_enabled is set to true in the rules.
+client.connect_signal("request::titlebars", (c) ->
+	menu = awful.menu {
+		items: {
+			{ "Close",        (() -> c::kill()), beautiful.titlebar_close_button_focus }
+			{ "Maximize",     (() -> c.maximized = not c.maximized), beautiful.titlebar_maximized_button_focus_inactive },
+			{ "Minimize",     (() -> c.minimized = not c.minimized), beautiful.titlebar_minimize_button_focus },
+			{ "Sticky",       (() -> c.sticky = not c.sticky), beautiful.titlebar_sticky_button_focus_inactive },
+			{ "Float / tile", (() -> c.floating = not c.floating), beautiful.titlebar_floating_button_focus_active },
+			{ "Keep above",   (() ->
+				c.below = false
+				c.above = not c.above
+			), beautiful.titlebar_ontop_button_focus_active },
+			{ "Keep below",   (() ->
+				c.above = false
+				c.below = not c.below
+			), beautiful.titlebar_below_button_focus_active }, -- Note: this icon doesn't exist in the deault icon set
+		}
+	}
+
+	-- buttons for the titlebar
+	buttons = {
+		awful.button({}, 1, () ->
+			c::activate {
+				context: "titlebar"
+				action:  "mouse_move"
+			}
+		)
+
+		awful.button({}, 3, () ->
+			c::activate {
+				context: "titlebar"
+				action:  "mouse_resize"
+			}
+		)
+
+		awful.button({}, 2, nil, () -> menu::toggle())
+	}
+
+	c.titlebars = {}
+	c.titlebars.top = awful.titlebar(c)
+
+	c.titlebars.top.widget = {
+		{
+			{
+				awful.titlebar.widget.iconwidget(c)
+				margins: util.scale(6)
+				buttons: {
+					awful.button({}, 1, nil, () -> menu::toggle())
+					awful.button({}, 2, nil, () -> menu::toggle())
+				}
+				widget:  wibox.container.margin
+			}
+			{
+				font:    beautiful.titlebar_font ?? beautiful.bold_font ?? beautiful.font .. " Bold"
+				halign:  "center"
+				buttons: buttons
+				widget:  awful.titlebar.widget.titlewidget(c)
+			}
+			spacing: util.scale(4)
+			layout:  wibox.layout.fixed.horizontal
+		}
+		{
+			buttons: buttons
+			layout:  wibox.layout.flex.horizontal
+		}
+		{
+			--awful.titlebar.widget.floatingbutton(c)
+			--awful.titlebar.widget.stickybutton(c)
+			--awful.titlebar.widget.ontopbutton(c)
+			awful.titlebar.widget.minimizebutton(c)
+			awful.titlebar.widget.maximizedbutton(c)
+			awful.titlebar.widget.closebutton(c)
+			layout: wibox.layout.fixed.horizontal
+		}
+		layout: wibox.layout.align.horizontal
+	}
+)
+-- }}}

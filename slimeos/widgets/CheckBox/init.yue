@@ -1,0 +1,11 @@
+awful     = require("awful")
+gears     = require("gears")
+wibox     = require("wibox")
+ruled     = require("ruled")
+beautiful = require("beautiful")
+menubar   = require("menubar")
+naughty   = require("naughty")
+
+import Object, util, wrap from require("slimeos.lib")
+
+class Button extends wrap.GearsObject(wibox.container.background(), "wibox.container.background")

@@ -7,10 +7,11 @@ menubar   = require("menubar")
 naughty   = require("naughty")
 
 import Object, util, wrap from require("slimeos.lib")
-import FrozenObjectMutationException from require("slimeos.lib.exception")
 
-class Button extends wrap.GearsObject(wibox.container.background(), "wibox.widget")
+class Button extends wrap.GearsObject(wibox.container.background(), "wibox.container.background")
 	init: (args={}) =>
+		p = @__private
+
 		p = @__private
 
 		with args

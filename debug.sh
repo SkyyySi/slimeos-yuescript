@@ -11,7 +11,7 @@ sleep 1 # Just making sure that Xephyr has been started up fully.
 export DISPLAY="$_DISPLAY"
 
 # If virtualgl is installed
-if command -v vglclient 2> /dev/null; then
+if [[ "$NO_VIRTUALGL" != true ]] && command -v vglclient 2> /dev/null; then
 	vglclient -detach
 	env -C "$HOME" vglrun awesome --config "$CONFIG_DIR/rc.lua"&
 else

@@ -14,15 +14,15 @@ themes_path = gears.filesystem.get_configuration_dir() .. "themes/skyyysi/"
 
 t = {}
 
-t.font          = "Source Sans Pro, Medium, " .. tostring(math.floor(scale(12)))
+t.font          = "Source Sans Pro, Medium #{math.floor(scale(12) + 0.5)}"
 
-t.bg_normal     = "#135515C822FB"
-t.bg_focus      = "#00008E07F911"
-t.bg_urgent     = "#FFFF00000F12"
-t.bg_minimize   = "#445744574457"
+t.bg_normal     = "#131522" -- "#135515C822FB"
+t.bg_focus      = "#008EF9" -- "#00008E07F911"
+t.bg_urgent     = "#FF000F" -- "#FFFF00000F12"
+t.bg_minimize   = "#444444" -- "#445744574457"
 t.bg_systray    = t.bg_normal
 
-t.fg_normal     = "#FFFFFAFFF499"
+t.fg_normal     = "#FFFAF4" -- "#FFFFFAFFF499"
 t.fg_focus      = t.fg_normal
 t.fg_urgent     = t.fg_normal
 t.fg_minimize   = t.fg_normal
@@ -31,7 +31,7 @@ t.useless_gap         = scale(2)
 t.border_width        = scale(1)
 t.border_color_normal = t.bg_normal
 t.border_color_active = t.bg_focus
-t.border_color_marked = "#FFFFB9FF0000"
+t.border_color_marked = "#FFB900" -- "#FFFFB9FF0000"
 
 -- There are other variable sets
 -- overriding the default one when
@@ -45,8 +45,16 @@ t.border_color_marked = "#FFFFB9FF0000"
 -- Example:
 --theme.taglist_bg_focus = "#ff0000"
 
+--focus, urgent, occupied, empty, volatile
+t.taglist_bg_focus = t.bg_focus
+t.taglist_bg_urgent = t.bg_urgent
+t.taglist_bg_occupied = t.bg_minimize
+t.taglist_bg_empty = t.bg_normal
+t.taglist_bg_volatile = t.border_color_marked
+t.taglist_font = "Roboto Mono, Bold #{math.floor(scale(12))}"
+
 -- Generate taglist squares:
-local taglist_square_size = scale(4)
+taglist_square_size = 0 -- scale(4)
 t.taglist_squares_sel = theme_assets.taglist_squares_sel(
     taglist_square_size, t.fg_normal
 )
@@ -133,12 +141,16 @@ t.awesome_icon = theme_assets.awesome_icon(
 t.icon_theme = "Papirus-Dark"
 
 -- Set different colors for urgent notifications.
-ruled.notification.connect_signal "request::rules", () ->
-    ruled.notification.append_rule
-        rule:
+ruled.notification.connect_signal("request::rules", () ->
+    ruled.notification.append_rule {
+        rule: {
 			urgency: "critical"
-        properties:
+		}
+        properties: {
 			bg: "#ff0000"
 			fg: "#ffffff"
+		}
+	}
+)
 
-return t
+t

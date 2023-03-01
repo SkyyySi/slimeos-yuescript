@@ -1,0 +1,31 @@
+awful     = require("awful")
+gears     = require("gears")
+wibox     = require("wibox")
+ruled     = require("ruled")
+beautiful = require("beautiful")
+menubar   = require("menubar")
+naughty   = require("naughty")
+
+import Object, util, wrap from require("slimeos.lib")
+
+--return class ShapedWibox extends wrap.GearsObject(wibox, "wibox")
+--	init: (...) =>
+
+(args={}) ->
+	with args
+		__widget = .widget
+
+		.widget = {
+			__widget
+			bg: .bg ?? beautiful.bg_normal
+			shape: .shape
+			shape_border_width: .border_width
+			shape_border_color: .border_color
+			widget: wibox.container.background
+		}
+
+		.bg = gears.color.transparent
+		.border_width = nil
+		.border_color = nil
+
+	wibox(args)

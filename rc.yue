@@ -53,7 +53,7 @@ inotifywait --event modify \
 -- The reason xrender is used here is purely because Xephyr does not work
 -- with glx at all, with the window just showing a "screenshot" of when picom
 -- was started.
-awful.spawn.once { "picom", "--backend=xrender" }
+awful.spawn.once { "picom", "--backend=xrender", "--corner-radius=0" }
 -- }}}
 
 -- {{{ Variable definitions
@@ -127,6 +127,7 @@ main_menu = modules.boxes.main_menu {
 awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
 -- }}}
 
+--[[
 do
 	print()
 	util.terminal.log.stroke()
@@ -138,7 +139,7 @@ do
 	print("List  -> #{l}")
 	print("Map   -> #{m}")
 	print("Tuple -> #{t}")
-
+--]]
 --[[
 	l[]   = "lua"
 	m.yue = "lua"
@@ -209,10 +210,54 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 		}
 	}
 
+	-- Create the main bar
+	s.main_wibar = awful.wibar {
+		position: "top"
+		screen:   s
+		bg:       gears.color.transparent
+	}
+
 	-- Create a taglist widget
 	s.taglist = awful.widget.taglist {
 		screen:  s
 		filter:  awful.widget.taglist.filter.all
+		layout:  {
+			layout:  wibox.layout.flex.horizontal
+		}
+		widget_template: {
+			{
+				id:     "text_role"
+				halign: "center"
+				valign: "center"
+				forced_width: s.main_wibar.height or util.scale(12)
+				widget: wibox.widget.textbox
+			}
+			id:     "background_role"
+			widget: wibox.container.background
+			create_callback: (current_tag, index, objects) =>
+				@connect_signal("mouse::enter", () ->
+					@bg = beautiful.fg_normal ?? "#FFFAF4"
+					@fg = beautiful.bg_normal ?? "#131522"
+				)
+
+				@connect_signal("mouse::leave", () ->
+					if current_tag.selected
+						@bg = beautiful.taglist_bg_focus ?? beautiful.bg_focus ?? "#008EF9"
+					elseif current_tag.urgent
+						@bg = beautiful.taglist_bg_urgent ?? beautiful.bg_urgent ?? "#FF000F"
+					elseif current_tag.occupied
+						@bg = beautiful.taglist_bg_occupied ?? beautiful.bg_minimize ?? "#444444"
+					elseif current_tag.volatile
+						@bg = beautiful.taglist_bg_volatile ?? beautiful.border_color_marked ?? "#FFB900"
+					else
+						@bg = beautiful.taglist_bg_empty ?? beautiful.bg_normal ?? "#131522"
+
+					@fg = beautiful.fg_normal ?? "#FFFAF4"
+				)
+			--update_callback: (current_tag, index, objects) =>
+			--	-- focus, urgent, occupied, empty, volatile
+			--	--print("'#{@}' | '#{current_tag.selected}' | '#{index}'")
+		}
 		buttons: {
 			awful.button({}, 1, (t) -> t::view_only())
 			awful.button({ modkey }, 1, (t) ->
@@ -266,76 +311,70 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 		awful.button({}, 5, awful.tag.viewnext)
 	}
 
-	-- Create the wibox
-	s.main_wibar = awful.wibar {
-		position: "top"
-		screen:   s
-		bg:       gears.color.transparent
-		widget: modules.layouts.absolute_center(
+	s.main_wibar.widget = modules.layouts.absolute_center(
+		{
 			{
 				{
 					{
-						{
-							awful.widget.launcher {
-								image: beautiful.awesome_icon
-								menu:  main_menu
-							}
-							s.taglist
-							s.promptbox
-							layout: wibox.layout.fixed.horizontal
+						awful.widget.launcher {
+							image: beautiful.awesome_icon
+							menu:  main_menu
 						}
-						bg:     beautiful.bg_normal
-						shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
-						widget: wibox.container.background
+						s.taglist
+						s.promptbox
+						layout: wibox.layout.fixed.horizontal
 					}
-					right: util.scale(1)
-					bottom: util.scale(1)
-					widget:  wibox.container.margin
+					bg:     beautiful.bg_normal
+					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
+					widget: wibox.container.background
 				}
-				bg:     beautiful.fg_normal
-				shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
-				widget: wibox.container.background
-			}, {
+				right: util.scale(1)
+				bottom: util.scale(1)
+				widget:  wibox.container.margin
+			}
+			bg:     beautiful.fg_normal
+			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
+			widget: wibox.container.background
+		}, {
+			{
+				{
+					s.tasklist
+					bg:     beautiful.bg_normal
+					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
+					widget: wibox.container.background
+				}
+				id:     "tasklist_border_role"
+				right: util.scale(1)
+				bottom: util.scale(1)
+				left: util.scale(1)
+				widget:  wibox.container.margin
+			}
+			bg:     beautiful.fg_normal
+			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
+			widget: wibox.container.background
+		}, {
+			{
 				{
 					{
-						s.tasklist
-						bg:     beautiful.bg_normal
-						shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
-						widget: wibox.container.background
+						awful.widget.keyboardlayout()
+						wibox.widget.systray()
+						wibox.widget.textclock()
+						s.layoutbox
+						layout: wibox.layout.fixed.horizontal
 					}
-					id:     "tasklist_border_role"
-					right: util.scale(1)
-					bottom: util.scale(1)
-					left: util.scale(1)
-					widget:  wibox.container.margin
+					bg:     beautiful.bg_normal
+					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
+					widget: wibox.container.background
 				}
-				bg:     beautiful.fg_normal
-				shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
-				widget: wibox.container.background
-			}, {
-				{
-					{
-						{
-							awful.widget.keyboardlayout()
-							wibox.widget.systray()
-							wibox.widget.textclock()
-							s.layoutbox
-							layout: wibox.layout.fixed.horizontal
-						}
-						bg:     beautiful.bg_normal
-						shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
-						widget: wibox.container.background
-					}
-					bottom: util.scale(1)
-					left: util.scale(1)
-					widget:  wibox.container.margin
-				}
-				bg:     beautiful.fg_normal
-				shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
-				widget: wibox.container.background
-			}, main_wibar_buttons
-		)
-	}
+				bottom: util.scale(1)
+				left: util.scale(1)
+				widget:  wibox.container.margin
+			}
+			bg:     beautiful.fg_normal
+			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
+			widget: wibox.container.background
+		}, main_wibar_buttons
+	)
 
 	s.update_dock_tasklist_separator = () =>
 		border_width = #@clients > 0 and util.scale(1) or 0
@@ -376,8 +415,6 @@ client.connect_signal("mouse::enter", (c) ->
 )
 
 with Button = modules.widgets.Button
-	logblock("Testing button")
-
 	placement = () => awful.placement.left(@, { honor_workarea: true, margins: util.scale(10) })
 
 	local wb
@@ -416,8 +453,9 @@ with Button = modules.widgets.Button
 					on_click: (button) => if button == 1 then awesome.restart()
 					widget: Button
 				}
-				bg: "#000000"
-				shape_border_color: "#FFFFFF"
+				bg: beautiful.bg_normal
+				fg: beautiful.fg_normal
+				shape_border_color: beautiful.fg_normal
 				shape_border_width: util.scale(2)
 				widget: wibox.container.background
 			}
@@ -426,6 +464,30 @@ with Button = modules.widgets.Button
 		placement(wb)
 	)
 
+--[[
+with ShapedWibox = modules.boxes.ShapedWibox
+	wb = ShapedWibox {
+		x:       util.scale(50)
+		y:       util.scale(50)
+		width:   util.scale(100)
+		height:  util.scale(100)
+		visible: true
+		ontop:   true
+		shape:   (cr, w, h) -> gears.shape.rounded_rect(cr, w, h, util.scale(20))
+		widget:  {
+			markup: "Hello, world!"
+			halign: "center"
+			valign: "center"
+			widget: wibox.widget.textbox
+		}
+	}
+
+	awful.placement.centered(wb, {
+		honor_workarea: true
+	})
+--]]
+
+--[[
 with util.terminal
 	.log.matrix2({
 		{ { "left", "foo" }, { "right", "bar" } }
@@ -441,3 +503,4 @@ with util.terminal
 		--columns: 2
 		--rows: 3
 	})
+--]]
