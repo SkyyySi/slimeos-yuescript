@@ -467,7 +467,6 @@ with Button = modules.widgets.Button
 	)
 
 --[[
-<<<<<<< HEAD
 with ShapedWibox = modules.boxes.ShapedWibox
 	wb = ShapedWibox {
 		x:       util.scale(50)
@@ -491,8 +490,6 @@ with ShapedWibox = modules.boxes.ShapedWibox
 --]]
 
 --[[
-=======
->>>>>>> origin/master
 with util.terminal
 	.log.matrix2({
 		{ { "left", "foo" }, { "right", "bar" } }
@@ -510,7 +507,3 @@ with util.terminal
 		--rows: 3
 	})
 --]]
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/master
