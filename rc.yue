@@ -37,6 +37,7 @@ do
 -- }}}
 
 -- {{{ Auto reload
+--[==[
 awful.spawn.with_line_callback([[bash -c '
 inotifywait --event modify \
 	--include '"'"'.*\.lua'"'"' \
@@ -45,6 +46,7 @@ inotifywait --event modify \
 	--quiet \
 	2> /dev/null
 ']], { stdout: (line) -> awesome.restart() })
+--]==]
 -- }}}
 
 -- {{{ App autostart
@@ -465,6 +467,7 @@ with Button = modules.widgets.Button
 	)
 
 --[[
+<<<<<<< HEAD
 with ShapedWibox = modules.boxes.ShapedWibox
 	wb = ShapedWibox {
 		x:       util.scale(50)
@@ -488,13 +491,16 @@ with ShapedWibox = modules.boxes.ShapedWibox
 --]]
 
 --[[
+=======
+>>>>>>> origin/master
 with util.terminal
 	.log.matrix2({
 		{ { "left", "foo" }, { "right", "bar" } }
 		{ { "left", "biz" }, { "right", "baz" } }
-		{ { "left", "lua" }, { "right", "yue" } }
+		{ { "left", "lua" }, { "center", "moon" }, { "right", "yue" } }
+		{ { "center", "centered" }, { "right", "shorter line\nloooooooooooooooooooooooonger line" } }
 		{ { "left", "loooooooooooooooooooooooooooooooooooooooooooooooooooooooong" }, { "center", "I'm centered" } }
-		{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left" } }
+		{ { "left", "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" }, { "left", "I'm left and very loooooooooooooooooooooooooooooooooooong" } }
 	}, {
 		shadow: false
 		empty_shadow: false
@@ -504,3 +510,7 @@ with util.terminal
 		--rows: 3
 	})
 --]]
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/master
