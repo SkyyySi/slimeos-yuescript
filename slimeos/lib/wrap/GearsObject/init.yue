@@ -9,27 +9,13 @@ naughty   = require("naughty")
 Object = require("slimeos.lib.Object")
 
 return (gobject, name="GearsObject") ->
-	class GearsObject -- extends Object
+	class GearsObject extends Object
 		new: (...) =>
-			old_mt = @.<>
-
-			@.<> = gobject.<>
-
 			gears.table.crush(@, gobject)
 
-			@__properties = {}
-			@__private = {
-				initialized: false
+			super(...)
 
-				--- If `true`, a `FrozenObjectMutationException` will be thrown when
-				--- trying to set a new field on the object.
-				--- NOTE: Already set fields will not be effected by this!
-				frozen: false
-			}
-
-			old_mt.init?(@, ...)
-
-			@__private.initialized = true
+	gears.table.crush(GearsObject, gobject.<>)
 
 	rawset(GearsObject, "__name", name)
 

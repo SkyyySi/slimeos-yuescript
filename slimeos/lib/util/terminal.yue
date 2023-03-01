@@ -1,3 +1,8 @@
+math = math
+unpack = unpack or table.unpack
+string = string
+tostring = tostring
+
 ustring = require("slimeos.lib.util.string")
 
 export geometry = () ->
@@ -274,52 +279,105 @@ log.matrix2 = (matrix, args={}) ->
 	else
 		0
 
-	limit_line_widths = (lines, max_with) ->
-		[ s::sub(1, max_width) for s in *lines ]
+	limit_line_lengths = (lines, max_length) ->
+		[ s::sub(1, max_length) for s in *lines ]
 
-	pad_lines = (lines, width, align) ->
-		[ ustring.align(s, width, align) for s in *lines ]
+	pad_lines = (lines, length, align) ->
+		[ ustring.align(s, length, align) for s in *lines ]
 
-	format_cell = (content, cell_width) ->
-		align = content[1]
-		content[2]
+	calculate_cell_widths = (cells_with_length) ->
+		max_row_width = width - 2 - padding_right - (#cells_with_length - 1)
+		-- TODO: Make this function assign different widths to each column
+		--       when that would lead to a greater amount of non cut-off content
+		-- UPDATE: Done...? (needs testing)
+
+		-- TODO: Ideally, the exact number of non-space characters that were to be
+		--       cut-off should be used to determine the ideal share. Low priority.
+		cell_widths = {}
+		total_row_width = 0
+
+		for k, cell in ipairs(cells_with_length)
+			cell_widths[k] = cell.length
+			total_row_width += cell.length
+
+		i = 1
+		while total_row_width > max_row_width
+			cell_widths[i] = (cell_widths[i] or 1) - 1
+			--print(i, total_row_width, max_row_width, cell_widths[i])
+			total_row_width -= 1
+			i = (i % #cell_widths) + 1
+
+		cell_widths
+
+	format_cell = (cell, cell_count) ->
+		cell.content
 			|> tostring()
 			|> ustring.split("\n")
-			|> limit_line_widths(cell_width)
-			|> pad_lines(cell_width, align)
-			|> ustring.join("\n")
+			|> limit_line_lengths(cell.length)
+			|> pad_lines((width - 3 - padding_right) / cell_count, cell.align)
 
-	do
-		p = (...) -> print(ustring.join({...}, " | "))
-		print(">>>")
-		for row in *matrix
-			p(format_cell(row[1], 40), format_cell(row[1], 40))
-		print("<<<")
-		return
-
-	unify_cell_lengths_of_row = (row) ->
+	format_row = (row) ->
 		longest_cell_length = 1
 		cells_with_length = {}
 
-		for cell in *row
-			cell_length = select(2, cell::gsub("\n", "\n")) + 1
-			cells_with_length[] = { content: cell, length: cell_length }
+		for k, cell in ipairs(row)
+			local cell_length = 1
+			for line in ustring.split(cell[2], "\n")
+				cell_length = if #line > cell_length
+					#line
+				else
+					cell_length
+
+			cells_with_length[k] = { align: cell[1], content: cell[2], length: cell_length }
 
 			longest_cell_length = if cell_length > longest_cell_length
 				cell_length
 			else
 				longest_cell_length
 
-		row_width = math.floor(width / #row + 0.5) - padding_right
-		unified_row = {}
-		for cell in *cells_with_length
-			if cell_length >= longest_cell_length
-				unified_column[] = cell.content
-				continue
+		cell_widths = calculate_cell_widths(cells_with_length)
 
-			unified_column[] = cell.content .. string.rep("\n", longest_cell_length - cell.length)
+		unified_cells = {}
+		for k, cell in ipairs(cells_with_length)
+			--unified_cells[] = { content: (cell.content .. if cell.length < longest_cell_length
+			--	string.rep("\n", longest_cell_length - cell.length)
+			--else
+			--	""), length: cell.length }
+			unified_cells[k] = format_cell({ align: cell.align, content: cell.content, length: cell_widths[k] }, #row)
 
-		unified_row
+		lines = {}--[ line ?? "" for line in *[ unified_cells ] ]
+
+		length = 1
+		for cell in *unified_cells
+			length = if #cell > length
+				#cell
+			else
+				length
+
+		for i = 1, length
+			line = {}
+
+			for cell in *unified_cells
+				line[] = cell[i] ?? ustring.rep(" ", cell_widths[i])
+
+			lines[] = ustring.join(line, style.vertical[1])
+
+		joined_cells = ustring.join(lines, "\n")
+
+		{ formatted_row: joined_cells, cells: unified_cells, longest_cell_length: longest_cell_length }
+
+	do
+		print()
+		print()
+		log.stroke()
+		for row in *matrix
+			--x = format_row({ format_cell(row[1], 40), format_cell(row[2], 40) })
+			x = format_row(row)
+			print(x.formatted_row)
+			log.stroke(nil, -2, true)
+		print()
+		print()
+		return
 
 	formatted_matrix = matrix
 

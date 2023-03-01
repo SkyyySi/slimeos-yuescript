@@ -140,7 +140,7 @@ function tts.util.strip_colors(s)
 	return s:gsub("\x1b[^m]*m", "")
 end
 
-local terminal = require("modules.lib.util.terminal")
+local terminal = require("slimeos.lib.util.terminal")
 ---@param obj any The object you want to estimate the length after stringyfication of 
 ---@param max_needed_length integer If the determined length of `obj` is longer than this, `estimate_length` will early return
 ---@return integer estimated_length

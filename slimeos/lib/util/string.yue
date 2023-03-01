@@ -9,6 +9,12 @@ naughty   = require("naughty")
 string = string
 math   = math
 
+color = {
+	reset: "\027[0m"
+	bold:  "\027[1m"
+	blue:  "\027[34m"
+}
+
 export length = (str) ->
 	-- Strip colors and formatting
 	str = str::gsub("\027[^m]*m", "")
@@ -24,7 +30,7 @@ export length = (str) ->
 			return utf8.len(str)
 
 	-- If no utf8 library is installed
-	print("#{color.reset.all}#{color.foreground.normal.blue}#{color.format.bold}INFO:#{color.reset.all} You have no utf8 library installed. Consider installing `luautf8`.")
+	print("#{color.reset}#{color.blue}#{color.bold}INFO:#{color.reset} You have no utf8 library installed. Consider installing `luautf8`.")
 
 	if #str < 1
 		return 0
@@ -109,10 +115,10 @@ export join = (str_list, joiner=", ") ->
 	out = ""
 
 	for k, str in ipairs(str_list)
-		if next(str_list, k) == nil
-			out ..= str
-		else
-			out ..= str .. joiner
+		out ..= str
+
+		if next(str_list, k) != nil
+			out ..= joiner
 	
 	out
 
