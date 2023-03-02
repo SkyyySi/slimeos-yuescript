@@ -1,0 +1,1 @@
+- Add a "sensible app" module that finds the best available editor, terminal emulator, web browser and file manager

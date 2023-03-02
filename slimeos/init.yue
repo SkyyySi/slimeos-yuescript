@@ -1,3 +1,4 @@
+export bars     = require("slimeos.bars")
 export boxes    = require("slimeos.boxes")
 export layouts  = require("slimeos.layouts")
 export lib      = require("slimeos.lib")

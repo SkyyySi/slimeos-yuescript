@@ -8,15 +8,11 @@ naughty   = require("naughty")
 
 import Object, util, wrap from require("slimeos.lib")
 
-class Button extends wrap.GearsObject(wibox.container.background(), "wibox.container.background")
+class Button extends wrap.GearsObject(wibox.container.background, "wibox.container.background")
 	init: (args={}) =>
 		p = @__private
 
-		p = @__private
-
 		with args
-			p.on_click = .on_click ?? ->
-
 			p.bg_normal   = .bg_normal   ?? "#FFFFFF00"
 			p.bg_selected = .bg_selected ?? "#FFFFFF20"
 			p.bg_press    = .bg_press    ?? "#FFFFFF40"
@@ -28,16 +24,18 @@ class Button extends wrap.GearsObject(wibox.container.background(), "wibox.conta
 			@bg = .initial_bg ?? p.bg_normal
 			@fg = .initial_fg ?? p.fg_normal
 
+			p.mouse_effects = .mouse_effects ?? true
+
 		util.gen_properties {
 			object: @
 			properties: {
-				"on_click"
 				"bg_normal"
 				"bg_selected"
 				"bg_press"
 				"fg_normal"
 				"fg_selected"
 				"fg_press"
+				"mouse_effects"
 			}
 		}
 
@@ -45,29 +43,35 @@ class Button extends wrap.GearsObject(wibox.container.background(), "wibox.conta
 		p.below_cursor = false
 
 		@connect_signal("mouse::enter", () ->
-			@bg = p.bg_selected ?? "#FFFFFF20"
-			@bg = p.bg_selected ?? "#FFFFFF20"
+			@bg = p.bg_selected
+			@bg = p.bg_selected
 			p.below_cursor = true
+
+			if p.mouse_effects
+				wb = mouse.current_wibox ?? {}
+				p.previous_cursor, p.previous_wibox = wb.cursor, wb
+				wb.cursor = "hand1"
 		)
 
 		@connect_signal("mouse::leave", () ->
-			@bg = p.bg_normal ?? "#FFFFFF00"
+			@bg = p.bg_normal
 			p.below_cursor = false
+
+			if p.mouse_effects and previous_wibox
+				p.previous_wibox.cursor = previous_cursor
+				p.previous_wibox = nil
 		)
 
 		@connect_signal("button::press", (_, _, _, button) ->
-			@bg = p.bg_press ?? "#FFFFFF40"
+			@bg = p.bg_press
 			p.pressed = true
 		)
 
 		@connect_signal("button::release", (_, _, _, button) ->
-			@bg = p.bg_selected ?? "#FFFFFF20"
-
-			if p.pressed and p.below_cursor
-				@on_click(button)
+			@bg = p.bg_selected
 
 			p.pressed = false
 		)
 
 		@__name = "Button"
-		@.<tostring> = => "<Widget '#{@__name}' instance>"
+		@.<tostring> = () => "<Widget '#{@__name}' instance>"

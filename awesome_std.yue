@@ -1,0 +1,18 @@
+export awful     = require("awful")
+export gears     = require("gears")
+export wibox     = require("wibox")
+export ruled     = require("ruled")
+export beautiful = require("beautiful")
+export menubar   = require("menubar")
+export naughty   = require("naughty")
+
+export capi = {
+	awesome: awesome
+	client: client
+	keygrabber: keygrabber
+	mouse: mouse
+	mousegrabber: mousegrabber
+	root: root
+	screen: screen
+	tag: tag
+}

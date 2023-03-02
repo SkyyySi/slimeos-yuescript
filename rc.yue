@@ -62,8 +62,9 @@ awful.spawn.once { "picom", "--backend=xrender", "--corner-radius=0" }
 -- Themes define colours, icons, font and wallpapers.
 beautiful.init(gears.filesystem.get_configuration_dir() .. "themes/skyyysi/theme.lua")
 
-modules = require("slimeos")
-import util from modules.lib
+slimeos = require("slimeos")
+import util from slimeos.lib
+import Enum from slimeos.lib.collection
 
 logblock = (msg) ->
 	with util.terminal
@@ -110,8 +111,16 @@ with util.terminal
 	print()
 
 -- This is used later as the default terminal and editor to run.
-terminal = os.getenv("TERMINAL") or "xterm"
-editor =   os.getenv("EDITOR")   or terminal .. " -e nano"
+terminal = os.getenv("TERMINAL") ?? "xterm"
+editor =   os.getenv("EDITOR")   ?? "#{terminal} -e nano"
+
+cli_editors = Enum {
+	"nano"
+	"micro"
+}
+
+if cli_editors[editor]
+	editor = "#{terminal} -e #{editor}"
 
 menubar.utils.terminal = terminal
 
@@ -122,11 +131,11 @@ menubar.utils.terminal = terminal
 -- However, you can use another modifier like Mod1, but it may interact with others.
 modkey = "Mod1"
 
-main_menu = modules.boxes.main_menu {
+awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
+
+main_menu = slimeos.boxes.main_menu {
 	terminal: terminal
 }
-
-awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
 -- }}}
 
 --[[
@@ -191,212 +200,11 @@ do
 
 -- {{{ Wibar
 screen.connect_signal("request::desktop_decoration", (s) ->
-	-- A factor used to allow for per-screen scaling
-	s.scaling_factor = 1
-
-	-- Each screen has its own tag table.
-	awful.tag([ tostring(i) for i = 1, 10 ], s, awful.layout.layouts[1])
-
-	-- Create a promptbox for each screen
-	s.promptbox = awful.widget.prompt()
-
-	-- Create an imagebox widget which will contain an icon indicating which layout we're using.
-	-- We need one layoutbox per screen.
-	s.layoutbox = awful.widget.layoutbox {
-		screen:  s
-		buttons: {
-			awful.button {}, 1, () -> awful.layout.inc  1
-			awful.button {}, 3, () -> awful.layout.inc -1
-			awful.button {}, 4, () -> awful.layout.inc -1
-			awful.button {}, 5, () -> awful.layout.inc  1
-		}
+	slimeos.bars.main {
+		screen: s
+		menu: main_menu
+		terminal: terminal
 	}
-
-	-- Create the main bar
-	s.main_wibar = awful.wibar {
-		position: "top"
-		screen:   s
-		bg:       gears.color.transparent
-	}
-
-	-- Create a taglist widget
-	s.taglist = awful.widget.taglist {
-		screen:  s
-		filter:  awful.widget.taglist.filter.all
-		layout:  {
-			layout:  wibox.layout.flex.horizontal
-		}
-		widget_template: {
-			{
-				id:     "text_role"
-				halign: "center"
-				valign: "center"
-				forced_width: s.main_wibar.height or util.scale(12)
-				widget: wibox.widget.textbox
-			}
-			id:     "background_role"
-			widget: wibox.container.background
-			create_callback: (current_tag, index, objects) =>
-				@connect_signal("mouse::enter", () ->
-					@bg = beautiful.fg_normal ?? "#FFFAF4"
-					@fg = beautiful.bg_normal ?? "#131522"
-				)
-
-				@connect_signal("mouse::leave", () ->
-					if current_tag.selected
-						@bg = beautiful.taglist_bg_focus ?? beautiful.bg_focus ?? "#008EF9"
-					elseif current_tag.urgent
-						@bg = beautiful.taglist_bg_urgent ?? beautiful.bg_urgent ?? "#FF000F"
-					elseif current_tag.occupied
-						@bg = beautiful.taglist_bg_occupied ?? beautiful.bg_minimize ?? "#444444"
-					elseif current_tag.volatile
-						@bg = beautiful.taglist_bg_volatile ?? beautiful.border_color_marked ?? "#FFB900"
-					else
-						@bg = beautiful.taglist_bg_empty ?? beautiful.bg_normal ?? "#131522"
-
-					@fg = beautiful.fg_normal ?? "#FFFAF4"
-				)
-			--update_callback: (current_tag, index, objects) =>
-			--	-- focus, urgent, occupied, empty, volatile
-			--	--print("'#{@}' | '#{current_tag.selected}' | '#{index}'")
-		}
-		buttons: {
-			awful.button({}, 1, (t) -> t::view_only())
-			awful.button({ modkey }, 1, (t) ->
-				if client.focus
-					client.focus::move_to_tag(client.focus, t)
-			)
-			awful.button({}, 3, awful.tag.viewtoggle)
-			awful.button({ modkey }, 3, (t) ->
-				if client.focus
-					client.focus::toggle_tag(t)
-			)
-			awful.button({}, 4, (t) -> awful.tag.viewprev(t.screen))
-			awful.button({}, 5, (t) -> awful.tag.viewnext(t.screen))
-		}
-	}
-
-	-- Create a tasklist widget
-	s.tasklist = awful.widget.tasklist {
-		screen:  s
-		filter:  awful.widget.tasklist.filter.currenttags
-		layout: {
-			layout: wibox.layout.flex.horizontal
-		}
-		widget_template: {
-			{
-				{
-					id:     "icon_role"
-					widget: wibox.widget.imagebox
-				}
-				margins: util.scale(4)
-				widget:  wibox.container.margin
-			}
-			id:     "background_role"
-			widget: wibox.container.background
-		}
-		buttons: {
-			awful.button {}, 1, (c) -> c::activate
-				context: "tasklist"
-				action:  "toggle_minimization"
-			awful.button {}, 3, () -> awful.menu.client_list
-				theme:
-					width: util.scale(250)
-			awful.button {}, 4, () -> awful.client.focus.byidx -1
-			awful.button {}, 5, () -> awful.client.focus.byidx  1
-		}
-	}
-
-	main_wibar_buttons = buttons: {
-		awful.button({}, 3, () -> main_menu::toggle())
-		awful.button({}, 4, awful.tag.viewprev)
-		awful.button({}, 5, awful.tag.viewnext)
-	}
-
-	s.main_wibar.widget = modules.layouts.absolute_center(
-		{
-			{
-				{
-					{
-						awful.widget.launcher {
-							image: beautiful.awesome_icon
-							menu:  main_menu
-						}
-						s.taglist
-						s.promptbox
-						layout: wibox.layout.fixed.horizontal
-					}
-					bg:     beautiful.bg_normal
-					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
-					widget: wibox.container.background
-				}
-				right: util.scale(1)
-				bottom: util.scale(1)
-				widget:  wibox.container.margin
-			}
-			bg:     beautiful.fg_normal
-			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
-			widget: wibox.container.background
-		}, {
-			{
-				{
-					s.tasklist
-					bg:     beautiful.bg_normal
-					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
-					widget: wibox.container.background
-				}
-				id:     "tasklist_border_role"
-				right: util.scale(1)
-				bottom: util.scale(1)
-				left: util.scale(1)
-				widget:  wibox.container.margin
-			}
-			bg:     beautiful.fg_normal
-			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
-			widget: wibox.container.background
-		}, {
-			{
-				{
-					{
-						awful.widget.keyboardlayout()
-						wibox.widget.systray()
-						wibox.widget.textclock()
-						s.layoutbox
-						layout: wibox.layout.fixed.horizontal
-					}
-					bg:     beautiful.bg_normal
-					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
-					widget: wibox.container.background
-				}
-				bottom: util.scale(1)
-				left: util.scale(1)
-				widget:  wibox.container.margin
-			}
-			bg:     beautiful.fg_normal
-			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
-			widget: wibox.container.background
-		}, main_wibar_buttons
-	)
-
-	s.update_dock_tasklist_separator = () =>
-		border_width = #@clients > 0 and util.scale(1) or 0
-		util.for_children(@main_wibar, "tasklist_border_role", (child) ->
-			with child
-				.right = border_width
-				.bottom = border_width
-				.left = border_width
-		)
-
-	s::update_dock_tasklist_separator()
-
-	s.on_bar_refresh = (callback) =>
-		for tag in *s.tags
-			tag::connect_signal("property::selected", (c) -> callback())
-		s::connect_signal("property::clients", (s) -> callback())
-		client.connect_signal(  "manage", (c) -> callback())
-		client.connect_signal("unmanage", (c) -> callback())
-
-	s::on_bar_refresh(() -> s::update_dock_tasklist_separator())
 )
 -- }}}
 
@@ -416,7 +224,7 @@ client.connect_signal("mouse::enter", (c) ->
 	}
 )
 
-with Button = modules.widgets.Button
+with Button = slimeos.widgets.Button
 	placement = () => awful.placement.left(@, { honor_workarea: true, margins: util.scale(10) })
 
 	local wb
@@ -452,7 +260,9 @@ with Button = modules.widgets.Button
 						expand: "outside"
 						layout: wibox.layout.align.horizontal
 					}
-					on_click: (button) => if button == 1 then awesome.restart()
+					buttons: {
+						awful.button({}, 1, nil, () -> awesome.restart())
+					}
 					widget: Button
 				}
 				bg: beautiful.bg_normal
@@ -467,7 +277,7 @@ with Button = modules.widgets.Button
 	)
 
 --[[
-with ShapedWibox = modules.boxes.ShapedWibox
+with ShapedWibox = slimeos.boxes.ShapedWibox
 	wb = ShapedWibox {
 		x:       util.scale(50)
 		y:       util.scale(50)

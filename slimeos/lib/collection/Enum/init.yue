@@ -1,0 +1,54 @@
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+format_pairs = (k, v, monochrome) ->
+	pp = if monochrome
+		util.pretty_print_monochrome
+	else
+		util.pretty_print
+
+	if type(v) == "number"
+		"#{util.quote_key(v, monochrome)}: #{pp(k, monochrome)}"
+	else
+		util.quote_key(v, monochrome)
+
+class Enum extends Object
+	init: (args={}) =>
+		for k, v in pairs(args)
+			@[v] = k -- Yes, this is the correct way around
+
+	repr: () =>
+		out = "Enum {"
+
+		first = true
+
+		for k, v in pairs(@)
+			if util.is_private(k)
+				continue
+
+			if first
+				first = false
+				out ..= format_pairs(v, k, false)
+				continue
+
+			out ..= ", " .. format_pairs(v, k, false)
+
+		out.."}"
+
+	<tostring>: () =>
+		out = "Enum {"
+
+		first = true
+
+		for k, v in pairs(@)
+			if util.is_private(k)
+				continue
+
+			if first
+				first = false
+				out ..= format_pairs(v, k, true)
+				continue
+
+			out ..= ", " .. format_pairs(v, k, true)
+
+		out.."}"

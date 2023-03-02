@@ -58,7 +58,7 @@ class Object
 			return
 
 		for signal in *@__signals[signal_name]
-			signal(...)
+			signal(@, ...)
 
 	__repr: () => "\027[3m<\027[0m\027[1m'#{@@__name}'\027[0m\027[3m instance>\027[0m"
 

@@ -1,0 +1,1 @@
+export main = require("slimeos.bars.main")

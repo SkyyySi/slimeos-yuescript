@@ -1,3 +1,4 @@
+export Enum  = require("slimeos.lib.collection.Enum")
 export List  = require("slimeos.lib.collection.List")
 export Map   = require("slimeos.lib.collection.Map")
 export Tuple = require("slimeos.lib.collection.Tuple")

@@ -7,6 +7,7 @@ menubar   = require("menubar")
 naughty   = require("naughty")
 
 import Object, util, wrap from require("slimeos.lib")
+import Button from require("slimeos.widgets")
 
 -- {{{ Titlebars
 -- Add a titlebar if titlebars_enabled is set to true in the rules.
@@ -54,13 +55,16 @@ client.connect_signal("request::titlebars", (c) ->
 	c.titlebars.top.widget = {
 		{
 			{
-				awful.titlebar.widget.iconwidget(c)
-				margins: util.scale(6)
+				{
+					awful.titlebar.widget.iconwidget(c)
+					margins: util.scale(6)
+					widget:  wibox.container.margin
+				}
 				buttons: {
 					awful.button({}, 1, nil, () -> menu::toggle())
 					awful.button({}, 2, nil, () -> menu::toggle())
 				}
-				widget:  wibox.container.margin
+				widget: Button
 			}
 			{
 				font:    beautiful.titlebar_font ?? beautiful.bold_font ?? beautiful.font .. " Bold"

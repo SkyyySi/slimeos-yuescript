@@ -52,15 +52,23 @@ export for_children = (widget, id, callback) ->
 
 export is_private = (key) -> not not (type(key) == "string" and key::match("^__"))
 
-export quote_key = (key) ->
+export quote_key = (key, monochrome) ->
 	if type(key) == "string" and key::match("^[a-zA-Z_][a-zA-Z0-9_]*$")
-		return key
-	
-	"[#{pretty_print(key)}]"
+		key
+	elseif monochrome
+		"[#{pretty_print_monochrome(key)}]"
+	else
+		"[#{pretty_print(key)}]"
 
+make_getter = (field) => () -> rawget(@__private, field)
 
-make_getter = (field) -> () => rawget(@__private, field)
-make_setter = (field) -> (value) => rawset(@__private, field, value)
+make_setter = (field, signal) =>
+	if signal
+		(value) ->
+			@emit_signal(signal, value)
+			rawset(@__private, field, value)
+	else
+		(value) -> rawset(@__private, field, value)
 
 import MissingArgumentException from require("slimeos.lib.exception")
 
@@ -73,6 +81,7 @@ export gen_properties = (args) ->
 		.get ??= true
 		.set ??= true
 		.raw ??= true
+		.signals ??= true
 
 	if args.raw
 		if args.get
@@ -81,7 +90,7 @@ export gen_properties = (args) ->
 
 		if args.set
 			for prop in *args.properties
-				rawset(args.object, "set_"..prop, make_setter(args.object, prop, value))
+				rawset(args.object, "set_"..prop, make_setter(args.object, prop, args.signals and "property::#{field}" or nil))
 		
 		return
 
@@ -91,4 +100,4 @@ export gen_properties = (args) ->
 
 	if args.set
 		for prop in *args.properties
-			args.object["set_"..prop] = make_setter(args.object, prop, value)
+			args.object["set_"..prop] = make_setter(args.object, prop, value, args.signals and "property::#{field}" or nil)

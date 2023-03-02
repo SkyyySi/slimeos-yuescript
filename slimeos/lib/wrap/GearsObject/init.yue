@@ -13,11 +13,11 @@ Object = require("slimeos.lib.Object")
 return (gobject, name="GearsObject") ->
 	class GearsObject extends Object
 		new: (...) =>
-			gears.table.crush(@, gobject)
+			gears.table.crush(@, gobject())
 
 			super(...)
 
-	gears.table.crush(GearsObject, gobject.<>)
+	gears.table.crush(GearsObject, gobject().<>)
 
 	rawset(GearsObject, "__name", name)
 

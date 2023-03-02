@@ -23,11 +23,9 @@ export length = (str) ->
 	if utf8
 		return utf8.len(str)
 
-	do
-		-- 3rd party utf8 library
-		success, utf8 = pcall(require, "lua-utf8")
-		if success
-			return utf8.len(str)
+	-- 3rd party utf8 library
+	if success, utf8 = try require("lua-utf8")
+		return utf8.len(str)
 
 	-- If no utf8 library is installed
 	print("#{color.reset}#{color.blue}#{color.bold}INFO:#{color.reset} You have no utf8 library installed. Consider installing `luautf8`.")
