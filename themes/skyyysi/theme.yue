@@ -136,9 +136,13 @@ t.awesome_icon = theme_assets.awesome_icon(
     scale(64), t.bg_focus, t.fg_focus
 )
 
+-- Fix blurry tasklist icons
+awesome.set_preferred_icon_size(128)
+
 -- Define the icon theme for application icons. If not set then the icons
 -- from /usr/share/icons and /usr/share/icons/hicolor will be used.
-t.icon_theme = "Papirus-Dark"
+--t.icon_theme = "Papirus-Dark"
+t.icon_theme = "Tela-circle-dark"
 
 -- Set different colors for urgent notifications.
 ruled.notification.connect_signal("request::rules", () ->

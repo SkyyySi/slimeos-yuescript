@@ -1,7 +1,22 @@
+import awful from require("awesome_std")
+
 Object = require("slimeos.lib.Object")
 util   = require("slimeos.lib.util")
 
 import Gio from require("lgi")
+
+gio_recommended_apps_cache = {}
+
+get_gio_recommended_app_for_mimetype = (mimetype, no_cache) ->
+	if not no_cache
+		if app = gio_recommended_apps_cache[mimetype]
+			return app
+
+	app_list = Gio.DesktopAppInfo.get_recommended_for_type()
+
+	if app = app_list?[#app_list]
+		gio_recommended_apps_cache[mimetype] = app
+		app
 
 terminal_emulators = {
 	os.getenv("TERMINAL")
@@ -31,18 +46,18 @@ terminal_emulators = {
 
 file_managers = {
 	{ os.getenv("FILEMANAGER"), false }
-	"dolphin"
-	"nautilus"
-	"thunar"
-	"caja"
-	"krusader"
-	"nemo"
-	"pcmanfm-qt"
-	"pcmanfm"
-	"cutefish-filemanager"
-	"deepin-file-manager"
-	"peony"
-	"konqueror"
+	{ "dolphin",    false }
+	{ "nautilus",   false }
+	{ "thunar",     false }
+	{ "caja",       false }
+	{ "krusader",   false }
+	{ "nemo",       false }
+	{ "pcmanfm-qt", false }
+	{ "pcmanfm",    false }
+	{ "cutefish-filemanager", false }
+	{ "deepin-file-manager",  false }
+	{ "peony",     false }
+	{ "konqueror", false }
 }
 
 --- { command, should_run_in_terminal }
@@ -95,9 +110,41 @@ web_browsers = {
 	{ "elinks", true }
 }
 
+traverse_app_list = (list, k) ->
+	k, v = next(list, k)
+
+	awful.spawn.easy_async({ "bash", "-c", "command -v '#{v}' &> /dev/null"}, (stdout, stderr, exit_code, reason) ->
+		if stderr == 0
+			awful.spawn { "bash", "-c", "#{v}" }
+			return
+
+		traverse_list_async(list, k)
+	)
+
 class SensibleApp extends Object
 	init: (args={}) =>
 		--
 	
-	terminal: () => Gio.AppInfo.launch_default_for_uri("http://")
-	filemanager: () => Gio.AppInfo.launch_default_for_uri("file://")
+	terminal: (cmd) =>
+		Gio.AppInfo.launch_default_for_uri("http://")
+
+	filemanager: (file) =>
+		if app = get_gio_recommended_app_for_mimetype("inode/directory")
+			app::launch()
+			return
+
+		--if Gio.AppInfo.launch_default_for_uri("file://")
+		--	return
+
+		iterate = (list, k) ->
+			k, v = next(list, k)
+
+			awful.spawn.easy_async({ "bash", "-c", "command -v '#{v}' &> /dev/null"}, (stdout, stderr, exit_code, reason) ->
+				if stderr == 0
+					awful.spawn { "bash", "-c", v, file }
+					return
+
+				@iterate(list, k)
+			)
+
+		iterate(file_managers)
