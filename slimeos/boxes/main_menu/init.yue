@@ -90,6 +90,7 @@ return (args) ->
 	terminal    = args.terminal    or "xterm"
 	browser     = args.browser     or () -> gio.AppInfo.launch_default_for_uri("https://")
 	filemanager = args.filemanager or () -> gio.AppInfo.launch_default_for_uri("file://#{os.getenv('HOME')}")
+	editor      = args.editor      or "#{editor} -e nano"
 
 	awful.menu {
 		items: {

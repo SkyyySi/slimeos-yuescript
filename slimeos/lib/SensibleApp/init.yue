@@ -1,0 +1,103 @@
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+import Gio from require("lgi")
+
+terminal_emulators = {
+	os.getenv("TERMINAL")
+	"konsole"
+	"alacritty"
+	"kitty"
+	"wezterm"
+	"tilix"
+	"xfce4-terminal"
+	"gnome-terminal"
+	"gnome-console"
+	"qterminal"
+	"lxterminal"
+	"mate-terminal"
+	"cutefish-terminal"
+	"deepin-terminal"
+	"cool-retro-term"
+	"terminator"
+	"maui-station"
+	"terminology"
+	"zutty"
+	"termite"
+	"urxvt"
+	"uxterm"
+	"xterm"
+}
+
+file_managers = {
+	{ os.getenv("FILEMANAGER"), false }
+	"dolphin"
+	"nautilus"
+	"thunar"
+	"caja"
+	"krusader"
+	"nemo"
+	"pcmanfm-qt"
+	"pcmanfm"
+	"cutefish-filemanager"
+	"deepin-file-manager"
+	"peony"
+	"konqueror"
+}
+
+--- { command, should_run_in_terminal }
+text_editors = {
+	{ "codium",     false }
+	{ "code",       false }
+	{ "lite-xl",    false }
+	{ "sublime",    false }
+	{ "lapce",      false }
+	{ "gvim",       false }
+	{ "emacs",      false }
+	{ "kate",       false }
+	{ "gedit",      false }
+	{ "mousepad",   false }
+	{ "featherpad", false }
+	{ "ecrire",     false }
+	{ "notepadqq",  false }
+	{ "pluma",      false }
+	{ os.getenv("VISUAL"), true }
+	{ os.getenv("EDITOR"), true }
+	{ "micro",      true }
+	{ "nano",       true }
+	{ "nvim",       true }
+	{ "vim",        true }
+	{ "pico",       true }
+	{ "qe",         true }
+	{ "mg",         true }
+	{ "jed",        true }
+	{ "mcedit",     true }
+	{ "xorg-xedit", false }
+	{ "xed",        false }
+	{ "vi",         true }
+	{ "ed",         true }
+}
+
+web_browsers = {
+	{ os.getenv("BROWSER"), false }
+	{ "librewolf", false }
+	{ "firefox",   false }
+	{ "brave",     false }
+	{ "chromium",  false }
+	{ "luakit",    false }
+	{ "falkon",    false }
+	{ "epiphany",  false }
+	{ "opera",     false }
+	{ "konqueror", false }
+	{ "google-chrome-stable",  false }
+	{ "microsoft-edge-stable", false }
+	{ "lynx",   true }
+	{ "elinks", true }
+}
+
+class SensibleApp extends Object
+	init: (args={}) =>
+		--
+	
+	terminal: () => Gio.AppInfo.launch_default_for_uri("http://")
+	filemanager: () => Gio.AppInfo.launch_default_for_uri("file://")
