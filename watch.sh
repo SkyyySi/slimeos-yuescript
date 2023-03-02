@@ -5,6 +5,9 @@ LUA_VERSION="${LUA_VERSION:-5.1}"
 
 # yue --target="$LUA_VERSION" -w "$PWD"
 
+yue .
+clear
+
 function wait_for_change() {
 	inotifywait --event modify \
 		--include '.*\.yue' \
@@ -19,7 +22,7 @@ function compile() {
 
 while true; do
 	yue_file="$(wait_for_change)"
-	lua_file="${yue_file%.yue}.lua"
+	#lua_file="${yue_file%.yue}.lua"
 	#wait_for_change
 	clear
 	compile "$yue_file"

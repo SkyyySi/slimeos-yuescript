@@ -201,8 +201,8 @@ do
 -- {{{ Wibar
 screen.connect_signal("request::desktop_decoration", (s) ->
 	slimeos.bars.main {
-		screen: s
-		menu: main_menu
+		screen:   s
+		menu:     main_menu
 		terminal: terminal
 	}
 )
@@ -220,7 +220,7 @@ require("slimeos.settings.rules")
 client.connect_signal("mouse::enter", (c) ->
 	c::activate {
 		context: "mouse_enter"
-		raise: false
+		raise:   false
 	}
 )
 
@@ -276,28 +276,36 @@ with Button = slimeos.widgets.Button
 		placement(wb)
 	)
 
---[[
-with ShapedWibox = slimeos.boxes.ShapedWibox
-	wb = ShapedWibox {
-		x:       util.scale(50)
-		y:       util.scale(50)
-		width:   util.scale(100)
-		height:  util.scale(100)
-		visible: true
-		ontop:   true
-		shape:   (cr, w, h) -> gears.shape.rounded_rect(cr, w, h, util.scale(20))
-		widget:  {
-			markup: "Hello, world!"
-			halign: "center"
-			valign: "center"
-			widget: wibox.widget.textbox
-		}
-	}
 
-	awful.placement.centered(wb, {
-		honor_workarea: true
-	})
---]]
+with TagLayoutIndicator = slimeos.widgets.TagLayoutIndicator
+	placement = () => awful.placement.centered(@, { honor_workarea: true })
+
+	local wb
+	try_or_log(() ->
+		wb = wibox {
+			ontop:     true
+			visible:   true
+			width:     util.scale(100)
+			height:    util.scale(100)
+			bg:        gears.color.transparent
+			widget: {
+				{
+					awful.widget.layoutbox
+					id:     "foobar"
+					widget: TagLayoutIndicator
+				}
+				bg: beautiful.bg_normal
+				fg: beautiful.fg_normal
+				shape_border_color: beautiful.fg_normal
+				shape_border_width: util.scale(2)
+				widget: wibox.container.background
+			}
+		}
+
+		placement(wb)
+
+		util.for_children(wb.widget, "foobar", (child) -> print("child.children = #{child.children}\n  * [1] = #{child.children[1]}"))
+	)
 
 --[[
 with util.terminal

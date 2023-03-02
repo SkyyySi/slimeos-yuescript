@@ -1,0 +1,5 @@
+import awful, wibox, gears, beautiful from require("awesome_std")
+import Object, util, wrap from require("slimeos.lib")
+--import List, Tuple from require("slimeos.lib.collection")
+
+class Clock extends wrap.GearsObject(wibox.container.background, "wibox.container.background")

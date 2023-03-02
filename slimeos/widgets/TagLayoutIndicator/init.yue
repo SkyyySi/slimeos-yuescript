@@ -1,0 +1,21 @@
+import awful, wibox, gears, beautiful from require("awesome_std")
+import Object, util, wrap from require("slimeos.lib")
+--import List, Tuple from require("slimeos.lib.collection")
+
+Button = require("slimeos.widgets.Button")
+
+class TagLayoutIndicator extends Button
+	init: (args={}) =>
+		super(args)
+
+		@__name = "TagLayoutIndicator"
+		@.<tostring> = () => "<Widget '#{@__name}' instance>"
+
+		@children[1] = wibox.widget {
+			awful.widget.layoutbox
+			layout: wibox.layout.fixed.horizontal
+		}
+
+		print("@children = #{@children}\n  * [1] = #{@children[1]}")
+
+		@emit_signal("widget::redraw_needed")
