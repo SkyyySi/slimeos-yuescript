@@ -12,14 +12,14 @@ export class Exception --extends Object
 
 	default_message: "An error occurred"
 
-	get_traceback: () =>
+	get_traceback: (offset=0) =>
 		fg = uterminal.color.foreground.normal.black
 		bg = uterminal.color.background.normal.red
 		--yue.traceback("#{uterminal.color.format.bold}#{@@__name}:#{uterminal.color.reset.all}#{bg}#{fg} #{@message}")::gsub("\r", "")
 		--yue.traceback("#{@@__name}: #{@message}")::gsub("\r", "")
-		"#{uterminal.color.format.bold}#{@@__name}:#{uterminal.color.reset.all}#{bg}#{fg} #{@message}", yue.traceback()::gsub("\r", "")
+		"#{uterminal.color.format.bold}#{@@__name}:#{uterminal.color.reset.all} #{@message}", yue.traceback(nil, 2 + offset)::gsub("\r\n", "\n")
 
-	raise: (log=true) =>
+	raise: (offset) =>
 		--with uterminal
 		--	.log.exception(@get_traceback(), {
 		--		shadow: true
@@ -28,11 +28,13 @@ export class Exception --extends Object
 		--		foreground: .color.foreground.normal.black
 		--		background: .color.background.normal.red
 		--	})
-		heading, traceback = @get_traceback()
-		msg = uterminal.log.exception(heading, traceback)
-		if log
-			error_without_traceback(msg)
-		msg
+		heading, traceback = @get_traceback(offset)
+		--msg = uterminal.log.exception(heading, traceback)
+		--if log
+		--	error_without_traceback(msg)
+		--msg
+		print(heading .. "\n" .. traceback)
+		error()
 
 	<tostring>: () => @raise(false)
 
@@ -44,7 +46,7 @@ export class TypeException extends Exception
 		if actual_type != wanted_type
 			@@({
 				message: "#{@default_message} (expected a #{wanted_type}, got a #{actual_type})"
-			})::raise()
+			})::raise(1)
 
 export class ArgumentTypeException extends TypeException
 	default_message: "Incorrect argument type"
@@ -54,19 +56,30 @@ export class ArgumentTypeException extends TypeException
 		if actual_type != wanted_type
 			@@({
 				message: "#{@default_message} of argument ##{index} (expected a #{wanted_type}, got a #{actual_type})"
-			})::raise()
+			})::raise(1)
 
 export class MissingParameterException extends Exception
 	default_message: "Missing required positional parameter"
 
+	assert: (value, index, fn_name, parameter_name) =>
+		if value == nil
+			name = if parameter_name != nil
+				" ('#{parameter_name}')"
+			else
+				""
+
+			@@({
+				message: "#{@default_message} ##{index}#{name} for function '#{fn_name}'"
+			})::raise(1)
+
+export class MissingArgumentException extends Exception
+	default_message: "Missing required table argument"
+
 	assert: (value, arg_name, fn_name) =>
 		if value == nil
 			@@({
-				message: "#{@default_message} '#{arg_name}' for '#{fn_name}'"
-			})::raise()
-
-export class MissingArgumentException extends MissingParameterException
-	default_message: "Missing required table argument"
+				message: "#{@default_message} '#{arg_name}' for function '#{fn_name}'"
+			})::raise(1)
 
 export class FrozenObjectMutationException extends Exception
 	default_message: "Attempted to modify a frozen (immutable) object"

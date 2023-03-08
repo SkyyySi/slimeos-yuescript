@@ -1,0 +1,39 @@
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+class PlayerctlMetadata extends Object
+	init: (args={}) =>
+		@update(args)
+	
+	update: (args) =>
+		with args
+			print("Below is outdated")
+			-- @player_name = tostring([1])
+			-- @position    = tonumber([2])
+			-- @status      = [3]
+			-- @volume      = [4]
+			-- @album       = [5]
+			-- @artist      = [6]
+			-- @length      = [7]
+			-- @art_url     = [8]
+
+util.gen_properties {
+	object: PlayerctlMetadata.__base
+	properties: {
+		"album"
+		"album_artist"
+		"art_url"
+		"artist"
+		"disc_number"
+		"track_number"
+		"length"
+		"player_name"
+		"position"
+		"status"
+		"title"
+		"trackid"
+		"track_number"
+		"use_count"
+		"volume"
+	}
+}

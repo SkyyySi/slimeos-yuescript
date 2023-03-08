@@ -1,0 +1,267 @@
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+unpack = unpack or table.unpack
+
+export class Timestamp extends Object
+	init: (args={}) =>
+		with args
+			@seconds ??= .seconds
+			@minutes ??= .minutes
+			@hours   ??= .hours
+
+	--- Parse from `hours:minutes:seconds.point_seconds` format
+	from_string: (cls, timestamp_string) ->
+		hours, minutes, seconds = unpack(util.string.split(timestamp_string, ":"))
+
+		if seconds == nil
+			hours, minutes, seconds = 0, hours, minutes
+
+		if minutes == nil
+			hours, minutes, seconds = 0, 0, hours
+
+		if hours == nil
+			hours, minutes, seconds = 0, 0, 0
+
+		hours   = tonumber(hours)   ?? 0
+		minutes = tonumber(minutes) ?? 0
+		seconds = tonumber(seconds) ?? 0
+
+		while seconds >= 60
+			seconds -= 60
+			minutes += 1
+
+		while minutes >= 60
+			minutes -= 60
+			hours   += 1
+
+		@ = cls {
+			seconds: seconds
+			minutes: minutes
+			hours:   hours
+		}
+
+		@
+	
+	from_seconds: (cls, seconds) ->
+		h, m, s = 0, 0, seconds
+
+		while s >= 60
+			s -= 60
+			m += 1
+
+		while m >= 60
+			m -= 60
+			h += 1
+
+		@ = cls {
+			hours:   h
+			minutes: m
+			seconds: s
+		}
+
+		@
+
+	tonumber: () => @seconds + (@minutes * 60) + (@hours * 3600)
+
+	<tostring>: () =>
+		local hours_fmt
+		if @hours > 10
+			hours_fmt = tostring(@hours)
+		else
+			hours_fmt = ("%02d")::format(@hours)
+
+		sf = math.floor(@seconds)
+		point = tostring(@seconds - sf)
+			::format("%.02f")
+			::gsub("^[^%.]*%.", "")
+			::sub(1, 2)
+		if #point == 1
+			point = "0" .. point
+
+		("%s:%02d:%02d.%s")::format(hours_fmt, @minutes, sf, point)
+
+	<add>: (other) =>
+		new_obj = @@ {
+			seconds: @seconds
+			minutes: @minutes
+			hours:   @hours
+		}
+
+		if type(other) == "table"
+			new_obj.hours   += other.hours
+			new_obj.minutes += other.minutes
+			new_obj.seconds += other.seconds
+			return new_obj
+
+		local h, m, s = 0, 0, other
+
+		while s >= 60
+			s -= 60
+			m += 1
+
+		while m >= 60
+			m -= 60
+			h += 1
+
+		new_obj.hours   += h
+		new_obj.minutes += m
+		new_obj.seconds += s
+		new_obj
+
+	<sub>: (other) =>
+		new_obj = @@ {
+			seconds: @seconds
+			minutes: @minutes
+			hours:   @hours
+		}
+
+		if type(other) == "table"
+			new_obj.hours   -= other.hours
+			new_obj.minutes -= other.minutes
+			new_obj.seconds -= other.seconds
+			return new_obj
+
+		local h, m, s = 0, 0, other
+
+		while s >= 60
+			s -= 60
+			m += 1
+
+		while m >= 60
+			m -= 60
+			h += 1
+
+		new_obj.hours   -= h
+		new_obj.minutes -= m
+		new_obj.seconds -= s
+		new_obj
+
+	<mul>: (other) =>
+		new_obj = @@ {
+			seconds: @seconds
+			minutes: @minutes
+			hours:   @hours
+		}
+
+		if type(other) == "table"
+			new_obj.hours   *= other.hours
+			new_obj.minutes *= other.minutes
+			new_obj.seconds *= other.seconds
+			return new_obj
+
+		local h, m, s = 0, 0, other
+
+		while s >= 60
+			s -= 60
+			m += 1
+
+		while m >= 60
+			m -= 60
+			h += 1
+
+		new_obj.hours   *= h
+		new_obj.minutes *= m
+		new_obj.seconds *= s
+		new_obj
+
+	<div>: (other) =>
+		new_obj = @@ {
+			seconds: @seconds
+			minutes: @minutes
+			hours:   @hours
+		}
+
+		if type(other) == "table"
+			new_obj.hours   /= other.hours
+			new_obj.minutes /= other.minutes
+			new_obj.seconds /= other.seconds
+			return new_obj
+
+		local h, m, s = 0, 0, other
+
+		while s >= 60
+			s -= 60
+			m += 1
+
+		while m >= 60
+			m -= 60
+			h += 1
+
+		new_obj.hours   /= h
+		new_obj.minutes /= m
+		new_obj.seconds /= s
+		new_obj
+
+	<lt>: (other) =>
+		print(">>>>>>>>>>>>>>>>>>>>> EXECUTED!!!! <<<<<<<<<<<<<<<<<<<<<<<<")
+		if type(other) == "table"
+			return @hours   < other.hours and
+				@minutes < other.minutes and
+				@seconds < other.seconds
+
+		local h, m, s = 0, 0, other
+
+		while s >= 60
+			s -= 60
+			m += 1
+
+		while m >= 60
+			m -= 60
+			h += 1
+
+		new_obj.hours   /= h
+		new_obj.minutes /= m
+		new_obj.seconds /= s
+		new_obj
+
+--- Allowed LRC metadata (according to Wikipedia):
+---
+--- [ar:Lyrics artist]
+--- [al:Album where the song is from]
+--- [ti:Lyrics (song) title]
+--- [au:Creator of the Songtext]
+--- [length:How long the song is]
+--- [by:Creator of the LRC file]
+--- [offset:+/- Overall timestamp adjustment in milliseconds, + shifts time up, - shifts down]
+--- [re:The player or editor that created the LRC file]
+--- [ve:version of program]
+
+export class LRCData extends Object
+	init: (args={}) =>
+		@lines = {}
+		@meta = {}
+
+	from_string: (cls, lrc_string) ->
+		@ = cls()
+
+		lines = util.string.split(lrc_string, "\n")
+
+		for _, line in ipairs(lines)
+			if mk, mv = line::match("^%[([^%[:%d]*):([^%[:]*)]$")
+				@meta[util.string.strip(mk)] = util.string.strip(mv)
+				continue
+
+			@lines[] = {}
+
+			if timestamp = line::match("^%[([^%[]*)%]")
+				@lines[#@lines].position = Timestamp::from_string(timestamp)
+
+			@lines[#@lines].text = line::gsub("^%[[^%[]*%]%s*", "")
+		
+		@
+
+	<tostring>: () =>
+		outs = ""
+
+		for k, v in pairs(@meta)
+			outs ..= "[#{k}:#{v}]\n"
+
+		for _, line in ipairs(@lines)
+			prefix = if line.position
+				"[#{line.position}]"
+			else
+				""
+
+			outs ..= "#{prefix} #{line.text}\n"
+
+		outs

@@ -11,11 +11,6 @@ class TagLayoutIndicator extends Button
 		@__name = "TagLayoutIndicator"
 		@.<tostring> = () => "<Widget '#{@__name}' instance>"
 
-		@children[1] = wibox.widget {
+		@children = {
 			awful.widget.layoutbox
-			layout: wibox.layout.fixed.horizontal
 		}
-
-		print("@children = #{@children}\n  * [1] = #{@children[1]}")
-
-		@emit_signal("widget::redraw_needed")

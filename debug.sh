@@ -12,6 +12,7 @@ export DISPLAY="$_DISPLAY"
 
 # If virtualgl is installed
 if [[ "$NO_VIRTUALGL" != true ]] && command -v vglclient 2> /dev/null; then
+	echo "INFO: Using VirtualGL! (set NO_VIRTUALGL=true to disable)"
 	vglclient -detach
 	env -C "$HOME" vglrun awesome --config "$CONFIG_DIR/rc.lua"&
 else

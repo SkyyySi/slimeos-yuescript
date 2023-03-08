@@ -16,6 +16,8 @@ naughty   = require("naughty")
 beautiful = require("beautiful")
 menubar   = require("menubar")
 
+wibox.layout.overflow = require("overflow")
+
 -- Enable hrtkeys help widget for VIM and other apps
 -- when client with a matching name is opened:
 require("awful.hotkeys_popup.keys")
@@ -37,7 +39,7 @@ do
 -- }}}
 
 -- {{{ Auto reload
---[==[
+--[[
 awful.spawn.with_line_callback([[bash -c '
 inotifywait --event modify \
 	--include '"'"'.*\.lua'"'"' \
@@ -45,8 +47,8 @@ inotifywait --event modify \
 	--monitor \
 	--quiet \
 	2> /dev/null
-']], { stdout: (line) -> awesome.restart() })
---]==]
+'] ], { stdout: (line) -> awesome.restart() })
+--]]
 -- }}}
 
 -- {{{ App autostart
@@ -290,7 +292,7 @@ with TagLayoutIndicator = slimeos.widgets.TagLayoutIndicator
 			bg:        gears.color.transparent
 			widget: {
 				{
-					awful.widget.layoutbox
+					--awful.widget.layoutbox
 					id:     "foobar"
 					widget: TagLayoutIndicator
 				}
@@ -303,8 +305,6 @@ with TagLayoutIndicator = slimeos.widgets.TagLayoutIndicator
 		}
 
 		placement(wb)
-
-		util.for_children(wb.widget, "foobar", (child) -> print("child.children = #{child.children}\n  * [1] = #{child.children[1]}"))
 	)
 
 --[[
@@ -325,3 +325,235 @@ with util.terminal
 		--rows: 3
 	})
 --]]
+
+do
+	cg = collectgarbage
+	cg("setpause", 110)
+	cg("setstepmul", 1000)
+	gears.timer {
+		timeout:   5
+		autostart: true
+		call_now:  true
+		callback:  () ->
+			cg("collect")
+	}
+
+--[[
+do
+	--- A song lyrics widget. Requires https://github.com/Jugran/lyrics-in-terminal
+	--- in addion to playerctl.
+
+	lyrics_box_textbox = wibox.widget {
+		valign: "top"
+		widget: wibox.widget.textbox
+	}
+
+	lyrics_box = wibox {
+		width:  util.scale(400)
+		height: util.scale(700)
+		--below = true
+		ontop: true
+		visible: true
+		widget: {
+			{
+				lyrics_box_textbox
+				layout: wibox.layout.overflow.vertical
+			},
+			margins: util.scale(10)
+			widget:  wibox.container.margin
+		}
+	}
+
+	awful.placement.right(lyrics_box, {
+		honor_workarea: true
+		margins: util.scale(20)
+	})
+
+	---@type PlayerctlMetadata
+	local previous_metadata
+
+	awesome.connect_signal("playerctl::metadata", (metadata) ->
+		---@cast metadata PlayerctlMetadata
+
+		if metadata::same_song_as(previous_metadata)
+			return
+
+		--notify(metadata, 0)
+
+		awful.spawn.easy_async({ "lyrics", "-t", metadata.artist, metadata.title }, (stdout, stderr, reason, exit_code) ->
+			lyrics_box_textbox.text = stdout or ""
+		)
+
+		previous_metadata = metadata
+	)
+--]]
+
+do
+	LRC = require("slimeos.lib.LRC")
+
+	--t = LRC.Timestamp::from_string("23:04:26.0037")
+	--print(t)
+	--print(t * 2)
+	--print(t)
+
+	text = [===[[ti:Frame of Mind]
+[al:Frame of Mind]
+[ar:Tristam,Braken]
+[length: 04:34.29]
+[00:24.15] For now you can stay
+[00:26.94] Right here we will play
+[00:29.61] Until somehow you can find
+[00:32.25] A slightly different frame of mind
+[00:35.10] Right here in my arms
+[00:37.88] Away from all harm
+[00:40.67] You'll be safe from all the flares
+[00:43.38] Although I know you don't care
+[00:45.44] Oohh...
+[00:50.98] Oohh...
+[00:56.42] Oohh...
+[01:01.95] Oohh...
+[01:08.06] You can lift your head up to the sky
+[01:10.71] Take a deeper breath and give it time
+[01:13.55] You can walk the path among the lines
+[01:16.36] With your shattered frame of mind
+[01:18.94] Withstand, you could always stay
+[01:21.78] We can wait right here and play
+[01:24.54] Until somehow you can find
+[01:27.19] A slightly better frame of mind
+[01:29.32] Oohh...
+[01:34.84] Oohh...
+[01:40.28] Oohh...
+[01:45.85] Oohh...
+[01:51.93] When they say you will fall
+[01:54.33] You can reach nothing at all
+[01:57.48] Hide your tracks, beneath the line
+[02:00.15] Of a different frame of mind
+[02:02.95] Is it that what you've heard?
+[02:05.77] Broken words in the dirt
+[02:08.43] Yelling out into the sun
+[02:11.01] Here we come, here we come
+[02:13.31] Oohh...
+[02:16.65] Here we come, here we come
+[02:18.76] Oohh...
+[02:24.22] Oohh...
+[02:26.52] Here we come, here we come
+[02:29.73] Oohh...
+[02:35.81] You can lift your head up to the sky
+[02:38.67] Take a deeper breath and give it time
+[02:41.32] You can walk the path among the lines
+[02:44.03] With your shattered frame of mind
+[02:46.73] Withstand, you could always stay
+[02:49.58] We can wait right here and play
+[02:52.25] Until somehow you can find
+[02:54.99] A slightly better frame of mind
+[02:57.14] Oohh...
+[03:02.69] Oohh...
+[03:08.07] Oohh...
+[03:13.58] Oohh...
+[03:19.78] You can lift your head up to the sky
+[03:22.40] Take a deeper breath and give it time
+[03:25.23] You can walk the path among the lines
+[03:27.97] With your shattered frame of mind
+[03:30.66] Withstand, you could always stay
+[03:33.46] We can wait right here and play
+[03:36.11] Until somehow you can find
+[03:38.84] A slightly better frame of mind
+[03:41.62] And when daylight comes through
+[03:44.47] When the day is a new
+[03:47.51] Then it will be time
+[03:49.95] For a new frame of mind
+[03:52.68] When all eyes are on you
+[03:55.43] You will know what to do
+[03:58.49] Since you would have found
+[04:01.25] Your new frame of mind
+[04:03.76] When you lift your head up to the sky
+[04:06.41] Take a deeper breath and give it time
+[04:09.18] You can walk the path among the lines
+[04:14.47] But always know that you'll be safe
+[04:17.39] I'll be here throughout your days
+[04:20.11] Come find me and we will play
+[04:23.71]]===]
+
+	l = LRC.LRCData::from_string(text)
+
+	LyricsBoxWidget = wibox.widget {
+		layout: wibox.layout.fixed.vertical
+	}
+
+	LyricsBoxWidget.clear = () =>
+		for k, _ in ipairs(@children)
+			children[k] = nil
+		
+		@emit_signal("widget::layout_changed")
+		@emit_signal("widget::redraw_needed")
+
+	LyricsBox = wibox {
+		width:   util.scale(400)
+		height:  util.scale(800)
+		visible: true
+		ontop:   true
+		widget:  LyricsBoxWidget
+	}
+
+	--for _, line in ipairs(l.lines)
+	--	print(line.position, line.text)
+
+	config_path_shell_safe = gears.filesystem.get_configuration_dir()::gsub([[']], [['"'"']])config/syrics/config.json
+
+	get_lyrics = (song_id, callback) ->
+		slimeos.lib.exception.MissingParameterException()::assert(song_id, 1, "get_lyrics", "song_id")
+		slimeos.lib.exception.MissingParameterException()::assert(song_id, 2, "get_lyrics", "callback")
+		script = [[
+		cd ~/syrics &&
+		source venv/bin/activate &&
+		syrics --config ]] .. "'#{config_path_shell_safe}' 'https://open.spotify.com/#{song_id}'"
+		awful.spawn.easy_async_with_shell(script, (stdout, stderr, reason, exit_code) ->
+			print("stdout: '#{stdout}', stderr: '#{stderr}', reason: '#{reason}', exit_code: #{exit_code}")
+		)
+	
+	get_song_id = (song_fmt, callback) ->
+		slimeos.lib.exception.MissingParameterException()::assert(song_id, 1, "get_song_id", "song_fmt")
+		slimeos.lib.exception.MissingParameterException()::assert(song_id, 2, "get_song_id", "callback")
+		script = [[
+		cd ~/syrics &&
+		source venv/bin/activate &&
+		./search_song_id.py ]] .. "'#{config_path_shell_safe}'"
+
+	get_lyrics("5Y1JDF28qQDml25pVadnzb")
+
+	local _last_line_key
+	gears.timer {
+		timeout:   0.1
+		autostart: true
+		call_now:  true
+		callback:  () ->
+			--[[
+			awful.spawn.easy_async({ "playerctl", "metadata", "--format", "{{position}}" }, (stdout, stderr, reason, exit_code) ->
+				if exit_code > 0
+					return
+				
+				player_position_in_microseconds = tonumber(stdout)
+
+				if not player_position_in_microseconds
+					return
+
+				player_position_in_seconds = player_position_in_microseconds / 1_000_000
+
+				--print(("%.02f")::format(player_position_in_seconds), LRC.Timestamp::from_seconds(player_position_in_seconds))
+				do
+					local next_line
+
+					for k, line in ipairs(l.lines)
+						next_line = select(2, next(l.lines, k)) ?? line
+
+						if (k != _last_line_key) and (next_line.position::tonumber() > player_position_in_seconds) and (player_position_in_seconds >= line.position::tonumber())
+							--print(">>> #{next_line.position::tonumber()} | #{player_position_in_seconds} | #{line.position::tonumber()}")
+							print(line.text)
+							_last_line_key = k
+							break
+			)
+			--]]
+	}
+
+--- TODO: The current player position needs to be compared to each line's position value.
+---       A lyrics line will be highlighted when `next_line.position > player_position >= current_line.position` 
