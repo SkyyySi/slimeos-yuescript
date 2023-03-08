@@ -477,82 +477,268 @@ do
 	l = LRC.LRCData::from_string(text)
 
 	LyricsBoxWidget = wibox.widget {
-		layout: wibox.layout.fixed.vertical
+		nil
+		{
+			{
+				{
+					id:     "previous_line_role"
+					font:   "Sans Bold " .. tostring(math.floor(util.scale(12) + 0.5))
+					halign: "center"
+					valign: "center"
+					widget: wibox.widget.textbox
+				}
+				fg:     (beautiful.fg_normal or "#FFFFFF") .. "80"
+				widget: wibox.container.background
+			}
+			{
+				id:     "current_line_role"
+				font:   "Sans Bold " .. tostring(math.floor(util.scale(16) + 0.5))
+				halign: "center"
+				valign: "center"
+				widget: wibox.widget.textbox
+			}
+			{
+				{
+					id:     "next_line_role"
+					font:   "Sans Bold " .. tostring(math.floor(util.scale(12) + 0.5))
+					halign: "center"
+					valign: "center"
+					widget: wibox.widget.textbox
+				}
+				fg:     (beautiful.fg_normal or "#FFFFFF") .. "80"
+				widget: wibox.container.background
+			}
+			layout: wibox.layout.flex.vertical
+		}
+		layout: wibox.layout.align.vertical
 	}
 
 	LyricsBoxWidget.clear = () =>
-		for k, _ in ipairs(@children)
-			children[k] = nil
-		
-		@emit_signal("widget::layout_changed")
-		@emit_signal("widget::redraw_needed")
+		util.for_children(@, "previous_line_role", (child) -> child.text = "")
+		util.for_children(@, "current_line_role",  (child) -> child.text = "")
+		util.for_children(@, "next_line_role",     (child) -> child.text = "")
+		@_previous_line = ""
+
+	LyricsBoxWidget.push = (line="", next_line="") =>
+		util.for_children(@, "previous_line_role", (child) -> child.text = @_previous_line or "")
+		util.for_children(@, "current_line_role",  (child) -> child.text = line)
+		util.for_children(@, "next_line_role",     (child) -> child.text = next_line)
+		@_previous_line = line
 
 	LyricsBox = wibox {
-		width:   util.scale(400)
-		height:  util.scale(800)
+		width:   util.scale(500)
+		height:  util.scale(200)
 		visible: true
 		ontop:   true
-		widget:  LyricsBoxWidget
+		widget:  {
+			LyricsBoxWidget
+			margins: util.scale(10)
+			widget:  wibox.container.margin
+		}
 	}
+
+	awful.placement.bottom_left(LyricsBox, { honor_workarea: true, margins: util.scale(10) })
 
 	--for _, line in ipairs(l.lines)
 	--	print(line.position, line.text)
 
-	config_path_shell_safe = gears.filesystem.get_configuration_dir()::gsub([[']], [['"'"']])config/syrics/config.json
+	config_path_shell_safe = "#{gears.filesystem.get_configuration_dir()::gsub([[']], [['"'"']])}"
+	lyrics_dir = os.getenv("HOME") .. "/Music"
+	do
+		file = io.popen("xdg-user-dir MUSIC")
+
+		if file
+			lyrics_dir = file::read("*a")::gsub("\n", "")
+			file::close()
+		elseif xdg_music_home = os.getenv("XDG_MUSIC_HOME")
+			lyrics_dir = xdg_music_home
+	lyrics_dir = (lyrics_dir .. "/lyrics")
+
+	--print("INFO: Your lyrics directory is '#{lyrics_dir}'")
+
+	--print(LRC.LRCData::from_file([[/home/simon/Musik/lyrics/Feint,Laura Brehm - We Won't Be Alone.lrc]]))
 
 	get_lyrics = (song_id, callback) ->
-		slimeos.lib.exception.MissingParameterException()::assert(song_id, 1, "get_lyrics", "song_id")
-		slimeos.lib.exception.MissingParameterException()::assert(song_id, 2, "get_lyrics", "callback")
+		slimeos.lib.exception.MissingParameterException()::assert(song_id,  1, "get_lyrics", "song_id")
+		slimeos.lib.exception.MissingParameterException()::assert(callback, 2, "get_lyrics", "callback")
 		script = [[
 		cd ~/syrics &&
 		source venv/bin/activate &&
-		syrics --config ]] .. "'#{config_path_shell_safe}' 'https://open.spotify.com/#{song_id}'"
-		awful.spawn.easy_async_with_shell(script, (stdout, stderr, reason, exit_code) ->
-			print("stdout: '#{stdout}', stderr: '#{stderr}', reason: '#{reason}', exit_code: #{exit_code}")
-		)
-	
-	get_song_id = (song_fmt, callback) ->
-		slimeos.lib.exception.MissingParameterException()::assert(song_id, 1, "get_song_id", "song_fmt")
-		slimeos.lib.exception.MissingParameterException()::assert(song_id, 2, "get_song_id", "callback")
-		script = [[
-		cd ~/syrics &&
-		source venv/bin/activate &&
-		./search_song_id.py ]] .. "'#{config_path_shell_safe}'"
+		syrics ]] ..
+			"--directory '#{lyrics_dir::gsub([[']], [['"'"']])}' " ..
+			"--config '#{config_path_shell_safe}/config/syrics/config.json' " .. -- This flag seems to be ignored...
+			"'https://open.spotify.com/track/#{song_id}'"
 
-	get_lyrics("5Y1JDF28qQDml25pVadnzb")
+		--print("INFO: The `get_lyrics()` script is [[#{script::gsub("^\t\t", "")::gsub("\t", "    ")}]]")
+
+		awful.spawn.easy_async({ "bash", "-c", script }, (stdout, stderr, reason, exit_code) ->
+			if exit_code != 0
+				return
+
+			--print("stdout: '#{stdout}', stderr: '#{stderr}', reason: '#{reason}', exit_code: #{exit_code}")
+			--print("Saved lyrics file '#{lyrics_dir}/#{song_id}.lrc'")
+			--print(LRC.LRCData::from_file("#{lyrics_dir}/#{song_id}.lrc"))
+			lyrics = LRC.LRCData::from_file("#{lyrics_dir}/#{song_id}.lrc")
+
+			if not lyrics
+				return
+
+			callback(lyrics)
+		)
+
+	get_song_id = (song_title, callback) ->
+		slimeos.lib.exception.MissingParameterException()::assert(song_title, 1, "get_song_id", "song_title")
+		slimeos.lib.exception.MissingParameterException()::assert(callback,   2, "get_song_id", "callback")
+		script = [[
+		cd ~/syrics &&
+		source venv/bin/activate &&]] ..
+			"'#{config_path_shell_safe}/config/syrics/search_song_id.py' " ..
+			"'#{config_path_shell_safe}/config/syrics/config.json' " ..
+			"'#{song_title::gsub([[']], [['"'"']])}'"
+		
+		--print("INFO: Fetching song_id for '#{song_title}'")
+
+		--print("INFO: The `get_song_id()` script is [[#{script::gsub("^\t\t", "")::gsub("\t", "    ")}]]")
+
+		awful.spawn.easy_async({ "bash", "-c", script }, (stdout, stderr, reason, exit_code) ->
+			if exit_code != 0
+				return
+
+			--print("stdout: '#{stdout}', stderr: '#{stderr}', reason: '#{reason}', exit_code: #{exit_code}")
+			song_id = util.string.strip(stdout or "")
+			--print("song_id = #{song_id}")
+
+			if not song_id
+				return
+
+			callback(song_id)
+		)
+
+	--[[
+	do
+		strict_search = false
+
+		song_fmt = if strict_search
+			"track:{{title}} AND artist:{{artist}}"
+		else
+			"{{title}} {{artist}}"
+
+		local prev_song
+
+		gears.timer {
+			timeout:   3
+			autostart: true
+			call_now:  true
+			callback:  () ->
+				awful.spawn.easy_async({ "playerctl", "metadata", "--format", song_fmt }, (song_fmt, _, _, exit_code2) ->
+					if exit_code2 != 0
+						return
+
+					song = util.string.strip(song_fmt or "")
+
+					if song == prev_song
+						return
+
+					prev_song = song
+					get_song_id(song, (song_id) -> get_lyrics(song_id))
+				)
+		}
+	--]]
+
+	trim_song_fmt = (song_fmt) ->
+		song_fmt_no_bracket = song_fmt
+			--::gsub("%(.*%)", "")
+			::gsub("%{.*%}", "")
+			::gsub("%[.*%]", "")
+
+		util.string.strip(song_fmt_no_bracket)::gsub(" •$", "")
+
+	strict_search = true
+
+	song_fmt = if strict_search
+		"track:{{title}} AND artist:{{artist}}"
+	else
+		"{{title}} • {{artist}}"
+
+	local prev_song
+	local prev_timer
 
 	local _last_line_key
+
 	gears.timer {
-		timeout:   0.1
+		timeout:   3
 		autostart: true
 		call_now:  true
 		callback:  () ->
-			--[[
-			awful.spawn.easy_async({ "playerctl", "metadata", "--format", "{{position}}" }, (stdout, stderr, reason, exit_code) ->
-				if exit_code > 0
+			awful.spawn.easy_async({ "playerctl", "metadata", "--format", song_fmt }, (song_fmt, _, _, exit_code_song_fmt) ->
+				if exit_code_song_fmt != 0
+					print("Lyrics Error: `exit_code_song_fmt` is not `0`")
 					return
 				
-				player_position_in_microseconds = tonumber(stdout)
-
-				if not player_position_in_microseconds
+				if song_fmt::match("^[%s•-]*$")
+					print("Lyrics Error: `song_fmt` empty or pure whitespace")
 					return
 
-				player_position_in_seconds = player_position_in_microseconds / 1_000_000
+				song = trim_song_fmt(song_fmt or "")
 
-				--print(("%.02f")::format(player_position_in_seconds), LRC.Timestamp::from_seconds(player_position_in_seconds))
-				do
-					local next_line
+				if song == prev_song
+					--print("Lyrics Error: The song has not changed")
+					return
 
-					for k, line in ipairs(l.lines)
-						next_line = select(2, next(l.lines, k)) ?? line
+				LyricsBoxWidget::clear()
 
-						if (k != _last_line_key) and (next_line.position::tonumber() > player_position_in_seconds) and (player_position_in_seconds >= line.position::tonumber())
-							--print(">>> #{next_line.position::tonumber()} | #{player_position_in_seconds} | #{line.position::tonumber()}")
-							print(line.text)
-							_last_line_key = k
-							break
+				prev_song = song
+
+				if prev_timer
+					prev_timer::stop()
+				
+				get_song_id(song, (song_id) -> get_lyrics(song_id, (lyrics, data) ->
+					logblock("Showing lyrics for: '#{song}' [#{song_id}]")
+					--print(lyrics)
+
+					prev_timer = gears.timer {
+						timeout:   0.1
+						autostart: true
+						call_now:  true
+						callback:  () ->
+							awful.spawn.easy_async({ "playerctl", "metadata", "--format", "{{position}}" }, (position, _, _, exit_code_position) ->
+								if exit_code_position > 0
+									print("Lyrics Error: `exit_code_position` is not `0`")
+									return
+
+								player_position_in_microseconds = tonumber(position)
+								--print(position, player_position_in_microseconds)
+
+								if player_position_in_microseconds < 100
+									--- Sometimes, instead of reporting nothing, playerctl reports seemingly random values.
+									--- These appear to never be above 100 or so. Since we're dealing with microseconds, anyway,
+									--- there's not much loss in just skipping any position-pull with a number that small
+									--- being reported - at most, you'd start seeing synced lyrics a 10th of a second later.
+									return
+
+								if not player_position_in_microseconds
+									print("Lyrics Error: `player_position_in_microseconds` is `nil`")
+									return
+
+								player_position_in_seconds = (player_position_in_microseconds / 1_000_000) + ((lyrics.meta.offset or 0) / 1_000) + 0.2
+
+								--print(("%.02f")::format(player_position_in_seconds), LRC.Timestamp::from_seconds(player_position_in_seconds))
+								do
+									local next_line
+
+									for k, line in ipairs(lyrics.lines)
+										next_line = select(2, next(lyrics.lines, k))
+
+										if (k != _last_line_key) and ((next_line or line).position::tonumber() > player_position_in_seconds) and (player_position_in_seconds >= line.position::tonumber())
+											--print(">>> #{next_line.position::tonumber()} | #{player_position_in_seconds} | #{line.position::tonumber()}")
+											--print(line.text)
+											LyricsBoxWidget::push(line.text, next_line.text)
+											_last_line_key = k
+											break
+							)
+					}
+				))
 			)
-			--]]
 	}
 
 --- TODO: The current player position needs to be compared to each line's position value.

@@ -41,7 +41,7 @@ export class Timestamp extends Object
 		}
 
 		@
-	
+
 	from_seconds: (cls, seconds) ->
 		h, m, s = 0, 0, seconds
 
@@ -234,6 +234,9 @@ export class LRCData extends Object
 	from_string: (cls, lrc_string) ->
 		@ = cls()
 
+		if not lrc_string::match("\n$")
+			lrc_string ..= "\n"
+
 		lines = util.string.split(lrc_string, "\n")
 
 		for _, line in ipairs(lines)
@@ -249,6 +252,20 @@ export class LRCData extends Object
 			@lines[#@lines].text = line::gsub("^%[[^%[]*%]%s*", "")
 		
 		@
+
+	from_file: (cls, file) ->
+		if type(file) == "string"
+			f = io.open(file)
+
+			local lyrics
+
+			if f
+				lyrics = cls::from_string(util.string.strip(f::read("*a")))
+				f::close()
+
+			return lyrics
+		
+		cls::from_string(file::read("*a"))
 
 	<tostring>: () =>
 		outs = ""

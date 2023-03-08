@@ -2,3 +2,4 @@
 !slimeos/lib/util/tts.lua
 !slimeos/lib/util/tts_monochrome.lua
 config/syrics/config.json
+.mypy_cache
