@@ -261,7 +261,7 @@ with Button = slimeos.widgets.Button
 						layout: wibox.layout.align.horizontal
 					}
 					buttons: {
-						awful.button({}, 1, nil, () -> awesome.restart())
+						awful.button({}, 1, nil, awesome.restart)
 					}
 					widget: Button
 				}
@@ -274,37 +274,6 @@ with Button = slimeos.widgets.Button
 		}
 
 		placement(wb)
-	)
-
-
-with TagLayoutIndicator = slimeos.widgets.TagLayoutIndicator
-	placement = () => awful.placement.centered(@, { honor_workarea: true })
-
-	local wb
-	try_or_log(() ->
-		wb = wibox {
-			ontop:     true
-			visible:   true
-			width:     util.scale(100)
-			height:    util.scale(100)
-			bg:        gears.color.transparent
-			widget: {
-				{
-					awful.widget.layoutbox
-					id:     "foobar"
-					widget: TagLayoutIndicator
-				}
-				bg: beautiful.bg_normal
-				fg: beautiful.fg_normal
-				shape_border_color: beautiful.fg_normal
-				shape_border_width: util.scale(2)
-				widget: wibox.container.background
-			}
-		}
-
-		placement(wb)
-
-		util.for_children(wb.widget, "foobar", (child) -> print("child.children = #{child.children}\n  * [1] = #{child.children[1]}"))
 	)
 
 --[[
@@ -325,3 +294,72 @@ with util.terminal
 		--rows: 3
 	})
 --]]
+
+--[[
+do
+	import SensibleApp from slimeos.lib
+
+	SensibleApp.terminal()
+	SensibleApp.browser()
+--]]
+
+do
+	bar_count = 64
+	bar_spacing = util.scale(5)
+	wb_width = util.scale(1000) + (bar_spacing * bar_spacing)
+	bar_width = wb_width / bar_count + bar_spacing
+	margins = util.scale(10)
+
+	bar_widgets = wibox.widget {
+		spacing: bar_spacing
+		layout:  wibox.layout.fixed.vertical
+	}
+
+	wb = wibox {
+		width:   wb_width + (margins * 2)
+		height:  util.scale(800) + (margins * 2)
+		visible: true
+		ontop:   true
+		widget:  {
+			{
+				bar_widgets
+				direction: "east",
+				layout:    wibox.container.rotate,
+			}
+			margins: margins
+			widget:  wibox.container.margin
+		}
+	}
+
+	awful.placement.centered(wb)
+
+	pattern = "^"
+
+	do
+		color = beautiful.audio_visualizer_bar_color ?? beautiful.bg_focus ?? "#008EF9"
+		bg    = beautiful.audio_visualizer_bar_bg    ?? gears.color.transparent
+		for i = 1, bar_count
+			bar_widgets::add(wibox.widget {
+				min_value: 0
+				max_value: 1000
+				forced_height: bar_width
+				value: 0
+				color: color
+				background_color: bg
+				widget: wibox.widget.progressbar
+			})
+
+			pattern ..= "([0-9]+);"
+
+	awful.spawn.with_line_callback({ "cava" }, {
+		stdout: (line) ->
+			i = 0
+			for val in line::gmatch("[0-9]+")
+				i += 1
+				bar_widgets.children[i]::set_value(tonumber(val))
+				bar_widgets.children[bar_count - i]::set_value(tonumber(val))
+				if i > (bar_count / 2)
+					return
+			--bar_widgets.children[1]::set_value(tonumber(line::match(pattern)))
+			--print(line)
+	})

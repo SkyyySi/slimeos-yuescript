@@ -1,0 +1,48 @@
+import NoneUnwrapException from require("slimeos.lib.exception")
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+class Option extends Object
+	init: (is_some, item) =>
+		p = @__private
+
+		p.is_some = is_some
+
+		if is_some
+			p.item = item
+
+	is_some: () => @__private.is_some
+	is_nome: () => not @__private.is_some
+
+	unwrap: () => if @is_some()
+		@__private.item
+	else
+		NoneUnwrapException()::raise()
+		return
+
+	unwrap_unsafe: () => @__private.item
+
+	unwrap_or: (fn) => if @is_some()
+		@__private.item
+	else
+		fn()
+
+	repr: () => if @is_some()
+		"#{@@__name}.Some(#{util.pretty_print(@__private.item)})"
+	else
+		"#{@@__name}.None"
+
+	<tostring>: () => if @is_some()
+		"#{@@__name}.Some(#{util.pretty_print_monochrome(@__private.item)})"
+	else
+		"#{@@__name}.None"
+
+	from_nillable: (item) => if item != nil
+		@.Some(item)
+	else
+		@.None
+
+Option.Some = (item) -> Option(true, item)
+Option.None = Option(false)
+
+Option

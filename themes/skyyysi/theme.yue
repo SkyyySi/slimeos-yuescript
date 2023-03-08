@@ -28,7 +28,7 @@ t.fg_urgent     = t.fg_normal
 t.fg_minimize   = t.fg_normal
 
 t.useless_gap         = scale(2)
-t.border_width        = scale(1)
+t.border_width        = 0 -- scale(1)
 t.border_color_normal = t.bg_normal
 t.border_color_active = t.bg_focus
 t.border_color_marked = "#FFB900" -- "#FFFFB9FF0000"
@@ -81,10 +81,14 @@ t.menu_width  = scale(200)
 --theme.bg_widget = "#cc0000"
 
 t.icon_color = t.fg_focus or "#ffffff"
+apply_icon_color = (path) ->
+	gears.color.recolor_image(path, t.icon_color)
+
 load_icon = (path) ->
-	gears.color.recolor_image(themes_path .. path, t.icon_color)
+	apply_icon_color(themes_path .. path)
 
 -- Define the image to load
+--[[
 t.titlebar_close_button_normal = load_icon("titlebar/close_normal.png")
 t.titlebar_close_button_focus  = load_icon("titlebar/close_focus.png")
 
@@ -110,6 +114,32 @@ t.titlebar_maximized_button_normal_inactive = load_icon("titlebar/maximized_norm
 t.titlebar_maximized_button_focus_inactive  = load_icon("titlebar/maximized_focus_inactive.png")
 t.titlebar_maximized_button_normal_active = load_icon("titlebar/maximized_normal_active.png")
 t.titlebar_maximized_button_focus_active  = load_icon("titlebar/maximized_focus_active.png")
+--]]
+t.titlebar_close_button_normal = load_icon("titlebar/edited/close_focus.png")
+t.titlebar_close_button_focus  = load_icon("titlebar/edited/close_focus.png")
+
+t.titlebar_minimize_button_normal = apply_icon_color("/usr/share/themes/Breeze/assets/titlebutton-minimize@2.png")
+t.titlebar_minimize_button_focus  = apply_icon_color("/usr/share/themes/Breeze/assets/titlebutton-minimize@2.png")
+
+t.titlebar_ontop_button_normal_inactive = apply_icon_color("/usr/share/icons/breeze/actions/24/window-keep-above.svg")
+t.titlebar_ontop_button_focus_inactive  = apply_icon_color("/usr/share/icons/breeze/actions/24/window-keep-above.svg")
+t.titlebar_ontop_button_normal_active   = apply_icon_color("/usr/share/icons/breeze/actions/24/window-keep-below.svg")
+t.titlebar_ontop_button_focus_active    = apply_icon_color("/usr/share/icons/breeze/actions/24/window-keep-below.svg")
+
+t.titlebar_sticky_button_normal_inactive = apply_icon_color("/usr/share/icons/breeze/actions/24/window-pin.svg")
+t.titlebar_sticky_button_focus_inactive  = apply_icon_color("/usr/share/icons/breeze/actions/24/window-pin.svg")
+t.titlebar_sticky_button_normal_active   = apply_icon_color("/usr/share/icons/breeze/actions/24/window-unpin.svg")
+t.titlebar_sticky_button_focus_active    = apply_icon_color("/usr/share/icons/breeze/actions/24/window-unpin.svg")
+
+t.titlebar_floating_button_normal_inactive = load_icon("titlebar/edited/floating_focus_inactive_dark.png")
+t.titlebar_floating_button_focus_inactive  = load_icon("titlebar/edited/floating_focus_inactive_dark.png")
+t.titlebar_floating_button_normal_active   = load_icon("titlebar/edited/floating_focus_active_dark.png")
+t.titlebar_floating_button_focus_active    = load_icon("titlebar/edited/floating_focus_active_dark.png")
+
+t.titlebar_maximized_button_normal_inactive = apply_icon_color("/usr/share/themes/Breeze/assets/titlebutton-maximize@2.png")
+t.titlebar_maximized_button_focus_inactive  = apply_icon_color("/usr/share/themes/Breeze/assets/titlebutton-maximize@2.png")
+t.titlebar_maximized_button_normal_active   = apply_icon_color("/usr/share/themes/Breeze/assets/titlebutton-maximize-maximized@2.png")
+t.titlebar_maximized_button_focus_active    = apply_icon_color("/usr/share/themes/Breeze/assets/titlebutton-maximize-maximized@2.png")
 
 t.wallpaper = themes_path .. "background.jpg"
 
@@ -141,8 +171,8 @@ awesome.set_preferred_icon_size(128)
 
 -- Define the icon theme for application icons. If not set then the icons
 -- from /usr/share/icons and /usr/share/icons/hicolor will be used.
---t.icon_theme = "Papirus-Dark"
-t.icon_theme = "Tela-circle-dark"
+t.icon_theme = "Papirus-Dark"
+--t.icon_theme = "Tela-circle-dark"
 
 -- Set different colors for urgent notifications.
 ruled.notification.connect_signal("request::rules", () ->

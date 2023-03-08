@@ -18,7 +18,7 @@ get_gio_recommended_app_for_mimetype = (mimetype, no_cache) ->
 		gio_recommended_apps_cache[mimetype] = app
 		app
 
-terminal_emulators = {
+terminals = {
 	os.getenv("TERMINAL")
 	"konsole"
 	"alacritty"
@@ -44,7 +44,8 @@ terminal_emulators = {
 	"xterm"
 }
 
-file_managers = {
+--- { command, should_run_in_terminal }
+filemanagers = {
 	{ os.getenv("FILEMANAGER"), false }
 	{ "dolphin",    false }
 	{ "nautilus",   false }
@@ -60,8 +61,7 @@ file_managers = {
 	{ "konqueror", false }
 }
 
---- { command, should_run_in_terminal }
-text_editors = {
+editors = {
 	{ "codium",     false }
 	{ "code",       false }
 	{ "lite-xl",    false }
@@ -93,7 +93,7 @@ text_editors = {
 	{ "ed",         true }
 }
 
-web_browsers = {
+browsers = {
 	{ os.getenv("BROWSER"), false }
 	{ "librewolf", false }
 	{ "firefox",   false }
@@ -110,41 +110,50 @@ web_browsers = {
 	{ "elinks", true }
 }
 
-traverse_app_list = (list, k) ->
-	k, v = next(list, k)
+shell_escape = (cmd) -> cmd::gsub([[']], [['"'"']])
 
-	awful.spawn.easy_async({ "bash", "-c", "command -v '#{v}' &> /dev/null"}, (stdout, stderr, exit_code, reason) ->
-		if stderr == 0
-			awful.spawn { "bash", "-c", "#{v}" }
+export terminal = (cmd) ->
+	iterate = (list, k) ->
+		k, v = next(list, k)
+
+		if k == nil
 			return
 
-		traverse_list_async(list, k)
-	)
+		awful.spawn.easy_async({ "bash", "-c", "command -v '#{shell_escape(v)}' &> /dev/null"}, (stdout, stderr, reason, exit_code) ->
+			if exit_code == 0
+				awful.spawn { v }
+				return
 
-class SensibleApp extends Object
-	init: (args={}) =>
-		--
-	
-	terminal: (cmd) =>
-		Gio.AppInfo.launch_default_for_uri("http://")
+			iterate(list, k)
+		)
 
-	filemanager: (file) =>
-		if app = get_gio_recommended_app_for_mimetype("inode/directory")
-			app::launch()
+	iterate(terminals)
+
+export browser = (url="http://") ->
+	protocol = url::match("^([a-zA-Z0-9_]+).//")
+	Gio.AppInfo.launch_default_for_uri(protocol)
+
+export filemanager = (file="") ->
+	if app = get_gio_recommended_app_for_mimetype("inode/directory")
+		app::launch()
+		return
+
+	--if Gio.AppInfo.launch_default_for_uri("file://")
+	--	return
+
+	iterate = (list, k) ->
+		k, v = next(list, k)
+
+		if k == nil
 			return
 
-		--if Gio.AppInfo.launch_default_for_uri("file://")
-		--	return
+		v = shell_escape(v[1])
+		awful.spawn.easy_async({ "bash", "-c", "command -v '#{v}' &> /dev/null"}, (stdout, stderr, exit_code, reason) ->
+			if stderr == 0
+				awful.spawn { "bash", "-c", "'#{v} #{shell_escape(file)}'" }
+				return
 
-		iterate = (list, k) ->
-			k, v = next(list, k)
+			iterate(list, k)
+		)
 
-			awful.spawn.easy_async({ "bash", "-c", "command -v '#{v}' &> /dev/null"}, (stdout, stderr, exit_code, reason) ->
-				if stderr == 0
-					awful.spawn { "bash", "-c", v, file }
-					return
-
-				@iterate(list, k)
-			)
-
-		iterate(file_managers)
+	iterate(filemanagers)

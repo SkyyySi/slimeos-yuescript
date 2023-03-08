@@ -36,8 +36,7 @@ export color = {
 	}
 	reset: {
 		all: "\027[0m"
-		bold: "\027[21m"
-		dim:  "\027[22m"
+		bolddim: "\027[22m" -- 21m actually causes a double-underline; this resets both bold and dim text
 		underlined: "\027[24m"
 		blink: "\027[25m"
 		invert: "\027[27m"
@@ -243,7 +242,7 @@ log.exception = (heading, traceback) ->
 	
 	log.block(msg, {
 		shadow: true
-		empty_shadow: true
+		empty_shadow: false
 		print: false
 		align: "left"
 		foreground: color.foreground.normal.black

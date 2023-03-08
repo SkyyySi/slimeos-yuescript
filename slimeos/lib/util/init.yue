@@ -40,7 +40,7 @@ export lookup_gicon = (gicon) ->
 	if icon_name::match("/")
 		return icon_name
 
-	lookup_icon icon_name
+	lookup_icon(icon_name)
 
 scaling_factor = 1
 dpi = beautiful.xresources.apply_dpi
@@ -101,3 +101,7 @@ export gen_properties = (args) ->
 	if args.set
 		for prop in *args.properties
 			args.object["set_"..prop] = make_setter(args.object, prop, value, args.signals and "property::#{field}" or nil)
+
+export shape = (shape_function, ...) ->
+	args = { ... }
+	(cr, w, h) -> shape_function(cr, w, h, unpack(args))

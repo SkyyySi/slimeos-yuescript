@@ -1,13 +1,34 @@
-awful     = require("awful")
-gears     = require("gears")
-wibox     = require("wibox")
-ruled     = require("ruled")
-beautiful = require("beautiful")
-menubar   = require("menubar")
-naughty   = require("naughty")
+import awful, gears, wibox, ruled, beautiful, menubar, naughty from require("awesome_std")
 
 import Object, util, wrap from require("slimeos.lib")
 import Button from require("slimeos.widgets")
+
+button_wrapper = (widget, buttons) ->
+	{
+		{
+			{
+				widget
+				margins: util.scale(4)
+				widget:  wibox.container.margin
+			}
+			shape: gears.shape.circle
+			buttons: buttons
+			widget: Button
+		}
+		margins: util.scale(6)
+		widget:  wibox.container.margin
+	}
+
+button_box_wrapper = (widgets) ->
+	{
+		{
+			widgets
+			spacing: util.scale(4)
+			layout: wibox.layout.fixed.horizontal
+		}
+		margins: util.scale(6)
+		widget:  wibox.container.margin
+	}
 
 -- {{{ Titlebars
 -- Add a titlebar if titlebars_enabled is set to true in the rules.
@@ -50,45 +71,48 @@ client.connect_signal("request::titlebars", (c) ->
 	}
 
 	c.titlebars = {}
-	c.titlebars.top = awful.titlebar(c)
+	c.titlebars.top = awful.titlebar(c, {
+		bg: gears.color.transparent
+		shape: shape: util.shape(gears.shape.partially_rounded_rect, true, true, false, false, util.scale(15))
+	})
 
 	c.titlebars.top.widget = {
 		{
 			{
-				{
-					awful.titlebar.widget.iconwidget(c)
-					margins: util.scale(6)
-					widget:  wibox.container.margin
-				}
-				buttons: {
+				button_wrapper(awful.titlebar.widget.iconwidget(c), {
 					awful.button({}, 1, nil, () -> menu::toggle())
 					awful.button({}, 2, nil, () -> menu::toggle())
+				})
+				{
+					font:    beautiful.titlebar_font ?? beautiful.bold_font ?? beautiful.font .. " Bold"
+					halign:  "center"
+					buttons: buttons
+					widget:  awful.titlebar.widget.titlewidget(c)
 				}
-				widget: Button
+				spacing: util.scale(2)
+				layout:  wibox.layout.fixed.horizontal
 			}
 			{
-				font:    beautiful.titlebar_font ?? beautiful.bold_font ?? beautiful.font .. " Bold"
-				halign:  "center"
 				buttons: buttons
-				widget:  awful.titlebar.widget.titlewidget(c)
+				layout:  wibox.layout.flex.horizontal
 			}
-			spacing: util.scale(4)
-			layout:  wibox.layout.fixed.horizontal
+			{
+				--awful.titlebar.widget.floatingbutton(c)
+				--awful.titlebar.widget.stickybutton(c)
+				--awful.titlebar.widget.ontopbutton(c)
+				button_box_wrapper {
+					awful.titlebar.widget.minimizebutton(c)
+					awful.titlebar.widget.maximizedbutton(c)
+					awful.titlebar.widget.closebutton(c)
+				}
+				layout: wibox.layout.fixed.horizontal
+			}
+			layout: wibox.layout.align.horizontal
 		}
-		{
-			buttons: buttons
-			layout:  wibox.layout.flex.horizontal
-		}
-		{
-			--awful.titlebar.widget.floatingbutton(c)
-			--awful.titlebar.widget.stickybutton(c)
-			--awful.titlebar.widget.ontopbutton(c)
-			awful.titlebar.widget.minimizebutton(c)
-			awful.titlebar.widget.maximizedbutton(c)
-			awful.titlebar.widget.closebutton(c)
-			layout: wibox.layout.fixed.horizontal
-		}
-		layout: wibox.layout.align.horizontal
+		id: "background_role"
+		bg: beautiful.bg_normal
+		shape: util.shape(gears.shape.partially_rounded_rect, true, true, false, false, util.scale(15))
+		widget: wibox.container.background
 	}
 )
 -- }}}
