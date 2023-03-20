@@ -1,0 +1,303 @@
+require  = require
+tostring = tostring
+stdout   = io.stdout
+
+print = (...) ->
+	args = { ... }
+	outs = ""
+	first = true
+
+	for _, arg in ipairs(args)
+		repr = tostring
+
+		if type(arg) == "table"
+			if mt = arg.<>
+				if r = mt.__repr
+					repr = r
+
+		if first
+			first = false
+		else
+			outs ..= ", "
+
+		outs ..= repr(arg)
+
+	stdout::write(outs, "\n")
+
+_print_header_count = 0
+print_h1 = (text) ->
+	bar_top    = "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+	bar_bottom = "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+	bar_length = 65
+	padding = ""
+
+	padding_length = (math.floor(bar_length / 2) - 1 - math.floor(#text / 2))
+	for i = 1, padding_length
+		padding ..= " "
+
+	print("#{(_print_header_count >= 1) and "\n" or ""}\027[1;34m#{bar_top}\n┃#{padding}#{text}#{((#text % 2) == 0) and " " or ""}#{padding}┃\n#{bar_bottom}\027[0m")
+	_print_header_count += 1
+
+print_h2 = (text) ->
+	print("#{(_print_header_count >= 1) and "\n" or ""}\027[1;33m ❱❱❱ #{text} ❰❰❰\027[0m")
+	_print_header_count += 1
+
+print_h3 = (text) ->
+	print("#{(_print_header_count >= 1) and "\n" or ""}\027[1;32m❱ #{text}\027[0m")
+	_print_header_count += 1
+
+print_h4 = (text) ->
+	print("#{(_print_header_count >= 1) and "\n" or ""}\027[1;31m #{text}\027[0m")
+	_print_header_count += 1
+
+print_h1("Testing slimeos.lib.ClassPlus")
+
+import "slimeos.lib.ClassPlus"
+
+local MyObject
+MyObject = ClassPlus
+	name: "MyObject"
+
+print(">>> Module:   #{ClassPlus}")
+print(">>> Class:    #{MyObject}")
+print(">>> Instance: #{MyObject()}")
+
+print_h1("Basic inheritance")
+
+local Foo
+Foo = ClassPlus
+	name: "Foo"
+
+	new: (cls, ...) ->
+		print("Created a new '#{cls.__name}' instance")
+		ClassPlus.super(Foo).__new(cls, ...)
+
+	init: (...) =>
+		print("Initialized the previously created '#{@__class.__name}' instance")
+		ClassPlus.super(Foo).__init(@, ...)
+
+	body:
+		foo: "bar"
+
+x = Foo()
+
+print(">>> Before definiton of 'Bar':")
+print("x.foo = \"#{x.foo}\"")
+
+local Bar
+Bar = ClassPlus
+	name: "Bar"
+
+	parents: { Foo }
+
+	new: (cls, ...) ->
+		print("<<<Hello from '#{cls.__name}'s constructor!>>>")
+		ClassPlus.super(Bar).__new(cls, ...)
+
+	body:
+		foo: "Something else"
+
+print(">>> After definiton of 'Bar':")
+print("x.foo = \"#{x.foo}\"")
+
+y = Bar()
+
+print(">>> After creation of 'y':")
+print("x.foo = \"#{x.foo}\"")
+print("y.foo = \"#{y.foo}\"")
+
+print("x = #{x}")
+print("y = #{y}")
+
+print()
+
+local Biz
+Biz = ClassPlus
+	name: "Biz"
+
+	parents: { Bar }
+
+	body:
+		foo: "Something else... again!"
+
+z = Biz()
+
+print(">>> After creation of 'z':")
+print("x.foo = \"#{x.foo}\"")
+print("y.foo = \"#{y.foo}\"")
+print("z.foo = \"#{z.foo}\"")
+
+print("x = #{x}")
+print("y = #{y}")
+print("z = #{z}")
+
+print_h1("Diamond problem")
+
+local Top
+Top = ClassPlus
+	name: "Top"
+
+	body:
+		some_field: "Value from 'Top'"
+
+local Left
+Left = ClassPlus
+	name: "Left"
+
+	parents: { Top }
+
+	body:
+		some_field: "Value from 'Left'"
+
+local Right
+Right = ClassPlus
+	name: "Right"
+
+	parents: { Top }
+
+	body:
+		some_field: "Value from 'Right'"
+
+local Bottom
+Bottom = ClassPlus
+	name: "Bottom"
+
+	parents: { Left, Right }
+
+	--body:
+	--	some_field: "Value from 'Bottom'"
+
+top, left, right, bottom = Top(), Left(), Right(), Bottom()
+
+print("   Top = #{Top}      ->      top = #{top}")    ---    Top = <class 'Top' at 0x7ff2972eb370>      ->      top = <instance of 'Top' at 0x7ff2972dec40>
+print("  Left = #{Left}     ->     left = #{left}")   ---   Left = <class 'Left' at 0x7ff2972e9ca8>     ->     left = <instance of 'Left' at 0x7ff2972f3108>
+print(" Right = #{Right}    ->    right = #{right}")  ---  Right = <class 'Right' at 0x7ff2972f4008>    ->    right = <instance of 'Right' at 0x7ff2972f0030>
+print("Bottom = #{Bottom}   ->   bottom = #{bottom}") --- Bottom = <class 'Bottom' at 0x7ff2972ece60>   ->   bottom = <instance of 'Bottom' at 0x7ff2972efc50>
+
+print("   top.some_field = #{top.some_field}")     ---    top.some_field = Value from 'Top'
+print("  left.some_field = #{left.some_field}")    ---   left.some_field = Value from 'Left'
+print(" right.some_field = #{right.some_field}")   ---  right.some_field = Value from 'Right'
+print("bottom.some_field = #{bottom.some_field}")  --- bottom.some_field = Value from 'Left'
+
+print_h1("Mixins")
+
+iterable = () ->
+	ret = {
+		get_pairs: () =>
+			local k
+
+			() ->
+				k, v = next(@, k)
+				k, v
+
+		get_keys: () =>
+			local k
+
+			() ->
+				k, v = next(@, k)
+				k
+
+		get_values: () =>
+			local k
+
+			() ->
+				k, v = next(@, k)
+				v
+	}
+
+	do
+		local k
+
+		ret.__call = () =>
+			k, v = next(@, k)
+			k, v
+
+	ret
+
+local List
+List = ClassPlus
+	name: "List"
+
+	mixins: { iterable() }
+
+	init: (items={}) =>
+		for k, v in pairs(items)
+			@[k] = v
+
+test_list = List({"foo", "bar", "biz", "baz"})
+
+print_h2("Pairs (implicit)")
+for k, v in test_list
+	print("test_list[#{k}] = '#{v}'")
+
+print_h2("Pairs (explicit)")
+for k, v in test_list::get_pairs()
+	print("test_list[#{k}] = '#{v}'")
+
+print_h2("Keys")
+for k in test_list::get_keys()
+	print("test_list[#{k}] = '#{test_list[k]}'")
+
+print_h2("Values")
+for v in test_list::get_values()
+	print("'#{v}'")
+
+--- test_list[k] = 'foo'
+--- test_list[k] = 'bar'
+--- test_list[k] = 'biz'
+--- test_list[k] = 'baz'
+
+print_h1("Inhertiance (but practical)")
+
+local String
+String = ClassPlus
+	name: "String"
+
+	init: (value) =>
+		with t = type(value)
+			assert(t == "string", "Invalid argument #1 to #{@@__name} (expected a string, got a #{t})")
+
+		@value = value
+		ClassPlus.super(String).__init
+
+	body:
+		__get: (key) => rawget(@, "value")::sub(key, key)
+
+		__repr: () => '"' .. @value::gsub([["]], [[\"]]) .. '"'
+
+		__tostring: () => @value
+
+local UppercasedString
+UppercasedString = ClassPlus
+	name: "UppercasedString"
+
+	parents: { String }
+
+	init: (value="") =>
+		value = value::upper()
+		ClassPlus.super(UppercasedString).__init(@, value)
+
+print(String("FooBar"))            --- 'FooBar'
+print(UppercasedString("FooBar"))  --- 'FOOBAR'
+
+print_h1("Static class fields")
+
+do
+	prettify = require("slimeos.lib.util.tts").prettify
+	pretty_print = (obj, raw=true) -> stdout::write(prettify(obj, raw), "\n")
+
+	SomeClass = ClassPlus
+		name: "SomeClass"
+
+	print("SomeClass =")
+	for k, v in pairs(SomeClass)
+		print("  * #{k}:\t'#{v}'")
+
+	print()
+
+	print("SomeClass.__body =")
+	for k, v in pairs(SomeClass.__body)
+		print("  * #{k}:\t'#{v}'")
+
+	print_h2("With `pretty_print()`:")
+	pretty_print(SomeClass)

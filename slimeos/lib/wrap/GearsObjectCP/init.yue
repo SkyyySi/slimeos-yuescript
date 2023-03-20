@@ -1,0 +1,69 @@
+import gears from require("awesome_std")
+
+ClassPlus = require("slimeos.lib.ClassPlus")
+
+--[[
+copy = (tb) ->
+	new_tb = gears.table.crush({}, tb, true)
+	new_tb.<> = gears.table.crush({}, tb.<> or {}, true)
+	new_tb
+--]]
+
+(base_gears_object, name) ->
+	name ??= base_gears_object.__name
+
+	call = base_gears_object.<>.__call
+
+	local _cls
+	_cls = ClassPlus
+		name: name
+
+		--mixins: { base_gears_object }
+
+		new: (cls, ...) ->
+			call(cls, ...)
+
+		--[[
+		new: (cls, ...) ->
+			@ = base_gears_object(...)
+
+			@_private  ??= {}
+			@__private ??= @_private
+
+			mt = gears.table.crush({}, @.<>)
+
+			for k, v in pairs(cls)
+				if mt[k] == nil
+					mt[k] = v
+
+			do
+				old_index = rawget(mt, "__index")
+
+				mt.__index = (key) =>
+					do
+						value = old_index(@, key)
+
+						if value != nil
+							return value
+
+					do
+						value = rawget(mt, "__class")
+
+						if value != nil
+							return value[key]
+
+					mt[key]
+
+			@.<> = mt
+
+			mt_mt = {}
+				|> gears.table.crush(cls.__meta, true)
+				|> gears.table.crush(mt.<> or {}, true)
+
+			mt.<> = mt_mt
+			mt.__meta = mt_mt
+
+			@
+			--]]
+
+	rawset(_cls, "__body", base_gears_object)

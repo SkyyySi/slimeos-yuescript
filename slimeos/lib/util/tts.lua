@@ -10,10 +10,15 @@ setmetatable(mytable, mt)
 
 local math = math
 local setmetatable = setmetatable
+local getmetatable = getmetatable
 local type = type
+local table = table
 local string = string
 local tostring = tostring
 local pairs = pairs
+local ipairs = ipairs
+local rawget = rawget
+local unpack = unpack or table.unpack
 
 local tts = {
 	-- Contains format strings
@@ -49,8 +54,8 @@ do
 		return mt.just_return
 	end
 
-	function mt:__call(v)
-		return self[type(v)](v)
+	function mt:__call(v, ...)
+		return self[type(v)](v, ...)
 	end
 
 	setmetatable(tts.prettify, mt)
@@ -140,7 +145,7 @@ function tts.util.strip_colors(s)
 	return s:gsub("\x1b[^m]*m", "")
 end
 
-local terminal = require("slimeos.lib.util.terminal")
+--local terminal = require("slimeos.lib.util.terminal")
 ---@param obj any The object you want to estimate the length after stringyfication of 
 ---@param max_needed_length integer If the determined length of `obj` is longer than this, `estimate_length` will early return
 ---@return integer estimated_length
@@ -235,6 +240,7 @@ end
 
 ---@class tts._args
 ---@field table table
+---@field name string|nil
 ---@field root_args table|nil
 ---@field indent string|nil
 ---@field depth integer|nil
@@ -245,19 +251,26 @@ end
 ---@field current_outs string|nil
 ---@field force_long boolean|nil
 ---@field line_prefix string|nil
+---@field ignore_tostring boolean|nil
+---@field parents table[]|nil
 
 ---@param args tts._args
 ---@return string
 function tts.tts(args)
 	args.table = args.table
+	args.name = args.name and (args.name .. ".") or ""
 	args.depth = args.depth or 0
 	args.bracket_depth = args.bracket_depth or 1
 	args.parent = args.parent
 	args.encountered_tables = args.encountered_tables or {}
-	args.max_line_length = args.max_line_length or terminal.geometry().width
+	args.max_line_length = args.max_line_length or 80 -- terminal.geometry().width
 	args.current_outs = args.current_outs or ""
-	args.force_long = args.force_long or false
+	if args.force_long == nil then
+		args.force_long = true
+	end
 	args.line_prefix = args.line_prefix or ""
+
+	args.parents = args.parents or {}
 
 	if not args.root_args then
 		args.root_args = {}
@@ -300,25 +313,29 @@ function tts.tts(args)
 			--- If a table already has a string conversion, we should just
 			--- use that, because this can means that you probably should not
 			--- blindly print its contents
-			if mt_v and mt_v.__tostring then
+			if (not args.ignore_tostring) and mt_v and rawget(mt_v, "__tostring") then
 				v = tostring(v)
 			else
 				--- Prevent infinite recursion
-				if args.table == args.parent or in_list(args.encountered_tables, args.table) then
-					return "\x1b[2m...\x1b[0m"
+				if (args.table == args.parent) or in_list(args.parents, args.table) or in_list(args.encountered_tables, args.table) then
+					v = "\x1b[2m" .. args.name .. tostring(k) .. "\x1b[0m"
+				else
+					local depth_add = one_liner and 0 or 1
+
+					v = tts.tts {
+						table = v,
+						name = k,
+						depth = args.depth + depth_add,
+						bracket_depth = args.bracket_depth + depth_add,
+						parent = args.table,
+						encountered_tables = args.encountered_tables,
+						max_line_length = args.max_line_length,
+						current_outs = outs,
+						line_prefix = (one_liner and "" or bracket_indent) .. tts.util.quote_key(k, args) .. " = ",
+						ignore_tostring = args.ignore_tostring,
+						parents = { args.table, unpack(args.parents) },
+					}
 				end
-
-				local depth_add = one_liner and 0 or 1
-				v = tts.tts {
-					table = v,
-					depth = args.depth + depth_add,
-					bracket_depth = args.bracket_depth + depth_add,
-					parent = args.table,
-					current_outs = outs,
-					line_prefix = (one_liner and "" or bracket_indent) .. tts.util.quote_key(k, args) .. " = ",
-				}
-
-				--table.insert(args.encountered_tables, args.table)
 			end
 		else
 			v = tts.prettify[tv](v)
@@ -368,18 +385,18 @@ function tts.prettify.userdata(ud)
 end
 
 ---@param tb table
-function tts.prettify.table(tb)
+function tts.prettify.table(tb, raw)
 	local mt = getmetatable(tb)
 
 	if mt then
-		if mt.__tostring then
+		if (not raw) and mt.__tostring then
 			return tostring(tb)
 		end
 
-		return tts({ table = tb })..",\nmetatable: "..tts({ table = mt })
+		return tts({ table = tb, ignore_tostring = raw }).."\n\x1b[2mmetatable:\x1b[0m "..tts({ table = mt, ignore_tostring = raw })
 	end
 
-	return tts { table = tb }
+	return tts { table = tb, ignore_tostring = raw }
 end
 
 return tts

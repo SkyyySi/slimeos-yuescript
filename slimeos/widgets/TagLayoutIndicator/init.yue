@@ -1,9 +1,10 @@
 import awful, wibox, gears, beautiful from require("awesome_std")
-import Object, util, wrap from require("slimeos.lib")
+import Object, util, wrap, ClassPlus from require("slimeos.lib")
 --import List, Tuple from require("slimeos.lib.collection")
 
 Button = require("slimeos.widgets.Button")
 
+--[[
 class TagLayoutIndicator extends Button
 	init: (args={}) =>
 		super(args)
@@ -14,3 +15,26 @@ class TagLayoutIndicator extends Button
 		@children = {
 			awful.widget.layoutbox
 		}
+--]]
+
+--[[
+local TagLayoutIndicator
+TagLayoutIndicator = ClassPlus
+	name: "TagLayoutIndicator"
+
+	--parents: { wrap.GearsObjectCP(wibox.container.background, "wibox.container.background") }
+	--parents: { wrap.GearsObjectCP(Button) }
+	parents: { Button }
+
+	init: (args={}) =>
+		ClassPlus.super(TagLayoutIndicator).__init(@, args)
+
+		--@children = {
+		--	awful.widget.layoutbox
+		--}
+--]]
+
+TagLayoutIndicator = (args={}) ->
+	awful.widget.layoutbox()
+
+TagLayoutIndicator

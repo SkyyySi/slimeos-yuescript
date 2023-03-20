@@ -160,3 +160,6 @@ export align = (str, block_width, align="center", char=" ", str_length, char_len
 		rep(char, math.floor(spacing_length)) .. str .. rep(char, math.ceil(spacing_length))
 	elseif align == "right"
 		rep(char, char_count) .. str
+
+export shell_escape = (str) ->
+	str::gsub([[']], [['"'"']])

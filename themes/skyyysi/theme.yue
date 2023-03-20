@@ -1,28 +1,41 @@
-awful     = require "awful"
-gears     = require "gears"
-wibox     = require "wibox"
-ruled     = require "ruled"
-menubar   = require "menubar"
-naughty   = require "naughty"
+import "awful"
+import "gears"
+import "wibox"
+import "ruled"
+import "menubar"
+import "naughty"
 
-util = require "modules.lib.util"
+import "modules.lib.util"
+import scale from util
 
-theme_assets = require "beautiful.theme_assets"
-scale = util.scale
+import "beautiful.theme_assets"
 
-themes_path = gears.filesystem.get_configuration_dir() .. "themes/skyyysi/"
+theme_path = gears.filesystem.get_configuration_dir() .. "themes/skyyysi/"
 
 t = {}
 
-t.font          = "Source Sans Pro, Medium #{math.floor(scale(12) + 0.5)}"
+t.font = "Source Sans Pro, #{math.floor(scale(12) + 0.5)}"
 
-t.bg_normal     = "#131522" -- "#135515C822FB"
-t.bg_focus      = "#008EF9" -- "#00008E07F911"
-t.bg_urgent     = "#FF000F" -- "#FFFF00000F12"
-t.bg_minimize   = "#444444" -- "#445744574457"
+t.color = {
+	black:   "#0E1019", black_alternate:   "#131522"
+	grey:    "#232323", grey_alternate:    "#444444"
+	red:     "#FF000F", red_alternate:     "#FF2740"
+	green:   "#8CE10b", green_alternate:   "#ABE15B"
+	yellow:  "#FFB900", yellow_alternate:  "#FFD242"
+	blue:    "#008DF8", blue_alternate:    "#0092FF"
+	magenta: "#6D43A6", magenta_alternate: "#9A5FEB"
+	cyan:    "#00D8EB", cyan_alternate:    "#67FFF0"
+	white:   "#FFFAF4", white_alternate:   "#FFFFFF"
+}
+
+t.bg_normal     = t.color.black
+t.bg_alternate  = t.color.black_alternate -- "#135515C822FB"
+t.bg_focus      = t.color.blue -- "#00008E07F911"
+t.bg_urgent     = t.color.red -- "#FFFF00000F12"
+t.bg_minimize   = t.color.grey_alternate -- "#445744574457"
 t.bg_systray    = t.bg_normal
 
-t.fg_normal     = "#FFFAF4" -- "#FFFFFAFFF499"
+t.fg_normal     = t.color.white -- "#FFFFFAFFF499"
 t.fg_focus      = t.fg_normal
 t.fg_urgent     = t.fg_normal
 t.fg_minimize   = t.fg_normal
@@ -31,7 +44,7 @@ t.useless_gap         = scale(2)
 t.border_width        = scale(1)
 t.border_color_normal = t.bg_normal
 t.border_color_active = t.bg_focus
-t.border_color_marked = "#FFB900" -- "#FFFFB9FF0000"
+t.border_color_marked = t.color.yellow -- "#FFFFB9FF0000"
 
 -- There are other variable sets
 -- overriding the default one when
@@ -82,7 +95,7 @@ t.menu_width  = scale(200)
 
 t.icon_color = t.fg_focus or "#ffffff"
 load_icon = (path) ->
-	gears.color.recolor_image(themes_path .. path, t.icon_color)
+	gears.color.recolor_image(theme_path .. path, t.icon_color)
 
 -- Define the image to load
 t.titlebar_close_button_normal = load_icon("titlebar/close_normal.png")
@@ -111,7 +124,7 @@ t.titlebar_maximized_button_focus_inactive  = load_icon("titlebar/maximized_focu
 t.titlebar_maximized_button_normal_active = load_icon("titlebar/maximized_normal_active.png")
 t.titlebar_maximized_button_focus_active  = load_icon("titlebar/maximized_focus_active.png")
 
-t.wallpaper = themes_path .. "background.jpg"
+t.wallpaper = theme_path .. "background.jpg"
 
 -- You can use your own layout icons like this:
 t.layout_fairh = load_icon("layouts/fairhw.png")
@@ -156,5 +169,16 @@ ruled.notification.connect_signal("request::rules", () ->
 		}
 	}
 )
+
+t.icons = {}
+t.icons.<> = {
+	__index: (key) =>
+		icon = gears.color.recolor_image((theme_path .. "/icons/yandex-ui-icons/#{key}.svg"), t.fg_normal)
+
+		--- Cache the icon for later re-uses
+		@[key] = icon
+
+		icon
+}
 
 t

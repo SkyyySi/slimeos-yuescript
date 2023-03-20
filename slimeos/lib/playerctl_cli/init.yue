@@ -1,0 +1,200 @@
+if __PLAYERCTL_SIGNALS_ALREADY_CREATED
+	return () ->
+
+require = require
+os = os
+getmetatable = getmetatable
+setmetatable = setmetatable
+type = type
+tostring = tostring
+tonumber = tonumber
+pairs = pairs
+ipairs = ipairs
+
+awesome = awesome
+
+import "awful"
+import "gears"
+import "slimeos.lib.util"
+
+import "lgi"
+import cairo, Playerctl from lgi
+
+cache_dir = ""
+XDG_CACHE_HOME = os.getenv("XDG_CACHE_HOME")
+HOME = os.getenv("HOME")
+
+cache_dir = if XDG_CACHE_HOME and (XDG_CACHE_HOME != "")
+	XDG_CACHE_HOME .. "/awesome"
+else
+	HOME .. "/.cache/awesome"
+
+awful.spawn { "mkdir", "-p", cache_dir }
+
+art_path = cache_dir .. "/coverart"
+safe_art_path = util.string.shell_escape(art_path)--::gsub("%%", "%%%%")
+art_script_fmt = "curl -o '#{safe_art_path}' -fsSL '%s';ffmpeg -y -i '#{safe_art_path}' '#{safe_art_path}.png'"
+
+gen_art_script = (metadata) ->
+	art_script_fmt::format(metadata.art_url)
+
+is_playing_status_parser = (status_string) ->
+	status = false
+
+	if status_string == "Playing"
+		status = true
+
+	awesome.emit_signal("playerctl::metadata::playing", status)
+
+	status
+
+PlayerctlMetadata, PlayerctlMetadata_mt = {
+	__name: "PlayerctlMetadata"
+}, {
+	fields: {
+		"album"
+		"art_cairo"
+		"art_path"
+		"art_url"
+		"artist"
+		"length"
+		"player_name"
+		"position"
+		"status"
+		"title"
+		"volume"
+	}
+}
+PlayerctlMetadata.__index = PlayerctlMetadata
+PlayerctlMetadata_mt.__index = PlayerctlMetadata_mt
+setmetatable(PlayerctlMetadata, PlayerctlMetadata_mt)
+
+PlayerctlMetadata.same_song_as = (other) =>
+	if not other
+		return false
+
+	if @artist != other.artist
+		return false
+
+	if @title != other.title
+		return false
+
+	return true
+
+do
+	quote = (value) ->
+		tv = type(value)
+
+		if tv == "string"
+			'"' .. value .. '"'
+		elseif tv == "number"
+			("%.02f")::format(value)
+		else
+			tostring(value)
+
+	PlayerctlMetadata.__tostring = () =>
+		local outs
+		local first = true
+
+		for k, v in pairs(@)
+			outs = if first then
+				first = false
+				@.__name .. " {\n    " .. k .. ": " .. quote(v)
+			else
+				outs     ..   "\n    " .. k .. ": " .. quote(v)
+
+		return outs .. "\n}"
+
+PlayerctlMetadata_mt.__call = (cls, o) ->
+	setmetatable(o or {}, cls)
+
+old_metadata = {}
+send_metadata_signal = (line) ->
+	if (not line) or (line == "")
+		return
+
+	tmp = util.string.split(line, "\t")
+
+	metadata = PlayerctlMetadata {
+		album:       tmp[5]
+		art_url:     tmp[9]
+		artist:      tmp[6]
+		length:      tonumber(tmp[8]) or 100
+		player_name: tmp[1]
+		position:    tonumber(tmp[2]) or 0
+		status:      is_playing_status_parser(tmp[3]) or false
+		title:       tmp[7]
+		volume:      tonumber(tmp[4]) or 0
+	}
+
+	metadata.completion = metadata.position / (metadata.length / 100)
+	--print(metadata)
+
+	if (not metadata.art_url) or (metadata.art_url == "") or (metadata.art_url == old_metadata.art_url)
+		metadata.art_path = old_metadata.art_path
+		metadata.art_cairo = old_metadata.art_cairo
+
+		awesome.emit_signal("playerctl::metadata", metadata)
+		old_metadata = metadata
+		return
+
+	awful.spawn.easy_async_with_shell(gen_art_script(metadata), (stdout, stderr, reason, exit_code) ->
+		metadata.art_path = art_path .. ".png"
+		metadata.art_cairo = cairo.ImageSurface.create_from_png(metadata.art_path)
+		awesome.emit_signal("playerctl::metadata", metadata)
+		old_metadata = metadata
+	)
+
+make_metadata_update_signal_listener = () ->
+	gears.timer {
+		timeout:   1
+		autostart: true
+		call_now:  true
+		callback:  () ->
+			awful.spawn.easy_async({
+				"playerctl"
+				"metadata"
+				"--format"
+				"{{playerName}}\t{{position}}\t{{status}}\t{{volume}}\t{{album}}\t{{artist}}\t{{title}}\t{{mpris:length}}\t{{mpris:artUrl}}"
+			}, (stdout, stderr, reason, exit_code) ->
+				send_metadata_signal(stdout)
+			)
+	}
+
+make_control_signal_listeners = () ->
+	awesome.connect_signal("playerctl::play",       () -> awful.spawn { "playerctl", "play"       })
+	awesome.connect_signal("playerctl::pause",      () -> awful.spawn { "playerctl", "pause"      })
+	awesome.connect_signal("playerctl::play-pause", () -> awful.spawn { "playerctl", "play-pause" })
+	awesome.connect_signal("playerctl::stop",       () -> awful.spawn { "playerctl", "stop"       })
+	awesome.connect_signal("playerctl::next",       () -> awful.spawn { "playerctl", "next"       })
+	awesome.connect_signal("playerctl::previous",   () -> awful.spawn { "playerctl", "previous"   })
+	awesome.connect_signal("playerctl::volume",     () -> awful.spawn { "playerctl", "volume"     })
+
+make_player_list_signal_listener = () ->
+	gears.timer {
+		timeout:   1
+		autostart: true
+		call_now:  true
+		callback:  () ->
+			--awful.spawn.easy_async({ "playerctl", "--list-all" }, (stdout, stderr, reason, exit_code) ->
+				awesome.emit_signal("playerctl::available_players", Playerctl.list_players())
+			--)
+	}
+
+_previous_player_list = {}
+awesome.connect_signal("playerctl::available_players", (player_list) ->
+	for index, player in ipairs(player_list)
+		if _previous_player_list[index] != player
+			return
+
+	_previous_player_list = player_list
+
+	active_player = Playerctl.list_players()?[1]?.name
+
+	awesome.emit_signal("playerctl::active_player", Playerctl.list_players())
+)
+
+make_metadata_update_signal_listener()
+make_control_signal_listeners()
+
+global __PLAYERCTL_SIGNALS_ALREADY_CREATED = true

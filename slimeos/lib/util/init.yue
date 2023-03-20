@@ -1,16 +1,44 @@
-awful     = require("awful")
-gears     = require("gears")
-wibox     = require("wibox")
-ruled     = require("ruled")
-beautiful = require("beautiful")
-menubar   = require("menubar")
-naughty   = require("naughty")
+import "awful"
+import "gears"
+import "wibox"
+import "ruled"
+import "beautiful"
+import "menubar"
+import "naughty"
 
-lgi = require("lgi")
+import "lgi"
 gtk = lgi.require("Gtk", "3.0")
 
-tts = require("slimeos.lib.util.tts")
+import "slimeos.lib.util.tts"
 tts_monochrome = require("slimeos.lib.util.tts_monochrome")
+
+import MissingArgumentException, MissingParameterException from require("slimeos.lib.exception")
+
+getmetatable = getmetatable
+setmetatable = setmetatable
+
+--[[
+export create_module = (name) ->
+	MissingParameterException::assert(name, 1, "util.create_module", "name")
+	
+	module = {
+		__meta: {
+			__name: name
+		}
+		__tostring: (module) ->
+			memory_address = module.raw_tostring(module)::match(".*: (0x%x*)")
+
+			("<module '%s'%s>")::format(
+				module.__name,
+				(memory_address != nil) and " at " .. memory_address or ""
+			)
+	}
+
+	module.__index = module
+	module.__meta.__index = module.__meta
+
+	setmetatable(module, module.__meta)
+--]]
 
 export string   = require("slimeos.lib.util.string")
 export terminal = require("slimeos.lib.util.terminal")
@@ -63,14 +91,12 @@ export quote_key = (key, monochrome) ->
 make_getter = (field) => () -> rawget(@__private, field)
 
 make_setter = (field, signal) =>
-	if signal
+	if (signal) and (@emit_signal != nil)
 		(value) ->
 			@emit_signal(signal, value)
 			rawset(@__private, field, value)
 	else
 		(value) -> rawset(@__private, field, value)
-
-import MissingArgumentException from require("slimeos.lib.exception")
 
 export gen_properties = (args) ->
 	with args
@@ -81,16 +107,16 @@ export gen_properties = (args) ->
 		.get ??= true
 		.set ??= true
 		.raw ??= true
-		.signals ??= true
+		.signals ??= false
 
 	if args.raw
 		if args.get
 			for prop in *args.properties
-				rawset(args.object, "get_"..prop, make_getter(args.object, prop))
+				rawset(args.object, ("get_"..prop), make_getter(args.object, prop))
 
 		if args.set
 			for prop in *args.properties
-				rawset(args.object, "set_"..prop, make_setter(args.object, prop, args.signals and "property::#{field}" or nil))
+				rawset(args.object, ("set_"..prop), make_setter(args.object, prop, (args.signals and "property::#{field}" or nil)))
 		
 		return
 
@@ -100,4 +126,18 @@ export gen_properties = (args) ->
 
 	if args.set
 		for prop in *args.properties
-			args.object["set_"..prop] = make_setter(args.object, prop, value, args.signals and "property::#{field}" or nil)
+			args.object["set_"..prop] = make_setter(args.object, prop, (args.signals and "property::#{field}" or nil))
+
+export raw_tostring = (obj) ->
+	mt = getmetatable(obj)
+
+	if mt == nil
+		return tostring(obj)
+
+	setmetatable(obj, nil)
+
+	obj_str = tostring(obj)
+
+	setmetatable(obj, mt)
+
+	obj_str

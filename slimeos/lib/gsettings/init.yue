@@ -1,0 +1,15 @@
+import awful, gears, wibox, ruled, beautiful, menubar, naughty from require("awesome_std")
+
+Object = require("slimeos.lib.Object")
+util   = require("slimeos.lib.util")
+
+import Option from require("slimeos.lib.collection")
+
+import Gio from require("lgi")
+
+export schema_exists = (schema_name) ->
+	for schema in *Gio.Settings.list_schemas()
+		if schema == schema_name
+			return true
+
+	return false

@@ -1,6 +1,12 @@
-export collection  = require("slimeos.lib.collection")
-export exception   = require("slimeos.lib.exception")
-export Object      = require("slimeos.lib.Object")
-export SensibleApp = require("slimeos.lib.wrap")
-export util        = require("slimeos.lib.util")
-export wrap        = require("slimeos.lib.wrap")
+require = require
+
+export ClassPlus     = require("slimeos.lib.ClassPlus")
+export collection    = require("slimeos.lib.collection")
+export exception     = require("slimeos.lib.exception")
+export gsettings     = require("slimeos.lib.gsettings")
+export LRC           = require("slimeos.lib.LRC")
+export Object        = require("slimeos.lib.Object")
+export playerctl_cli = require("slimeos.lib.playerctl_cli")
+export SensibleApp   = require("slimeos.lib.wrap")
+export util          = require("slimeos.lib.util")
+export wrap          = require("slimeos.lib.wrap")

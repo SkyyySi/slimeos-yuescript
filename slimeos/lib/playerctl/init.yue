@@ -1,0 +1,15 @@
+import "lgi"
+import Playerctl from lgi
+
+player_manager = Playerctl.PlayerManager()
+
+--- We use `Playerctl.list_players()` as supposed to `player_manager.player_names`
+--- because the former can work with `playerctld`, allowing to always respect
+--- the current player, while the latter doesn't change the ordering after
+--- its parent `PlayerManager` was constructed.
+
+player_manager.on_player_appeared = () =>
+	awesome.emit_signal("playerctl::active_players", Playerctl.list_players())
+
+player_manager.on_player_vanished = () =>
+	awesome.emit_signal("playerctl::active_players", Playerctl.list_players())
