@@ -5,7 +5,7 @@ import "ruled"
 import "menubar"
 import "naughty"
 
-import "modules.lib.util"
+import "slimeos.lib.util"
 import scale from util
 
 import "beautiful.theme_assets"
@@ -14,7 +14,14 @@ theme_path = gears.filesystem.get_configuration_dir() .. "themes/skyyysi/"
 
 t = {}
 
-t.font = "Source Sans Pro, #{math.floor(scale(12) + 0.5)}"
+t.apply_font_size = (font, size) ->
+	"#{font} #{math.floor(size + 0.5)}"
+
+t.base_font = "Source Sans Pro"
+t.font_size = scale(12)
+t.font = t.apply_font_size(t.base_font, t.font_size)
+t.base_monospace_font = "MesloLGS NF"
+t.monospace_font = t.apply_font_size(t.base_monospace_font, t.font_size)
 
 t.color = {
 	black:   "#0E1019", black_alternate:   "#131522"
@@ -28,23 +35,29 @@ t.color = {
 	white:   "#FFFAF4", white_alternate:   "#FFFFFF"
 }
 
-t.bg_normal     = t.color.black
-t.bg_alternate  = t.color.black_alternate -- "#135515C822FB"
-t.bg_focus      = t.color.blue -- "#00008E07F911"
-t.bg_urgent     = t.color.red -- "#FFFF00000F12"
-t.bg_minimize   = t.color.grey_alternate -- "#445744574457"
-t.bg_systray    = t.bg_normal
+with t
+	.bg_normal     = .color.black
+	.bg_alternate  = .color.black_alternate -- "#135515C822FB"
+	.bg_focus      = .color.blue -- "#00008E07F911"
+	.bg_urgent     = .color.red -- "#FFFF00000F12"
+	.bg_minimize   = .color.grey_alternate -- "#445744574457"
+	.bg_systray    = .bg_normal
 
-t.fg_normal     = t.color.white -- "#FFFFFAFFF499"
-t.fg_focus      = t.fg_normal
-t.fg_urgent     = t.fg_normal
-t.fg_minimize   = t.fg_normal
+	.fg_normal     = .color.white -- "#FFFFFAFFF499"
+	.fg_focus      = .fg_normal
+	.fg_urgent     = .fg_normal
+	.fg_minimize   = .fg_normal
 
-t.useless_gap         = scale(2)
-t.border_width        = scale(1)
-t.border_color_normal = t.bg_normal
-t.border_color_active = t.bg_focus
-t.border_color_marked = t.color.yellow -- "#FFFFB9FF0000"
+	.useless_gap         = scale(2)
+	.border_width        = scale(1)
+	.border_color_normal = .bg_normal
+	.border_color_active = .bg_focus
+	.border_color_marked = .color.yellow -- "#FFFFB9FF0000"
+
+	.button_bg_normal   = .bg_alternate ?? "#131522"
+	.button_bg_active   = "#1D2034"
+	.button_bg_selected = "#252941"
+	.button_bg_press    = "#303654"
 
 -- There are other variable sets
 -- overriding the default one when
@@ -97,52 +110,53 @@ t.icon_color = t.fg_focus or "#ffffff"
 load_icon = (path) ->
 	gears.color.recolor_image(theme_path .. path, t.icon_color)
 
--- Define the image to load
-t.titlebar_close_button_normal = load_icon("titlebar/close_normal.png")
-t.titlebar_close_button_focus  = load_icon("titlebar/close_focus.png")
+with t
+	-- Define the image to load
+	.titlebar_close_button_normal = load_icon("titlebar/close_normal.png")
+	.titlebar_close_button_focus  = load_icon("titlebar/close_focus.png")
 
-t.titlebar_minimize_button_normal = load_icon("titlebar/minimize_normal.png")
-t.titlebar_minimize_button_focus  = load_icon("titlebar/minimize_focus.png")
+	.titlebar_minimize_button_normal = load_icon("titlebar/minimize_normal.png")
+	.titlebar_minimize_button_focus  = load_icon("titlebar/minimize_focus.png")
 
-t.titlebar_ontop_button_normal_inactive = load_icon("titlebar/ontop_normal_inactive.png")
-t.titlebar_ontop_button_focus_inactive  = load_icon("titlebar/ontop_focus_inactive.png")
-t.titlebar_ontop_button_normal_active = load_icon("titlebar/ontop_normal_active.png")
-t.titlebar_ontop_button_focus_active  = load_icon("titlebar/ontop_focus_active.png")
+	.titlebar_ontop_button_normal_inactive = load_icon("titlebar/ontop_normal_inactive.png")
+	.titlebar_ontop_button_focus_inactive  = load_icon("titlebar/ontop_focus_inactive.png")
+	.titlebar_ontop_button_normal_active   = load_icon("titlebar/ontop_normal_active.png")
+	.titlebar_ontop_button_focus_active    = load_icon("titlebar/ontop_focus_active.png")
 
-t.titlebar_sticky_button_normal_inactive = load_icon("titlebar/sticky_normal_inactive.png")
-t.titlebar_sticky_button_focus_inactive  = load_icon("titlebar/sticky_focus_inactive.png")
-t.titlebar_sticky_button_normal_active = load_icon("titlebar/sticky_normal_active.png")
-t.titlebar_sticky_button_focus_active  = load_icon("titlebar/sticky_focus_active.png")
+	.titlebar_sticky_button_normal_inactive = load_icon("titlebar/sticky_normal_inactive.png")
+	.titlebar_sticky_button_focus_inactive  = load_icon("titlebar/sticky_focus_inactive.png")
+	.titlebar_sticky_button_normal_active   = load_icon("titlebar/sticky_normal_active.png")
+	.titlebar_sticky_button_focus_active    = load_icon("titlebar/sticky_focus_active.png")
 
-t.titlebar_floating_button_normal_inactive = load_icon("titlebar/floating_normal_inactive.png")
-t.titlebar_floating_button_focus_inactive  = load_icon("titlebar/floating_focus_inactive.png")
-t.titlebar_floating_button_normal_active = load_icon("titlebar/floating_normal_active.png")
-t.titlebar_floating_button_focus_active  = load_icon("titlebar/floating_focus_active.png")
+	.titlebar_floating_button_normal_inactive = load_icon("titlebar/floating_normal_inactive.png")
+	.titlebar_floating_button_focus_inactive  = load_icon("titlebar/floating_focus_inactive.png")
+	.titlebar_floating_button_normal_active   = load_icon("titlebar/floating_normal_active.png")
+	.titlebar_floating_button_focus_active    = load_icon("titlebar/floating_focus_active.png")
 
-t.titlebar_maximized_button_normal_inactive = load_icon("titlebar/maximized_normal_inactive.png")
-t.titlebar_maximized_button_focus_inactive  = load_icon("titlebar/maximized_focus_inactive.png")
-t.titlebar_maximized_button_normal_active = load_icon("titlebar/maximized_normal_active.png")
-t.titlebar_maximized_button_focus_active  = load_icon("titlebar/maximized_focus_active.png")
+	.titlebar_maximized_button_normal_inactive = load_icon("titlebar/maximized_normal_inactive.png")
+	.titlebar_maximized_button_focus_inactive  = load_icon("titlebar/maximized_focus_inactive.png")
+	.titlebar_maximized_button_normal_active   = load_icon("titlebar/maximized_normal_active.png")
+	.titlebar_maximized_button_focus_active    = load_icon("titlebar/maximized_focus_active.png")
 
-t.wallpaper = theme_path .. "background.jpg"
+	.wallpaper = theme_path .. "background.jpg"
 
--- You can use your own layout icons like this:
-t.layout_fairh = load_icon("layouts/fairhw.png")
-t.layout_fairv = load_icon("layouts/fairvw.png")
-t.layout_floating  = load_icon("layouts/floatingw.png")
-t.layout_magnifier = load_icon("layouts/magnifierw.png")
-t.layout_max = load_icon("layouts/maxw.png")
-t.layout_fullscreen = load_icon("layouts/fullscreenw.png")
-t.layout_tilebottom = load_icon("layouts/tilebottomw.png")
-t.layout_tileleft   = load_icon("layouts/tileleftw.png")
-t.layout_tile = load_icon("layouts/tilew.png")
-t.layout_tiletop = load_icon("layouts/tiletopw.png")
-t.layout_spiral  = load_icon("layouts/spiralw.png")
-t.layout_dwindle = load_icon("layouts/dwindlew.png")
-t.layout_cornernw = load_icon("layouts/cornernww.png")
-t.layout_cornerne = load_icon("layouts/cornernew.png")
-t.layout_cornersw = load_icon("layouts/cornersww.png")
-t.layout_cornerse = load_icon("layouts/cornersew.png")
+	-- You can use your own layout icons like this:
+	.layout_fairh      = load_icon("layouts/fairhw.png")
+	.layout_fairv      = load_icon("layouts/fairvw.png")
+	.layout_floating   = load_icon("layouts/floatingw.png")
+	.layout_magnifier  = load_icon("layouts/magnifierw.png")
+	.layout_max        = load_icon("layouts/maxw.png")
+	.layout_fullscreen = load_icon("layouts/fullscreenw.png")
+	.layout_tilebottom = load_icon("layouts/tilebottomw.png")
+	.layout_tileleft   = load_icon("layouts/tileleftw.png")
+	.layout_tile       = load_icon("layouts/tilew.png")
+	.layout_tiletop    = load_icon("layouts/tiletopw.png")
+	.layout_spiral     = load_icon("layouts/spiralw.png")
+	.layout_dwindle    = load_icon("layouts/dwindlew.png")
+	.layout_cornernw   = load_icon("layouts/cornernww.png")
+	.layout_cornerne   = load_icon("layouts/cornernew.png")
+	.layout_cornersw   = load_icon("layouts/cornersww.png")
+	.layout_cornerse   = load_icon("layouts/cornersew.png")
 
 -- Generate Awesome icon:
 t.awesome_icon = theme_assets.awesome_icon(
@@ -170,15 +184,16 @@ ruled.notification.connect_signal("request::rules", () ->
 	}
 )
 
-t.icons = {}
-t.icons.<> = {
-	__index: (key) =>
-		icon = gears.color.recolor_image((theme_path .. "/icons/yandex-ui-icons/#{key}.svg"), t.fg_normal)
+t.icons = {
+	<>: {
+		__index: (key) =>
+			icon = gears.color.recolor_image((theme_path .. "/icons/yandex-ui-icons/#{key}.svg"), t.fg_normal)
 
-		--- Cache the icon for later re-uses
-		@[key] = icon
+			--- Cache the icon for later re-uses
+			@[key] = icon
 
-		icon
+			icon
+	}
 }
 
 t

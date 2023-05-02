@@ -1,0 +1,3 @@
+export lyricsbox           = require("slimeos.widgets.SystemCenter.widgets.lyricsbox")
+export notification_center = require("slimeos.widgets.SystemCenter.widgets.notification_center")
+export volume_control      = require("slimeos.widgets.SystemCenter.widgets.volume_control")

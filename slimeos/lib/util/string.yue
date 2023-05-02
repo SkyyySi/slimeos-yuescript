@@ -113,7 +113,7 @@ export join = (str_list, joiner=", ") ->
 	out = ""
 
 	for k, str in ipairs(str_list)
-		out ..= str
+		out ..= tostring(str)
 
 		if next(str_list, k) != nil
 			out ..= joiner
@@ -163,3 +163,6 @@ export align = (str, block_width, align="center", char=" ", str_length, char_len
 
 export shell_escape = (str) ->
 	str::gsub([[']], [['"'"']])
+
+export is_nil_or_empty = (str) ->
+	(str == nil) or (str == "")

@@ -1,9 +1,9 @@
 require = require
 
-export ClassPlus     = require("slimeos.lib.ClassPlus")
-export collection    = require("slimeos.lib.collection")
-export exception     = require("slimeos.lib.exception")
-export gsettings     = require("slimeos.lib.gsettings")
+export ClassPlus  = require("slimeos.lib.ClassPlus")
+export collection = require("slimeos.lib.collection")
+export exception  = require("slimeos.lib.exception")
+export gsettings_favorite_apps = require("slimeos.lib.gsettings_favorite_apps")
 export LRC           = require("slimeos.lib.LRC")
 export Object        = require("slimeos.lib.Object")
 export playerctl_cli = require("slimeos.lib.playerctl_cli")

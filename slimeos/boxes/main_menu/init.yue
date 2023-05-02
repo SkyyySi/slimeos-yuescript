@@ -8,8 +8,8 @@ naughty   = require("naughty")
 
 util = require("slimeos.lib.util")
 
-lgi = require("lgi")
-gio = lgi.Gio
+import "lgi"
+import Gio from lgi
 
 app_categories = {
 	"AudioVideo"
@@ -29,28 +29,29 @@ app_categories = {
 create_menu_entry_for_app = (app_info) -> {
 	app_info::get_name()
 	() -> app_info::launch()
-	util.lookup_gicon app_info::get_icon()
+	util.lookup_gicon(app_info::get_icon())
 }
 
 get_all_apps = () ->
-	all_apps =
-		*	{ "Multimedia",  {}, util.lookup_icon "applications-multimedia" }
-		*	{ "Development", {}, util.lookup_icon "applications-development" }
-		*	{ "Education",   {}, util.lookup_icon "applications-education" }
-		*	{ "Games",       {}, util.lookup_icon "applications-games" }
-		*	{ "Internet",    {}, util.lookup_icon "applications-graphics" }
-		*	{ "Network",     {}, util.lookup_icon "applications-internet" }
-		*	{ "Office",      {}, util.lookup_icon "applications-office" }
-		*	{ "Science",     {}, util.lookup_icon "applications-science" }
-		*	{ "Settings",    {}, util.lookup_icon "preferences-desktop" }
-		*	{ "System",      {}, util.lookup_icon "applications-system" }
-		*	{ "Utilities",   {}, util.lookup_icon "applications-utilities" }
-		*	{ "Other",       {}, util.lookup_icon "applications-other" }
+	all_apps = {
+		{ "Multimedia",  {}, util.lookup_icon("applications-multimedia")  }
+		{ "Development", {}, util.lookup_icon("applications-development") }
+		{ "Education",   {}, util.lookup_icon("applications-education")   }
+		{ "Games",       {}, util.lookup_icon("applications-games")       }
+		{ "Internet",    {}, util.lookup_icon("applications-graphics")    }
+		{ "Network",     {}, util.lookup_icon("applications-internet")    }
+		{ "Office",      {}, util.lookup_icon("applications-office")      }
+		{ "Science",     {}, util.lookup_icon("applications-science")     }
+		{ "Settings",    {}, util.lookup_icon("preferences-desktop")      }
+		{ "System",      {}, util.lookup_icon("applications-system")      }
+		{ "Utilities",   {}, util.lookup_icon("applications-utilities")   }
+		{ "Other",       {}, util.lookup_icon("applications-other")       }
+	}
 
-	for _, app_info in ipairs gio.AppInfo.get_all()
+	for _, app_info in ipairs Gio.AppInfo.get_all()
 		if app_info::get_boolean("NoDisplay") or not app_info::get_show_in()
 			continue
-		
+
 		category_was_found = false
 
 		for _, app_category in ipairs(app_info::get_string_list("Categories"))
@@ -58,18 +59,18 @@ get_all_apps = () ->
 				if app_category == known_category
 					category_was_found = true
 
-					all_apps[i][2][] = create_menu_entry_for_app app_info
+					all_apps[i][2][] = create_menu_entry_for_app(app_info)
 
 					break
-			
+
 			if category_was_found
 				break
 
 		if not category_was_found
-			all_apps[12][2][] = create_menu_entry_for_app app_info
-	
+			all_apps[12][2][] = create_menu_entry_for_app(app_info)
+
 	for k, app_list in ipairs(all_apps)
-		table.sort app_list[2], (a, b) -> a[1]::lower() < b[1]::lower()
+		table.sort(app_list[2], (a, b) -> a[1]::lower() < b[1]::lower())
 
 	-- Hide a category from the menu if it has no apps
 	[ app_list for app_list in *all_apps when next(app_list[2]) != nil ]
@@ -77,24 +78,34 @@ get_all_apps = () ->
 main_menu_items = {}
 
 main_menu_items.awesome = {
-	{ "hotkeys",     () -> awful.hotkeys_popup.show_help(nil, awful.screen.focused()), util.lookup_icon("input-keyboard-symbolic") }
-	{ "manual",      "#{terminal} -e man awesome", util.lookup_icon("help-info-symbolic") }
+	{ "hotkeys",     (() -> awful.hotkeys_popup.show_help(nil, awful.screen.focused())), util.lookup_icon("input-keyboard-symbolic") }
+	{ "manual",      "#{terminal} -e man awesome",    util.lookup_icon("help-info-symbolic") }
 	{ "edit config", "#{editor} #{awesome.conffile}", util.lookup_icon("edit-symbolic") }
-	{ "restart",     awesome.restart, util.lookup_icon("system-restart-symbolic") }
-	{ "quit",        (() -> awesome.quit()), util.lookup_icon("exit") }
+	{ "restart",     awesome.restart,                 util.lookup_icon("system-restart-symbolic") }
+	{ "quit",        (() -> awesome.quit()),          util.lookup_icon("exit") }
+}
+
+main_menu_items.power = {
+	{ "Shutdown",  "poweroff",             util.lookup_icon("system-shutdown") }
+	{ "Reboot",    "reboot",               util.lookup_icon("system-reboot") }
+	{ "Log out",   (() -> awesome.quit()), util.lookup_icon("system-log-out") }
+	{ "Suspend",   "systemctl suspend",    util.lookup_icon("system-suspend") }
+	{ "Hibernate", "systemctl hibernate",  util.lookup_icon("system-hibernate") }
 }
 
 main_menu_items.apps = get_all_apps()
 
-return (args) ->
-	terminal    = args.terminal    or "xterm"
-	browser     = args.browser     or () -> gio.AppInfo.launch_default_for_uri("https://")
-	filemanager = args.filemanager or () -> gio.AppInfo.launch_default_for_uri("file://#{os.getenv('HOME')}")
-	editor      = args.editor      or "#{editor} -e nano"
+(args) ->
+	with args
+		terminal    = .terminal    ?? "xterm"
+		browser     = .browser     ?? () -> Gio.AppInfo.launch_default_for_uri("https://")
+		filemanager = .filemanager ?? () -> Gio.AppInfo.launch_default_for_uri("file://#{os.getenv('HOME')}")
+		editor      = .editor      ?? "#{editor} -e nano"
 
 	awful.menu {
 		items: {
 			{ "awesome",     main_menu_items.awesome, beautiful.awesome_icon }
+			{ "Power",       main_menu_items.power,   util.lookup_icon("system-shutdown-symbolic") }
 			{ "Apps",        main_menu_items.apps,    util.lookup_icon("applications-all") }
 			{ "Terminal",    terminal,    util.lookup_icon("terminal") }
 			{ "Filemanager", filemanager, util.lookup_icon("system-file-manager") }

@@ -1,0 +1,319 @@
+require = require
+tostring = tostring
+getmetatable = getmetatable
+setmetatable = setmetatable
+
+import awful, beautiful, gears, wibox, screen from require("awesome_std")
+
+import "slimeos.lib.util"
+import "slimeos.widgets.Button"
+
+local *
+
+print = util.notify
+
+_module = { <call>: (...) => @.new(...) }
+
+_module.get_data_from_gappinfo = (gappinfo) ->
+	data = {
+		name:        gappinfo::get_name()
+		description: gappinfo::get_description()
+		launch:      () -> gappinfo::launch()
+		icon:        util.lookup_gicon(gappinfo::get_icon())
+	}
+
+	data
+
+_module.create_app_lanuch_button_for_gappinfo = (args={}) ->
+	data = _module.get_data_from_gappinfo(args.gappinfo)
+
+	w = wibox.widget {
+		{
+			{
+				{
+					id:     "icon_role"
+					halign: "left"
+					valign: "center"
+					widget: wibox.widget.imagebox
+				}
+				{
+					{
+						id:     "name_role"
+						halign: "left"
+						valign: "center"
+						text:   "Firefox"
+						font:   beautiful.apply_font_size(beautiful.base_font .. ", Bold", util.scale(14))
+						widget: wibox.widget.textbox
+					}
+					{
+						id:     "description_role"
+						halign: "left"
+						valign: "center"
+						text:   "Web browser"
+						font:   beautiful.apply_font_size(beautiful.base_font, util.scale(12))
+						widget: wibox.widget.textbox
+					}
+					spacing: util.scale(10)
+					layout:  wibox.layout.flex.vertical
+				}
+				spacing: util.scale(10)
+				layout:  wibox.layout.fixed.horizontal
+			}
+			margins: util.scale(10)
+			widget: wibox.container.margin
+		}
+		id:            "button_role"
+		forced_height: util.scale(60)
+		bg:            beautiful.bg_normal
+		bg_normal:     beautiful.bg_normal
+		bg_selected:   beautiful.button_bg_selected
+		bg_press:      beautiful.button_bg_press
+		shape:         util.shape(gears.shape.rounded_rect, util.scale(10))
+		widget:        Button
+	}
+
+	util.for_children(w, "icon_role", (child) ->
+		child.image = data.icon
+	)
+
+	util.for_children(w, "name_role", (child) ->
+		child.text = data.name
+	)
+
+	util.for_children(w, "description_role", (child) ->
+		child.text = data.description
+	)
+
+	util.for_children(w, "button_role", (child) ->
+		child.buttons = {
+			awful.button({}, 1, nil, (() ->
+				<- util.apcall!
+				data.launch()
+				args.parent_container::hide()
+			))
+		}
+	)
+
+	w
+
+import "lgi"
+import Gio from lgi
+
+_module.app_categories = {
+	"AudioVideo"
+	"Development"
+	"Education"
+	"Game"
+	"Graphics"
+	"Network"
+	"Office"
+	"Science"
+	"Settings"
+	"System"
+	"Utility"
+	"Other"
+}
+
+_module.get_all_app_datas = (args={}) ->
+	all_apps = {}
+
+	for _, gappinfo in ipairs Gio.DesktopAppInfo.get_all()
+		if gappinfo::get_boolean("NoDisplay") or not gappinfo::get_show_in()
+			continue
+
+		category_was_found = false
+
+		for _, app_category in ipairs(gappinfo::get_string_list("Categories"))
+			for i, known_category in ipairs(_module.app_categories)
+				if app_category == known_category
+					category_was_found = true
+
+					all_apps[known_category] ??= {}
+
+					all_apps[known_category][] = _module.get_data_from_gappinfo(gappinfo)
+
+					break
+
+			if category_was_found
+				break
+
+		if not category_was_found
+			all_apps.Other ??= {}
+
+			all_apps.Other[] = _module.get_data_from_gappinfo(gappinfo)
+
+	for k, app_list in ipairs(all_apps)
+		table.sort(app_list[k], (a, b) -> a.name::lower() < b.name::lower())
+
+	-- TODO: Add a "Favorites" category, based on GNOME shell favorites
+
+	all_apps
+
+_module.create_app_category_page = (args={}) ->
+	w = wibox.widget {}
+
+	w
+
+_module.create_all_app_category_pages = (args={}) ->
+	w = wibox.widget {
+		font:   "MesloLGS NF 11"
+		widget: wibox.widget.textbox
+	}
+
+	all_app_datas = _module.get_all_app_datas()
+
+	text = ""
+	for category_name, category in pairs(all_app_datas)
+		text ..= "#{category_name}: {\n"
+
+		for _, app_data in pairs(category)
+			text ..= "    #{app_data.name}\n"
+
+		text ..= "}\n"
+
+	w.text = text
+
+	w
+
+_module.create_main_widget = (parent_container, args={}) ->
+	w = wibox.widget(args.widget_template ?? {
+		{
+			{
+				{
+					{
+						id:      "app_page_role"
+						spacing: util.scale(10)
+						layout:  wibox.layout.overflow.vertical
+					}
+					layout: wibox.layout.fixed.vertical
+				}
+				margins: util.scale(10)
+				widget: wibox.container.margin
+			}
+			bg:     beautiful.bg_alternate
+			shape:  util.shape(gears.shape.rounded_rect, util.scale(10))
+			widget: wibox.container.background
+		}
+		margins: util.scale(10)
+		widget:  wibox.container.margin
+	})
+
+	util.for_children(w, "app_page_role", (child) ->
+		child::add(_module.create_app_lanuch_button_for_gappinfo {
+			gappinfo: Gio.DesktopAppInfo.new("firefox.desktop")
+			:parent_container
+		})
+		child::add(_module.create_all_app_category_pages())
+	)
+
+	w
+
+_module.create_container = (container=wibox, args={}, main_widget_args) ->
+	c = container(args.container_template ?? {
+		ontop:   true
+		visible: false
+		width:   util.scale(600)
+		height:  util.scale(800)
+		screen:  args.screen
+	})
+
+	c.placement_fn ??= args.placement_fn
+	c::placement_fn(args.screen)
+
+	c.show ??= () =>
+		c::placement_fn()
+		@visible = true
+
+	c.hide ??= () =>
+		c::placement_fn()
+		@visible = false
+
+	c.toggle ??= () =>
+		c::placement_fn()
+		if @visible
+			@hide()
+		else
+			@show()
+
+	util.apcall ->
+		if args.smooth_corner_radius?
+			sh = util.shape(gears.shape.rounded_rect, args.smooth_corner_radius)
+			old_bg = c.bg ?? beautiful.bg_normal
+			c.bg = gears.color.transparent
+			c.shape = sh
+			c.widget = wibox.widget {
+				_module.create_main_widget(c, main_widget_args)
+				shape:  sh
+				bg:     old_bg
+				widget: wibox.container.background
+			}
+		else
+			c.widget = _module.create_main_widget(c, main_widget_args)
+
+	c
+
+_module.create_toggle_button = (args={}) ->
+	w = wibox.widget(args.widget_template ?? {
+		{
+			{
+				{
+					text:   "   a   "
+					widget: wibox.widget.textbox
+				}
+				id:          "button_role"
+				bg_normal:   beautiful.button_bg_normal
+				bg_selected: beautiful.button_bg_selected
+				bg_press:    beautiful.button_bg_press
+				widget:      Button
+			}
+			shape:  util.shape(gears.shape.rounded_rect, util.scale(5))
+			widget: wibox.container.background
+		}
+		margins: util.scale(4)
+		widget: wibox.container.margin
+	})
+
+	util.for_children(w, "button_role", (child) ->
+		child.buttons = {
+			awful.button({}, 1, nil, (() ->
+				w.container::toggle()
+			))
+		}
+	)
+
+	w
+
+_module.new = (args={}) ->
+	with args
+		.screen ??= screen.primary
+		.container ??= wibox
+		.main_widget_args ??= {}
+		.container_args ??= {}
+		.toggle_button_args ??= {}
+		.smooth_corner_radius ??= util.scale(15)
+
+	with args.main_widget_args
+		.screen ??= screen.primary
+		--.widget_template ??= {}
+
+	with args.container_args
+		.screen ??= args.screen
+		.placement_fn ??= (c, s) -> awful.placement.top_left(c, { margins: util.scale(10), honor_workarea: true, screen: s })
+		.smooth_corner_radius ??= args.smooth_corner_radius
+		--.container_template ??= {}
+
+	container = _module.create_container(args.container, args.container_args, args.main_widget_args)
+
+	with args.toggle_button_args
+		.screen ??= screen.primary
+		.container ??= container
+
+	toggle_button = _module.create_toggle_button(args.toggle_button_args)
+
+	toggle_button.container = container
+
+	{
+		:toggle_button
+	}
+
+_module

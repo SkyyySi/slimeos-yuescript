@@ -1,0 +1,81 @@
+require  = require
+tonumber = tonumber
+tostring = tostring
+math = math
+setmetatable = setmetatable
+getmetatable = getmetatable
+
+import awesome, awful, beautiful, gears, wibox from require("awesome_std")
+
+import util from require("slimeos.lib")
+
+notification_center = { <>: {} }
+
+notification_center.<call> = (args={}) =>
+	with args
+		.widget_template ??= {
+			nil,
+			{
+				base_layout: wibox.widget {
+					spacing_widget: wibox.widget {
+						orientation: "vertical"
+						span_ratio:  0.5
+						widget:      wibox.widget.separator
+					},
+					forced_height: util.scale(30)
+					spacing:       util.scale(3)
+					layout:        wibox.layout.flex.horizontal
+				},
+				widget_template: {
+					{
+						naughty.widget.icon
+						{
+							naughty.widget.title
+							naughty.widget.message
+							{
+								layout: wibox.widget {
+									spacing_widget: wibox.widget {
+										orientation: "vertical"
+										span_ratio:  0.9
+										widget:      wibox.widget.separator
+									}
+									spacing: util.scale(2)
+									layout:  wibox.layout.flex.horizontal
+								}
+								widget: naughty.list.widgets
+							}
+							layout: wibox.layout.align.vertical
+						}
+						spacing:    util.scale(10)
+						fill_space: true
+						layout:     wibox.layout.fixed.horizontal
+					},
+					margins: util.scale(5),
+					widget:  wibox.container.margin
+				},
+				widget: naughty.list.notifications,
+			}
+			{
+				{
+					text:   "Dismiss all"
+					halign: "center"
+					valign: "center"
+					widget: wibox.widget.textbox
+				}
+				buttons: {
+					awful.button({}, 1, () -> naughty.destroy_all_notifications())
+				}
+				forced_width:       util.scale(75)
+				shape:              gears.shape.rounded_bar
+				shape_border_width: util.scale(1)
+				shape_border_color: beautiful.bg_highlight
+				widget: wibox.container.background
+			}
+			layout: wibox.layout.align.horizontal
+		}
+	
+	widget = wibox.widget(args.widget_template)
+
+	widget
+
+notification_center

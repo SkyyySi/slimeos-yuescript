@@ -2,6 +2,7 @@
 require  = require
 print    = print
 pcall    = pcall
+xpcall   = xpcall
 os       = os
 io       = io
 table    = table
@@ -10,6 +11,7 @@ tostring = tostring
 tonumber = tonumber
 rawget   = rawget
 rawset   = rawset
+unpack   = unpack or table.unpack
 getmetatable = getmetatable
 setmetatable = setmetatable
 
@@ -25,6 +27,11 @@ os.execute("clear")
 --- If LuaRocks is installed, make sure that packages installed through it are
 --- found (e.g. lgi). If LuaRocks is not installed, do nothing.
 pcall(require, "luarocks.loader")
+
+import "yue"
+
+import "lgi"
+import Gio, GLib from lgi
 
 --- Import awesome standard libraries
 import "awful"
@@ -76,7 +83,7 @@ inotifywait --event modify \
 --- The reason xrender is used here is purely because Xephyr does not work
 --- with glx at all, with the window just showing a "screenshot" of when picom
 --- was started.
-awful.spawn.once { "picom", "--backend=xrender", "--corner-radius=0" }
+awful.spawn.once { "picom", --[[ "--backend=xrender" ]] }
 --- }}}
 
 --- {{{ Variable definitions
@@ -150,7 +157,7 @@ menubar.utils.terminal = terminal
 --- If you do not like this or do not have such a key,
 --- I suggest you to remap Mod4 to another key using xmodmap or other tools.
 --- However, you can use another modifier like Mod1, but it may interact with others.
-modkey = "Mod1"
+modkey = "Mod4"
 
 awful.spawn { "xrdb", "-merge", os.getenv("HOME") .. "/.Xresources" }
 
@@ -210,6 +217,7 @@ awful.spawn.with_bash_silently = (cmd) ->
 	awful.spawn("bash -c '" .. cmd::gsub([[']], [['"'"']]) .. " &> /dev/null'")
 
 --- {{{ Wallpaper
+--[[
 do
 	run_silently = (cmd) ->
 		awful.spawn.with_bash_silently(cmd)
@@ -217,16 +225,45 @@ do
 	screen.connect_signal("request::wallpaper", (s) ->
 		run_silently("nitrogen --restore")
 	)
+--]]
 --- }}}
 
---- {{{ Wibar
+--- {{{ Per-screen settings
+--- Wallpapers
+wallpapers = {
+	[screen[1]]: "/usr/share/backgrounds/gnome/blobs-d.svg"
+	[screen[2]]: "/usr/share/backgrounds/gnome/drool-d.svg"
+}
+
+screen.connect_signal("request::wallpaper", () =>
+	awful.wallpaper {
+		screen: @,
+		widget: {
+			{
+				horizontal_fit_policy: "fit"
+				vertical_fit_policy:   "fit"
+				image:  wallpapers[@]
+				resize: true
+				widget: wibox.widget.imagebox
+			}
+			bg:     "#350F2A"
+			widget: wibox.container.background
+		}
+	}
+)
+
 screen.connect_signal("request::desktop_decoration", (s) ->
+	--- Top panel
 	slimeos.bars.main {
 		screen:   s
 		menu:     main_menu
 		terminal: terminal
 	}
+
+	s.system_center::show()
+	util.after_timeout(0, (() -> s.system_center::hide()))
 )
+
 --- }}}
 
 require("slimeos.settings.bindings") {
@@ -245,6 +282,106 @@ client.connect_signal("mouse::enter", (c) ->
 	}
 )
 
+parse_action = (app_info) ->
+	if not app_info
+		return
+
+	file = app_info::get_filename()
+	keyfile = GLib.KeyFile()
+
+	if not keyfile::load_from_file(file, {})
+		return {}
+
+	-- TODO: This appears to not be working half the time (the try-catch did not fix it)
+	actions = {}
+	try
+		for _, action in ipairs(app_info::list_actions())
+			action_entry = "Desktop Action #{action}"
+			action_icon = keyfile::get_string(action_entry, "Icon")
+
+			icon = if action_icon
+				gears.surface(action_icon)
+			else
+				nil
+
+			actions[action] = {
+				name: app_info::get_action_name(action)
+				icon: icon
+				launch: () -> app_info::launch_action(action)
+			}
+	catch err
+		util.notify("ERROR: #{err}\n#{yue.traceback()}", 0)
+
+	actions
+
+--- 
+client.connect_signal("manage", (c) ->
+	gio_search_results = Gio.DesktopAppInfo.search(c.class)[1]
+
+	if gio_search_results == nil
+		return
+
+	app = gio_search_results[1]
+
+	if app == nil
+		return
+
+	c.__gdesktop_app_info = Gio.DesktopAppInfo.new(app)
+	c.__gdesktop_name = c.__gdesktop_app_info::get_name()
+	c.__gdesktop_icon = util.lookup_gicon(c.__gdesktop_app_info::get_icon())
+	c.__gdesktop_actions = parse_action(c.__gdesktop_app_info)
+
+	--util.notify("client: '#{c.class}' -> #{select(2, next(c.__gdesktop_actions))}")
+
+	awesome.emit_signal("Gio.DesktopAppInfo::added_info_to", c)
+)
+
+--[[
+do
+	--import "slimeos.lib.draggable"
+	import "slimeos.layouts.draggable"
+
+	my_box = wibox {
+		ontop:   true
+		visible: true
+		width:   util.scale(200)
+		height:  util.scale(100)
+	}
+
+	awful.placement.top_left(my_box, {
+		honor_workarea: true
+		margins: {
+			top: util.scale(10)
+		}
+	})
+
+	util.apcall ->
+		my_box.widget = {
+			{
+				text:   "Foo"
+				widget: wibox.widget.textbox
+			}
+			{
+				text:   "Bar"
+				widget: wibox.widget.textbox
+			}
+			{
+				text:   "Biz"
+				widget: wibox.widget.textbox
+			}
+			{
+				text:   "Baz"
+				widget: wibox.widget.textbox
+			}
+			--layout: wibox.layout.manual
+			layout: draggable
+		}
+
+		<- util.after_timeout(2)
+
+	--draggable.connect_widget(my_box.widget)
+--]]
+
 do
 	cg = collectgarbage
 	cg("setpause", 110)
@@ -258,6 +395,84 @@ do
 	}
 
 --{{{ Experiments
+--- Rubato
+--[[
+do
+	import "rubato"
+	import "rubato.easing"
+	import "slimeos.boxes.animated_wibox"
+
+	counter = 0
+
+	textbox = wibox.widget {
+		halign: "center"
+		valign: "center"
+		text:   "current count: #{counter}"
+		widget: wibox.widget.textbox
+	}
+
+	wb_full_width  = util.scale(300)
+	wb_full_height = util.scale(300)
+
+	<- util.apcall()
+
+	wb = animated_wibox {
+		direction: "up"
+		container_args: {
+			ontop:   true
+			visible: false
+			x:       0
+			y:       0
+			width:   wb_full_width
+			height:  wb_full_height
+			widget:  {
+				{
+					textbox
+					shape:  (cr, w, h) -> gears.shape.rounded_rect(cr, w, h, util.scale(10))
+					widget: wibox.container.background
+				}
+				margins: util.scale(4)
+				widget:  wibox.container.margin
+			}
+		}
+		rubato_args: {
+			duration: 1
+			easing: {
+				F: 1/5
+				easing: (t) ->
+					--- (t ^ 4) but [maybe] a tiny bit more efficient
+					t2 = t * 2
+					t2 * t2
+			}
+		}
+	}
+
+	wb::connect_signal("visibility::show", () =>
+		counter += 1
+		textbox.text = "current count: #{counter}"
+	)
+
+	import "slimeos.widgets.Button"
+	toggle_box = wibox {
+		ontop:   true
+		visible: true
+		width:   util.scale(100)
+		height:  util.scale(100)
+		widget:  {
+			{
+				halign: "center"
+				valign: "center"
+				text:   "Toggle"
+				widget: wibox.widget.textbox
+			}
+			buttons: {
+				awful.button({}, 1, nil, (() -> wb::toggle()))
+			}
+			widget: Button
+		}
+	}
+	awful.placement.centered(toggle_box)
+--]]
 --[[
 with Button = slimeos.widgets.Button
 	placement = () => awful.placement.left(@, { honor_workarea: true, margins: util.scale(10) })
@@ -303,8 +518,8 @@ with Button = slimeos.widgets.Button
 				}
 				bg: beautiful.bg_normal
 				fg: beautiful.fg_normal
-				shape_border_color: beautiful.fg_normal
-				shape_border_width: util.scale(2)
+				border_color: beautiful.fg_normal
+				border_width: util.scale(2)
 				widget: wibox.container.background
 			}
 		}
@@ -333,8 +548,8 @@ with TagLayoutIndicator = slimeos.widgets.TagLayoutIndicator
 				}
 				bg: beautiful.bg_normal
 				fg: beautiful.fg_normal
-				shape_border_color: beautiful.fg_normal
-				shape_border_width: util.scale(2)
+				border_color: beautiful.fg_normal
+				border_width: util.scale(2)
 				widget: wibox.container.background
 			}
 		}
@@ -411,15 +626,6 @@ do
 		previous_metadata = metadata
 	)
 --]]
-
-do
-	import "slimeos.widgets.SystemCenter"
-
-	screen.connect_signal("request::desktop_decoration", (s) ->
-		s.system_center = SystemCenter {
-			screen: s
-		}
-	)
 
 --[[
 do

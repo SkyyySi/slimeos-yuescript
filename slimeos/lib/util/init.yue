@@ -6,6 +6,8 @@ import "beautiful"
 import "menubar"
 import "naughty"
 
+import "yue"
+
 import "lgi"
 gtk = lgi.require("Gtk", "3.0")
 
@@ -16,6 +18,11 @@ import MissingArgumentException, MissingParameterException from require("slimeos
 
 getmetatable = getmetatable
 setmetatable = setmetatable
+io = io
+pcall = pcall
+tostring = tostring
+
+unpack = unpack or table.unpack
 
 --[[
 export create_module = (name) ->
@@ -43,16 +50,34 @@ export create_module = (name) ->
 export string   = require("slimeos.lib.util.string")
 export terminal = require("slimeos.lib.util.terminal")
 
-export notify = (...) ->
+export notify = (msg, timeout) ->
 	naughty.notification {
-		message: string.join({...}, ", ")
+		timeout: timeout ?? 5
+		message: tostring(msg)
 	}
 
 export pretty_print = (value) -> tts.prettify(value)
 
 export pretty_print_monochrome = (value) -> tts_monochrome.prettify(value)
 
+export unpack = unpack or table.unpack
+
+export apcall = (fn, ...) ->
+	args = { ... }
+	xpcall(
+		(() -> fn(unpack(args))),
+		(msg) ->
+			naughty.notification {
+				message: "ERROR: #{msg}\n#{yue.traceback(2)}"
+				urgency: "critical"
+				timeout: 0
+			}
+	)
+
 export lookup_icon = (icon_name) ->
+	if not icon_name
+		return
+
 	gtk
 		.IconTheme
 		.get_default()?
@@ -60,15 +85,14 @@ export lookup_icon = (icon_name) ->
 		::get_filename()
 
 export lookup_gicon = (gicon) ->
-	icon_name = gicon?::to_string()
-
-	if not icon_name
+	if not gicon
 		return
 
-	if icon_name::match("/")
-		return icon_name
-
-	lookup_icon icon_name
+	gtk
+		.IconTheme
+		.get_default()?
+		::lookup_by_gicon(gicon, 48, 0)?
+		::get_filename()
 
 scaling_factor = 1
 dpi = beautiful.xresources.apply_dpi
@@ -141,3 +165,65 @@ export raw_tostring = (obj) ->
 	setmetatable(obj, mt)
 
 	obj_str
+
+export protected_open = (path, mode, callback) ->
+	success, file = pcall(io.open, path, mode)
+
+	if not file
+		print("An error occured while trying to open '#{path}'!")
+		return
+
+	if not success
+		print("An error occured while trying to open '#{path}'!")
+		file::close()
+		return
+
+	try
+		callback(file)
+	catch err
+		print("An error occured while trying to run the callback:\n -> #{err}")
+
+	file::close()
+
+export clamp = (value, min, max) ->
+	if value <= min
+		return min
+
+	if value >= max
+		return max
+	
+	value
+
+export smart_insert = (tb, value, index) ->
+	if index == nil
+		tb[] = value
+	elseif tb[index] == nil
+		tb[index] = value
+	else
+		for i = #tb, index, -1
+			tb[i + 1] = tb[i]
+
+		tb[index] = value
+
+	tb
+
+export after_timeout = (timeout, callback) ->
+	gears.timer {
+		timeout: timeout,
+		autostart: true
+		single_shot: true
+		callback: callback
+	}
+
+export clamp = (value, floor, ceiling) ->
+	if value < floor
+		floor
+	elseif value > ceiling
+		ceiling
+	else
+		value
+
+export shape = (s, ...) ->
+	args = { ... }
+	(cr, w, h) ->
+		s(cr, w, h, unpack(args))

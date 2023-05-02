@@ -8,21 +8,20 @@ naughty   = require("naughty")
 
 Tuple = require("slimeos.lib.collection.Tuple")
 
-return (args={}) ->
+(args={}) ->
 	with args
-		.menu      ??= {
-			show:   () ->
-			hide:   () ->
-			toggle: () ->
-		}
-		.modkey    ??= "Mod4"
-		.terminal  ??= "xterm"
+		.menu        ??= {}
+		.menu.show   ??= (() ->)
+		.menu.hide   ??= (() ->)
+		.menu.toggle ??= (() ->)
+		.modkey      ??= "Mod4"
+		.terminal    ??= "xterm"
 
 	-- {{{ Mouse bindings
 	awful.mouse.append_global_mousebindings {
-		awful.button({}, 3, () -> args.menu::toggle())
-		awful.button({}, 4, awful.tag.viewprev)
-		awful.button({}, 5, awful.tag.viewnext)
+		awful.button(Tuple({}), 3, (() -> args.menu::toggle()))
+		awful.button(Tuple({}), 4, awful.tag.viewprev)
+		awful.button(Tuple({}), 5, awful.tag.viewnext)
 	}
 	-- }}}
 
@@ -34,44 +33,45 @@ return (args={}) ->
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey }), "w", () -> args.menu::show(), {
+		awful.key(Tuple({ args.modkey }), "w", (() -> args.menu::show()), {
 			description: "show main menu"
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "r", awesome.restart, {
+		awful.key(Tuple({ args.modkey, "Control" }), "r", (() -> awesome.restart()), {
 			description: "reload awesome"
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "q", awesome.quit, {
+		awful.key(Tuple({ args.modkey, "Shift" }), "q", (() -> awesome.quit()), {
 			description: "quit awesome"
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey }), "x", {
-			() ->
-				awful.prompt.run {
-					prompt:       "Run Lua code: ",
-					textbox:      awful.screen.focused().mypromptbox.widget,
-					exe_callback: awful.util.eval,
-					history_path: "#{awful.util.get_cache_dir()}/history_eval"
-				}
-			description: "lua execute prompt"
-			group: "awesome"
-		})
+		awful.key(Tuple({ args.modkey }), "x", (() ->
+			awful.prompt.run {
+				prompt:       "Run Lua code: "
+				textbox:      awful.screen.focused().promptbox.widget
+				exe_callback: awful.util.eval
+				history_path: "#{awful.util.get_cache_dir()}/history_eval"
+			}
+		), {
+				description: "lua execute prompt"
+				group: "awesome"
+			}
+		)
 
-		awful.key(Tuple({ args.modkey }), "Return", () -> awful.spawn(args.terminal), {
+		awful.key(Tuple({ args.modkey }), "Return", (() -> awful.spawn(args.terminal)), {
 			description: "open a terminal"
 			group: "launcher"
 		})
 
-		awful.key(Tuple({ args.modkey }), "r", () -> awful.screen.focused().mypromptbox::run(), {
+		awful.key(Tuple({ args.modkey }), "r", (() -> awful.screen.focused().promptbox::run()), {
 			description: "run prompt"
 			group: "launcher"
 		})
 
-		awful.key(Tuple({ args.modkey }), "p", () -> menubar.show(), {
+		awful.key(Tuple({ args.modkey }), "p", (() -> menubar.show()), {
 			description: "show the menubar"
 			group: "launcher"
 		})
@@ -79,17 +79,17 @@ return (args={}) ->
 
 	-- Tags related keybindings
 	awful.keyboard.append_global_keybindings {
-		awful.key(Tuple({ args.modkey }), "Left", awful.tag.viewprev, {
+		awful.key(Tuple({ args.modkey }), "Left", (() -> awful.tag.viewprev()), {
 			description: "view previous"
 			group: "tag"
 		})
 
-		awful.key(Tuple({ args.modkey }), "Right", awful.tag.viewnext, {
+		awful.key(Tuple({ args.modkey }), "Right", (() -> awful.tag.viewnext()), {
 			description: "view next"
 			group: "tag"
 		})
 
-		awful.key(Tuple({ args.modkey }), "Escape", awful.tag.history.restore, {
+		awful.key(Tuple({ args.modkey }), "Escape", (() -> awful.tag.history.restore()), {
 			description: "go back"
 			group: "tag"
 		})
@@ -97,47 +97,44 @@ return (args={}) ->
 
 	-- Focus related keybindings
 	awful.keyboard.append_global_keybindings {
-		awful.key(Tuple({ args.modkey }), "j", () -> awful.client.focus.byidx 1, {
-				description: "focus next by index"
-				group: "client"
+		awful.key(Tuple({ args.modkey }), "j", (() -> awful.client.focus.byidx(1)), {
+			description: "focus next by index"
+			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey }), "k", () -> awful.client.focus.byidx -1, {
-				description: "focus previous by index"
-				group: "client"
+	awful.key(Tuple({ args.modkey }), "k", (() -> awful.client.focus.byidx(-1)), {
+			description: "focus previous by index"
+			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey }), "Tab",  {
-			() ->
-				awful.client.focus.history.previous()
-				if client.focus
-					client.focus::raise()
+		awful.key(Tuple({ args.modkey }), "Tab", (() ->
+			awful.client.focus.history.previous()
+
+			if client.focus
+				client.focus::raise()
+		), {
 			description: "go back"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "j",  {
-			() ->
-				awful.screen.focus_relative 1
+		awful.key(Tuple({ args.modkey, "Control" }), "j", (() -> awful.screen.focus_relative(1)), {
 			description: "focus the next screen"
 			group: "screen"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "k",  {
-			() ->
-				awful.screen.focus_relative -1
+		awful.key(Tuple({ args.modkey, "Control" }), "k", (() -> awful.screen.focus_relative(-1)), {
 			description: "focus the previous screen"
 			group: "screen"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "n", {
-			() ->
-				-- Focus restored client
-				if c = awful.client.restore()
-					c::activate {
-						raise: true
-						context: "key.unminimize"
-					}
+		awful.key(Tuple({ args.modkey, "Control" }), "n", (() ->
+			-- Focus restored client
+			if c = awful.client.restore()
+				c::activate {
+					raise: true
+					context: "key.unminimize"
+				}
+		), {
 			description: "restore minimized"
 			group: "client"
 		})
@@ -145,77 +142,57 @@ return (args={}) ->
 
 	-- Layout related keybindings
 	awful.keyboard.append_global_keybindings {
-		awful.key(Tuple({ args.modkey, "Shift" }), "j", {
-			() ->
-				awful.client.swap.byidx(1)
+		awful.key(Tuple({ args.modkey, "Shift" }), "j", (() -> awful.client.swap.byidx(1)), {
 			description: "swap with next client by index"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "k", {
-			() ->
-				awful.client.swap.byidx(-1)
+		awful.key(Tuple({ args.modkey, "Shift" }), "k", (() -> awful.client.swap.byidx(-1)), {
 			description: "swap with previous client by index"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey }), "u", awful.client.urgent.jumpto, {
+		awful.key(Tuple({ args.modkey }), "u", (() -> awful.client.urgent.jumpto()), {
 			description: "jump to urgent client"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey }), "l", {
-			() ->
-				awful.tag.incmwfact(0.05)
+		awful.key(Tuple({ args.modkey }), "l", (() -> awful.tag.incmwfact(0.05)), {
 			description: "increase master width factor"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey }), "h", {
-			() ->
-				awful.tag.incmwfact(-0.05)
+		awful.key(Tuple({ args.modkey }), "h", (() -> awful.tag.incmwfact(-0.05)), {
 			description: "decrease master width factor"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "h", {
-			() ->
-				awful.tag.incnmaster(1, nil, true)
+		awful.key(Tuple({ args.modkey, "Shift" }), "h", (() -> awful.tag.incnmaster(1, nil, true)), {
 			description: "increase the number of master clients"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "l", {
-			() ->
-				awful.tag.incnmaster(-1, nil, true)
+		awful.key(Tuple({ args.modkey, "Shift" }), "l", (() -> awful.tag.incnmaster(-1, nil, true)), {
 			description: "decrease the number of master clients"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "h", {
-			() ->
-				awful.tag.incncol(1, nil, true)
+		awful.key(Tuple({ args.modkey, "Control" }), "h", (() -> awful.tag.incncol(1, nil, true)), {
 			description: "increase the number of columns"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "l", {
-			() ->
-				awful.tag.incncol(-1, nil, true)
+		awful.key(Tuple({ args.modkey, "Control" }), "l", (() -> awful.tag.incncol(-1, nil, true)), {
 			description: "decrease the number of columns"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey }), "space", {
-			() ->
-				awful.layout.inc(1)
+		awful.key(Tuple({ args.modkey }), "space", (() -> awful.layout.inc(1)), {
 			description: "select next"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "space", {
-			() ->
-				awful.layout.inc(-1)
+		awful.key(Tuple({ args.modkey, "Shift" }), "space", (() -> awful.layout.inc(-1)), {
 			description: "select previous"
 			group: "layout"
 		})
@@ -229,9 +206,9 @@ return (args={}) ->
 			description: "only view tag"
 			group:       "tag"
 			on_press:    (index) ->
-				screen = awful.screen.focused()
-				tag = screen.tags[index]
-				if tag
+				s = awful.screen.focused()
+
+				if tag = s.tags[index]
 					tag::view_only()
 		}
 
@@ -241,9 +218,9 @@ return (args={}) ->
 			description: "toggle tag"
 			group:       "tag"
 			on_press:    (index) ->
-				screen = awful.screen.focused()
-				tag = screen.tags[index]
-				if tag
+				s = awful.screen.focused()
+
+				if tag = screen.tags[index]
 					awful.tag.viewtoggle(tag)
 		}
 
@@ -295,26 +272,27 @@ return (args={}) ->
 				}
 			)
 
-			awful.button(Tuple({ args.modkey }), 3, (c) ->
+			awful.button(Tuple({ args.modkey }), 3, ((c) ->
 				c::activate {
 					context: "mouse_click"
 					action:  "mouse_resize"
 				}
-			)
+			))
 		}
 	)
 
 	client.connect_signal("request::default_keybindings", () ->
 		awful.keyboard.append_client_keybindings {
-			awful.key(Tuple({ args.modkey }), "f", {
-				(c) ->
+			awful.key(Tuple({ args.modkey }), "f", ((c) ->
 					c.fullscreen = not c.fullscreen
 					c::raise()
-				description: "toggle fullscreen"
-				group: "client"
-			})
+				), {
+					description: "toggle fullscreen"
+					group: "client"
+				}
+			)
 
-			awful.key(Tuple({ args.modkey, "Shift" }), "c", (c) -> c::kill(), {
+			awful.key(Tuple({ args.modkey, "Shift" }), "c", ((c) -> c::kill()), {
 				description: "close"
 				group: "client"
 			})
@@ -324,7 +302,7 @@ return (args={}) ->
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey, "Control" }), "Return", (c) -> c::swap awful.client.getmaster(), {
+			awful.key(Tuple({ args.modkey, "Control" }), "Return", ((c) -> c::swap(awful.client.getmaster())), {
 				description: "move to master"
 				group: "client"
 			})
@@ -373,4 +351,3 @@ return (args={}) ->
 			})
 		}
 	)
--- }}}

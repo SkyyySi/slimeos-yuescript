@@ -1,32 +1,83 @@
-awful     = require("awful")
-gears     = require("gears")
-wibox     = require("wibox")
-ruled     = require("ruled")
-beautiful = require("beautiful")
-menubar   = require("menubar")
-naughty   = require("naughty")
+import awful, gears, wibox, ruled, beautiful, menubar, naughty, client from require("awesome_std")
 
-import Object, util, wrap from require("slimeos.lib")
+import util from require("slimeos.lib")
 import Button from require("slimeos.widgets")
 
--- {{{ Titlebars
--- Add a titlebar if titlebars_enabled is set to true in the rules.
+import "lgi"
+import Gio from lgi
+
+macro INVERT = (var) ->
+	"#{var} = not #{var}"
+
+wrap_button = (widget) ->
+	{widget, widget: Button}
+
+
+--[[
+get_app_id_async = (c, callback) ->
+	if (c.class)
+		gio_search_result = Gio.DesktopAppInfo.search(c.class)[1]
+
+		if gio_search_result != nil
+			return callback(gio_search_result[#gio_search_result]::match("(.*)%.desktop$"))
+
+	awful.spawn.easy_async({ "readlink", "-f", "/proc/#{c.pid}/exe" }, (stdout, stderr, reason, exit_code) ->
+		if util.string.is_nil_or_empty(stdout)
+			return callback()
+
+		binary = stdout::match(".*/(.*)")
+
+		gio_search_result = Gio.DesktopAppInfo.search(binary)[1]
+
+		return callback(if gio_search_result != nil
+			gio_search_result[#gio_search_result]::match("(.*)%.desktop$")
+		else
+			binary
+		)
+	)
+--]]
+
+title_widget = (c) ->
+	--- Equivalent to `get_app_id_async(c, (gio_search_result) ->`,
+	--- just without the need to indent.
+	--gio_search_result <- get_app_id_async(C)
+	gio_search_result = Gio.DesktopAppInfo.search(c.class)[1]
+
+	widget = wibox.widget.textbox()
+
+	title = if (gio_search_result != nil) and (gio_search_result[#gio_search_result] != nil)
+		--- I don't know why, but in awesome, `gio_search_result` seems to be reversed,
+		--- which is why the last entry is used here intsead of the first. I cannot
+		--- reproduce this effect when using LGI through the LuaJIT REPL
+		Gio.DesktopAppInfo.new(gio_search_result[#gio_search_result])::get_name()
+	else
+		c::connect_signal("property::name", () -> widget.text = c.name)
+
+		c.name
+
+	widget.text = title
+
+	widget
+
 client.connect_signal("request::titlebars", (c) ->
+	if c.requests_no_titlebar
+		return
+
 	menu = awful.menu {
 		items: {
 			{ "Close",        (() -> c::kill()), beautiful.titlebar_close_button_focus }
-			{ "Maximize",     (() -> c.maximized = not c.maximized), beautiful.titlebar_maximized_button_focus_inactive },
-			{ "Minimize",     (() -> c.minimized = not c.minimized), beautiful.titlebar_minimize_button_focus },
-			{ "Sticky",       (() -> c.sticky = not c.sticky), beautiful.titlebar_sticky_button_focus_inactive },
-			{ "Float / tile", (() -> c.floating = not c.floating), beautiful.titlebar_floating_button_focus_active },
+			{ "Maximize",     (() -> $INVERT(c.maximized)), beautiful.titlebar_maximized_button_focus_inactive }
+			{ "Minimize",     (() -> $INVERT(c.minimized)), beautiful.titlebar_minimize_button_focus }
+			{ "Sticky",       (() -> $INVERT(c.sticky)), beautiful.titlebar_sticky_button_focus_inactive }
+			{ "Float / tile", (() -> $INVERT(c.floating)), beautiful.titlebar_floating_button_focus_active }
 			{ "Keep above",   (() ->
 				c.below = false
-				c.above = not c.above
-			), beautiful.titlebar_ontop_button_focus_active },
+				$INVERT(c.above)
+			), beautiful.titlebar_ontop_button_focus_active }
 			{ "Keep below",   (() ->
 				c.above = false
-				c.below = not c.below
-			), beautiful.titlebar_below_button_focus_active }, -- Note: this icon doesn't exist in the deault icon set
+				$INVERT(c.below)
+			), beautiful.titlebar_below_button_focus_active } -- Note: this icon doesn't exist in the deault icon set
 		}
 	}
 
@@ -56,21 +107,27 @@ client.connect_signal("request::titlebars", (c) ->
 		{
 			{
 				{
-					awful.titlebar.widget.iconwidget(c)
-					margins: util.scale(6)
-					widget:  wibox.container.margin
+					{
+						awful.titlebar.widget.iconwidget(c)
+						margins: util.scale(6)
+						widget:  wibox.container.margin
+					}
+					buttons: {
+						awful.button({}, 1, nil, () -> menu::toggle())
+						awful.button({}, 2, nil, () -> menu::toggle())
+					}
+					widget: Button
 				}
-				buttons: {
-					awful.button({}, 1, nil, () -> menu::toggle())
-					awful.button({}, 2, nil, () -> menu::toggle())
-				}
-				widget: Button
+				--wrap_button(awful.titlebar.widget.floatingbutton(c))
+				--wrap_button(awful.titlebar.widget.stickybutton(c))
+				--wrap_button(awful.titlebar.widget.ontopbutton(c))
+				layout: wibox.layout.fixed.horizontal
 			}
 			{
-				font:    beautiful.titlebar_font ?? beautiful.bold_font ?? beautiful.font .. " Bold"
+				font:    beautiful.titlebar_font ?? beautiful.bold_font ?? (beautiful.font .. " Bold")
 				halign:  "center"
 				buttons: buttons
-				widget:  awful.titlebar.widget.titlewidget(c)
+				widget:  title_widget(c)
 			}
 			spacing: util.scale(4)
 			layout:  wibox.layout.fixed.horizontal
@@ -80,15 +137,11 @@ client.connect_signal("request::titlebars", (c) ->
 			layout:  wibox.layout.flex.horizontal
 		}
 		{
-			--awful.titlebar.widget.floatingbutton(c)
-			--awful.titlebar.widget.stickybutton(c)
-			--awful.titlebar.widget.ontopbutton(c)
-			awful.titlebar.widget.minimizebutton(c)
-			awful.titlebar.widget.maximizedbutton(c)
-			awful.titlebar.widget.closebutton(c)
+			wrap_button(awful.titlebar.widget.minimizebutton(c))
+			wrap_button(awful.titlebar.widget.maximizedbutton(c))
+			wrap_button(awful.titlebar.widget.closebutton(c))
 			layout: wibox.layout.fixed.horizontal
 		}
 		layout: wibox.layout.align.horizontal
 	}
 )
--- }}}

@@ -1,0 +1,145 @@
+require = require
+collectgarbage = collectgarbage
+
+import awful, gears, wibox from require("awesome_std")
+import "rubato"
+import "rubato.easing"
+
+import "slimeos.lib.util"
+
+_module = {}
+
+update_functions = {}
+_module.update_functions = update_functions
+
+update_functions.right = (args, pos) =>
+	if (@__animated_wibox_current_mode == "show") and (pos > 0.1) and (not @visible)
+		@visible = true
+	elseif (@__animated_wibox_current_mode == "hide") and (pos < 0.1) and (@visible)
+		@visible = false
+
+	current_wb_width = util.clamp(pos * args.full_width, 1, args.full_width)
+
+	if (@__animated_wibox_current_mode == "show") and (current_wb_width >= args.full_width) and (@__animated_wibox_old_widget)
+		@widget = @__animated_wibox_old_widget
+		@__animated_wibox_old_widget = nil
+		collectgarbage("collect")
+	elseif (@__animated_wibox_current_mode == "hide") and (not @__animated_wibox_old_widget)
+		@__animated_wibox_old_widget = @widget
+		@widget = wibox.widget {
+			horizontal_fit_policy: "none"
+			vertical_fit_policy: "none"
+			image:   wibox.widget.draw_to_image_surface(@__animated_wibox_old_widget, args.full_width, args.full_height)
+			widget: wibox.widget.imagebox
+		}
+
+	@width = current_wb_width
+
+	{
+		current_wb_width: current_wb_width
+	}
+
+update_functions.left = (args, pos) =>
+	data = update_functions.right(@, args, pos)
+
+	@x = args.full_x + args.full_width - data.current_wb_width
+
+	data
+
+update_functions.down = (args, pos) =>
+	if (@__animated_wibox_current_mode == "show") and (pos > 0.05) and (not @visible)
+		@visible = true
+	elseif (@__animated_wibox_current_mode == "hide") and (pos < 0.05) and (@visible)
+		@visible = false
+
+	current_wb_height = util.clamp(pos * args.full_height, 1, args.full_height)
+
+	if (@__animated_wibox_current_mode == "show") and (current_wb_height >= args.full_height) and (@__animated_wibox_old_widget)
+		@widget = @__animated_wibox_old_widget
+		@__animated_wibox_old_widget = nil
+		collectgarbage("collect")
+	elseif (@__animated_wibox_current_mode == "hide") and (not @__animated_wibox_old_widget)
+		@__animated_wibox_old_widget = @widget
+		@widget = wibox.widget {
+			horizontal_fit_policy: "none"
+			vertical_fit_policy: "none"
+			image:   wibox.widget.draw_to_image_surface(@__animated_wibox_old_widget, args.full_height, args.full_width)
+			widget: wibox.widget.imagebox
+		}
+
+	@height = current_wb_height
+
+	{
+		current_wb_height: current_wb_height
+	}
+
+update_functions.up = (args, pos) =>
+	data = update_functions.down(@, args, pos)
+
+	@y = args.full_y + args.full_height - data.current_wb_height
+
+	data
+
+new = (args={}) ->
+	with args
+		.container ??= wibox
+		.container_args ??= {}
+		.rubato_args ??= {}
+		.full_width  ??= .container_args.width
+		.full_height ??= .container_args.height
+		.full_x ??= .container_args.x
+		.full_y ??= .container_args.y
+		.direction ??= "right" --- "right", "left", "up" or "down"
+
+	with args.container_args
+		.width ??= args.full_width
+		.height ??= args.full_height
+		.x ??= args.full_x
+		.y ??= args.full_y
+
+	wb = args.container(args.container_args)
+
+	with args.rubato_args
+		.duration ??= 1
+		.intro ??= .duration / 2
+		.easing ??= easing.quadratic
+		.subscribed ??= (pos) -> update_functions[args.direction](wb, args, pos)
+
+	assert(type(args.full_width) == "number", "ERROR: An animated wibox needs to define a 'full_width' (or 'width' as fallback) property!")
+	assert(type(args.full_height) == "number", "ERROR: An animated wibox needs to define a 'full_height' (or 'height' as fallback) property!")
+
+	if args.direction == "left"
+		assert(type(args.full_x) == "number", "ERROR: An animated wibox needs to define a 'full_x' (or 'x' as fallback) property!")
+	if args.direction == "up"
+		assert(type(args.full_y) == "number", "ERROR: An animated wibox needs to define a 'full_y' (or 'y' as fallback) property!")
+
+	wb.__animated_wibox_rubato_timed = rubato.timed(args.rubato_args)
+
+	wb.show = () =>
+		@emit_signal("visibility::show", @)
+		@__animated_wibox_current_mode = "show"
+		@__animated_wibox_rubato_timed::abort()
+		@__animated_wibox_rubato_timed.target = 1
+
+	wb.hide = () =>
+		@emit_signal("visibility::hide", @)
+		@__animated_wibox_current_mode = "hide"
+		@__animated_wibox_rubato_timed::abort()
+		@__animated_wibox_rubato_timed.target = 0
+
+	wb.toggle = () =>
+		if @__animated_wibox_current_mode == "show"
+			@hide()
+		elseif @__animated_wibox_current_mode == "hide"
+			@show()
+		else
+			@__animated_wibox_current_mode = "show"
+			@show()
+
+	wb
+
+_module.<> = {}
+_module.<call> = (_, ...) ->
+	new(...)
+
+_module

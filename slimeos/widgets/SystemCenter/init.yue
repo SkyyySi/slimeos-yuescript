@@ -6,6 +6,10 @@ import util from require("slimeos.lib")
 
 import "slimeos.widgets.Button"
 
+import "lgi"
+import Gio from lgi
+Gtk = lgi.require("Gtk", "3.0")
+
 getmetatable = getmetatable
 setmetatable = setmetatable
 rawget = rawget
@@ -18,21 +22,33 @@ button_bg_active   = beautiful.SystemCenter_Tab_bg_active   or "#1D2034"
 button_bg_selected = beautiful.SystemCenter_Tab_bg_selected or "#252941"
 button_bg_press    = beautiful.SystemCenter_Tab_bg_press    or "#303654"
 
+
+macro RUN_IF_CHANGED = (old, new, fn) ->
+	"if #{new} != #{old} then #{fn}"
+
+
 shape = (base_shape, ...) ->
 	args = { ... }
 	(cr, width, height) -> base_shape(cr, width, height, unpack(args))
 
+
 wrap_tab_block = (widget) ->
 	wibox.widget {
 		{
-			widget
-			margins: base_spacing
-			widget:  wibox.container.margin
+			nil
+			{
+				widget
+				margins: base_spacing
+				widget:  wibox.container.margin
+			}
+			expand: "outside"
+			layout: wibox.layout.align.horizontal
 		}
 		bg:     beautiful.bg_alternate
 		shape:  shape(gears.shape.rounded_rect, util.scale(10))
 		widget: wibox.container.background
 	}
+
 
 wrap_tab_body = (blocks) ->
 	wibox.widget {
@@ -43,6 +59,36 @@ wrap_tab_body = (blocks) ->
 
 
 builtin_tabs = {}
+
+player_icon_cache = {}
+lookup_icon_for_player_name = (player_name) ->
+	do
+		icon = player_icon_cache[player_name]
+
+		if icon != nil
+			return icon
+
+	app_desktop_id = Gio.DesktopAppInfo.search(player_name)?[1]?[1]
+
+	if app_desktop_id == nil
+		return
+
+	icon_path = Gtk
+		.IconTheme?
+		.get_default()?
+		::lookup_by_gicon(
+			Gio.DesktopAppInfo.new(app_desktop_id)?::get_icon(), 48, 0
+		)?::get_filename()
+
+	if icon_path == nil
+		return
+
+	icon = gears.color.recolor_image(icon_path, beautiful.color.black)
+
+	player_icon_cache[player_name] = icon
+
+	icon
+
 
 multimedia_remote_control_button = (args) ->
 	button = wibox.widget {
@@ -59,10 +105,10 @@ multimedia_remote_control_button = (args) ->
 				margins: base_spacing / 2
 				widget:  wibox.container.margin
 			}
-			bg: button_bg_active
-			bg_normal: button_bg_active
+			bg:          button_bg_active
+			bg_normal:   button_bg_active
 			bg_selected: button_bg_selected
-			bg_press: button_bg_press
+			bg_press:    button_bg_press
 			buttons: {
 				awful.button({}, 1, nil, args.action)
 			}
@@ -74,6 +120,9 @@ multimedia_remote_control_button = (args) ->
 
 	if args.icon_updater
 		args.icon_updater(button)
+
+	if args.text_updater
+		args.text_updater(button)
 
 	button
 
@@ -90,11 +139,30 @@ multimedia_remote_controls = () ->
 	}
 
 	coverart = wibox.widget {
-		id:     "image_role"
-		halign: "right"
-		valign: "center"
-		widget: wibox.widget.imagebox
+		{
+			{
+				{
+					{
+						id:     "image_role"
+						halign: "right"
+						valign: "center"
+						widget: wibox.widget.imagebox
+					}
+					forced_width:  util.scale(150)
+					forced_height: util.scale(150)
+					layout: wibox.layout.fixed.vertical
+				}
+				shape:  shape(gears.shape.rounded_rect, util.scale(10))
+				border_width: util.scale(1)
+				border_color: button_bg_selected
+				widget: wibox.container.background
+			}
+			margins: base_spacing / 2
+			widget:  wibox.container.margin
+		}
+		layout: wibox.layout.fixed.vertical
 	}
+
 
 	play_pause_button = multimedia_remote_control_button {
 		icon: beautiful.icons.Play
@@ -102,10 +170,7 @@ multimedia_remote_controls = () ->
 		icon_updater: () =>
 			awesome.connect_signal("playerctl::metadata", (metadata) ->
 				util.for_children(@, "image_role", (child) ->
-					child.image = if metadata.status
-						beautiful.icons.Pause
-					else
-						beautiful.icons.Play
+					child.image = beautiful.icons[metadata.playing and "Pause" or "Play"]
 				)
 			)
 	}
@@ -130,11 +195,19 @@ multimedia_remote_controls = () ->
 	}
 
 
+	previous_metadata = {}
 	awesome.connect_signal("playerctl::metadata", (metadata) ->
-		util.for_children(title,        "text_role",        (child) -> child.text  = metadata.title)
-		util.for_children(artist,       "text_role",        (child) -> child.text  = metadata.artist)
-		util.for_children(coverart,     "image_role",       (child) -> child.image = metadata.art_cairo)
-		util.for_children(progress_bar, "progressbar_role", (child) -> child.value = metadata.completion)
+		$RUN_IF_CHANGED(metadata.title,      previous_metadata.title,      util.for_children(title,        "text_role",        (child) -> child.text  = metadata.title))
+		$RUN_IF_CHANGED(metadata.artist,     previous_metadata.artist,     util.for_children(artist,       "text_role",        (child) -> child.text  = metadata.artist))
+		$RUN_IF_CHANGED(metadata.art_cairo,  previous_metadata.art_cairo,  util.for_children(coverart,     "image_role",       (child) -> child.image = metadata.art_cairo))
+		$RUN_IF_CHANGED(metadata.completion, previous_metadata.completion, util.for_children(progress_bar, "progressbar_role", (child) -> child.value = metadata.completion))
+
+		previous_metadata = {
+			title:      metadata.title
+			artist:     metadata.artist
+			art_cairo:  metadata.art_cairo
+			completion: metadata.completion
+		}
 	)
 
 
@@ -149,11 +222,11 @@ multimedia_remote_controls = () ->
 					{
 						{
 							{
-								image:  gears.color.recolor_image(util.lookup_icon("firefox"), beautiful.color.black)
+								id:     "player_icon_role"
 								widget: wibox.widget.imagebox
 							}
 							{
-								text:   "Firefox"
+								id:     "player_name_role"
 								widget: wibox.widget.textbox
 							}
 							spacing: base_spacing
@@ -165,7 +238,6 @@ multimedia_remote_controls = () ->
 					bg:     beautiful.color.green
 					fg:     beautiful.color.black
 					shape:  shape(gears.shape.rounded_rect, util.scale(10))
-					forced_width:  util.scale(100)
 					forced_height: util.scale(30)
 					widget: wibox.container.background
 				}
@@ -178,86 +250,257 @@ multimedia_remote_controls = () ->
 	}
 
 
+	awesome.connect_signal("playerctl::active_player", (active_player) ->
+		--print(">>> The currently active player is \027[1m'#{active_player}'\027[0m")
+
+		if (not active_player) or (active_player == "")
+			current_player.visible = false
+			return
+		else
+			current_player.visible = true
+
+		active_player_icon = lookup_icon_for_player_name(active_player)
+
+		util.for_children(current_player, "player_icon_role", (child) ->
+			child.image = active_player_icon
+		)
+
+		util.for_children(current_player, "player_name_role", (child) ->
+			child.text = active_player or ""
+		)
+	)
+
+
+	remote_control_buttons = wibox.widget {
+		{
+			{
+				multimedia_remote_control_button {
+					icon: beautiful.icons.RemoteNext
+					action: () -> awesome.emit_signal("playerctl::previous")
+				}
+				reflection: {
+					horizontal: true
+				}
+				widget: wibox.container.mirror
+			}
+			play_pause_button
+			multimedia_remote_control_button {
+				icon: beautiful.icons.RemoteNext
+				action: () -> awesome.emit_signal("playerctl::next")
+			}
+			spacing: util.scale(2)
+			layout:  wibox.layout.flex.horizontal
+		}
+		forced_height: util.scale(30)
+		shape:  shape(gears.shape.rounded_rect, util.scale(10))
+		widget: wibox.container.background
+	}
+
+
 	--wrap_tab_body(grid)
-	wrap_tab_block(wibox.widget {
+	wibox.widget {
 		{
 			nil
 			{
 				{
 					{
-						title
-						artist
-						layout: wibox.layout.fixed.vertical
+						{
+							title
+							artist
+							layout: wibox.layout.flex.vertical
+						}
+						strategy: "max"
+						height:   util.scale(50)
+						widget:   wibox.container.constraint
 					}
 					current_player
-					{
-						{
-							{
-								multimedia_remote_control_button {
-									icon: beautiful.icons.RemoteNext
-									action: () -> awesome.emit_signal("playerctl::previous")
-								}
-								reflection: {
-									horizontal: true
-								}
-								widget: wibox.container.mirror
-							}
-							play_pause_button
-							multimedia_remote_control_button {
-								icon: beautiful.icons.RemoteNext
-								action: () -> awesome.emit_signal("playerctl::next")
-							}
-							spacing: util.scale(2)
-							layout:  wibox.layout.flex.horizontal
-						}
-						forced_height: util.scale(30)
-						shape:  shape(gears.shape.rounded_rect, util.scale(10))
-						widget: wibox.container.background
-					}
+					remote_control_buttons
 					layout: wibox.layout.align.vertical
 				}
 				margins: base_spacing / 2
 				widget:  wibox.container.margin
 			}
-			{
-				{
-					{
-						{
-							coverart
-							forced_width:  util.scale(150)
-							forced_height: util.scale(150)
-							layout: wibox.layout.fixed.vertical
-						}
-						shape:  shape(gears.shape.rounded_rect, util.scale(10))
-						shape_border_width: util.scale(1)
-						shape_border_color: button_bg_selected
-						widget: wibox.container.background
-					}
-					margins: base_spacing / 2
-					widget:  wibox.container.margin
-				}
-				layout: wibox.layout.fixed.vertical
-			}
+			coverart
 			layout: wibox.layout.align.horizontal
 		}
 		progress_bar
 		layout: wibox.layout.fixed.vertical
-	})
+	}
 
 
-lyricsbox = require("slimeos.widgets.SystemCenter.widgets.lyricsbox")
-
+import lyricsbox, volume_control, notification_center from require("slimeos.widgets.SystemCenter.widgets")
 
 builtin_tabs.multimedia = () ->
 	wibox.widget {
-		multimedia_remote_controls()
+		wrap_tab_block(multimedia_remote_controls())
 		{
 			forced_height: util.scale(200)
 			widget: wrap_tab_block(lyricsbox)
 		}
+		wrap_tab_block(wibox.widget {
+			volume_control
+			height:   util.scale(30)
+			strategy: "max"
+			widget:   wibox.container.constraint
+		})
 		spacing: base_spacing
 		layout:  wibox.layout.fixed.vertical
 	}
+
+
+builtin_tabs.widgets = { <>: {} }
+
+builtin_tabs.widgets.clock = () ->
+	date_worded = wibox.widget {
+		font:    beautiful.apply_font_size(beautiful.base_font, util.scale(14))
+		format:  "%A, %m. %B"
+		halign:  "center"
+		widget:  wibox.widget.textclock
+	}
+
+	time = wibox.widget {
+		font:    beautiful.apply_font_size(beautiful.base_font, util.scale(20))
+		format:  "<b>%H:%M:%S</b>"
+		halign:  "center"
+		refresh: 1
+		widget:  wibox.widget.textclock
+	}
+
+	date_numeric = wibox.widget {
+		font:    beautiful.apply_font_size(beautiful.base_font, util.scale(14))
+		format:  "%d.%m.%Y"
+		halign:  "center"
+		widget:  wibox.widget.textclock
+	}
+
+	clock = wibox.widget {
+		date_worded
+		time
+		date_numeric
+		spacing: base_spacing / 2
+		layout:  wibox.layout.fixed.vertical
+	}
+
+	clock
+
+builtin_tabs.widgets.calendar = () ->
+	styles = {
+		margin: {
+			left:  util.scale(2)
+			right: util.scale(2)
+		}
+		padding: {
+			left:  util.scale(8)
+			right: util.scale(8)
+		}
+		shape:  shape(gears.shape.rounded_rect, util.scale(10))
+	}
+
+	styles.__index = styles
+
+	styles.month = {
+		--padding:      5
+		--border_width: 2
+	}
+
+	styles.normal = {
+	}
+
+	styles.focus = {
+		fg:      beautiful.fg_focus
+		bg:      beautiful.bg_focus
+		markup:  (text) -> "<b>#{text}</b>"
+	}
+
+	styles.header = {
+		font:   beautiful.apply_font_size(beautiful.base_font, util.scale(22))
+		markup: (text) -> "<b>#{text}</b>"
+	}
+
+	styles.weekday = {
+		markup: (text) -> "<b>#{text}</b>"
+	}
+
+	styles.month.<>   = styles
+	styles.normal.<>  = styles
+	styles.focus.<>   = styles
+	styles.header.<>  = styles
+	styles.weekday.<> = styles
+
+	styles.padding ??= {}
+	styles.margin ??= {}
+
+	decorate_cell = (widget, flag, date) ->
+		---@cast flag "month"|"normal"|"focus"|"header"|"weekday"
+		style = styles[flag] ?? {}
+
+		for prop_name in *({ "ellipsize", "wrap", "valign", "halign", "font", "line_spacing_factor", "justify", "indent" })
+			if style[prop_name] != nil
+				widget[prop_name] = style[prop_name]
+
+		if style.markup and widget.get_text and widget.set_markup then
+			widget.markup = style.markup(widget.text)
+
+		styled_calendar = wibox.widget {
+			{
+				{
+					widget
+					top:     style.padding.top    or styles.padding.top
+					bottom:  style.padding.bottom or styles.padding.bottom
+					left:    style.padding.left   or styles.padding.left
+					right:   style.padding.right  or styles.padding.right
+					widget:  wibox.container.margin
+				}
+				bg: style.bg
+				bg_normal: style.bg_normal or style.bg or button_bg_normal
+				bg_active: style.bg_active or button_bg_active
+				bg_selected: style.bg_selected or button_bg_selected
+				bg_press: style.bg_press or button_bg_press
+				fg: style.fg
+				shape: style.shape
+				border_width: style.border_width
+				border_color: style.border_color
+				border_strategy: style.border_strategy
+				bgimage: style.bgimage
+				opacity: style.opacity
+				visible: style.visible
+				widget: (flag != "month") and Button or wibox.container.background
+			}
+			forced_height: style.forced_height
+			forced_width: style.forced_width
+			top:    style.margin.top    or styles.margin.top
+			bottom: style.margin.bottom or styles.margin.bottom
+			left:   style.margin.left   or styles.margin.left
+			right:  style.margin.right  or styles.margin.right
+			widget:  wibox.container.margin
+		}
+
+		styled_calendar
+
+	calendar = wibox.widget {
+		date:     os.date("*t")
+		font:     beautiful.monospace_font
+		fn_embed: decorate_cell
+		widget:   wibox.widget.calendar.month
+	}
+
+	calendar
+
+builtin_tabs.widgets.notification_center = () ->
+	widget = wibox.widget {}
+
+	widget
+
+builtin_tabs.widgets.<call> = () =>
+	widget = wibox.widget {
+		wrap_tab_block(builtin_tabs.widgets.clock())
+		wrap_tab_block(builtin_tabs.widgets.calendar())
+		wrap_tab_block(builtin_tabs.widgets.notification_center())
+		spacing: base_spacing
+		layout:  wibox.layout.fixed.vertical
+	}
+
+	widget
 
 
 Tab = (args, widget_template) ->
@@ -269,13 +512,11 @@ Tab = (args, widget_template) ->
 				{
 					{
 						id:     "image_role"
-						image:  args.image
 						layout: wibox.widget.imagebox
 					}
 					{
 						id:     "text_role"
 						font:   beautiful.font .. " Bold"
-						text:   args.text
 						layout: wibox.widget.textbox
 					}
 					layout: wibox.layout.fixed.horizontal
@@ -284,15 +525,10 @@ Tab = (args, widget_template) ->
 				layout: wibox.layout.align.horizontal
 			}
 			id:          "button_role"
-			--bg:          button_bg_normal
-			--bg_normal:   button_bg_normal
 			bg:          gears.color.transparent
 			bg_normal:   gears.color.transparent
 			bg_selected: button_bg_selected
 			bg_press:    button_bg_press
-			buttons:     {
-				awful.button({}, 1, nil, () -> args.container::activate_tab(tab))
-			}
 			widget: Button
 		}
 		id:     "background_role"
@@ -300,6 +536,23 @@ Tab = (args, widget_template) ->
 		shape:  shape(gears.shape.rounded_rect, util.scale(2.5))
 		widget: wibox.container.background
 	})
+
+	util.for_children(tab, "image_role", (child) ->
+		child.image = args.image
+	)
+
+	util.for_children(tab, "text_role", (child) ->
+		child.text = args.text
+	)
+
+	util.for_children(tab, "button_role", (child) ->
+		child.buttons = {
+			awful.button({}, 1, nil, () -> args.container::activate_tab(tab))
+		}
+	)
+
+	tab.get_container = ()      => args.container
+	tab.set_container = (value) => args.container = value
 
 	tab.set_text = (value) =>
 		util.for_children(@, "text_role", (child) -> child.text = value)
@@ -351,40 +604,18 @@ TabbedLayout = () ->
 
 	tabbed_layout._private.tabs = {}
 
-	tabbed_layout._private.tabs[] = Tab {
-		container:   tabbed_layout
-		text:        "󰎈  Media"
-		body_widget: builtin_tabs.multimedia()
-	}
-
-	tabbed_layout._private.tabs[] = Tab {
-		container:   tabbed_layout
-		text:        "     System"
-		body_widget: wibox.widget {
-			--text:   "This is the tab for system info!"
-			widget: wibox.widget.textbox
-		}
-	}
-
-	tabbed_layout._private.tabs[] = Tab {
-		container: tabbed_layout
-		text:      "󰜬    Widgets"
-		body_widget: wibox.widget {
-			--text:   "This tab contains various generic widgets!"
-			widget: wibox.widget.textbox
-		}
-	}
-
 	tabbed_layout.activate_tab = (tab) =>
 		for i, t in ipairs(tabbed_layout._private.tabs)
 			t.active = (t == tab)
 
+		@_private.currently_active_tab = tab
 		util.for_children(@, "current_tab_role", (child) -> child.second = tab.body_widget)
 
-	tabbed_layout::activate_tab(tabbed_layout._private.tabs[1])
+	--tabbed_layout::activate_tab(tabbed_layout._private.tabs[1])
+	-- tabbed_layout.activate_tab = tabbed_layout._private.tabs[1]
 
 	tabbed_layout.refresh = () =>
-		tabs = tabbed_layout._private.tabs
+		tabs = @_private.tabs
 
 		util.for_children(@, "all_tabs_role", (child) ->
 			child::reset()
@@ -396,7 +627,9 @@ TabbedLayout = () ->
 	tabbed_layout::refresh()
 
 	tabbed_layout.add_tab = (args) =>
-		tabs = tabbed_layout._private.tabs
+		tabs = @_private.tabs
+
+		args.tab.container ??= @
 
 		if not args.index
 			tabs[] = args.tab
@@ -409,12 +642,19 @@ TabbedLayout = () ->
 
 			tabs[args.index] = args.tab
 
-		tabbed_layout::refresh()
+		if not @_private.currently_active_tab
+			@_private.currently_active_tab = tabs[1]
+			tabbed_layout::activate_tab(tabs[1])
+
+		@refresh()
 
 	tabbed_layout.remove_tab = (index) =>
 		tabs = @_private.tabs
 
+		if @_private.currently_active_tab == tabs[index]
+			@_private.currently_active_tab = tabs[1]
 		tabs[index] = nil
+		tabbed_layout::refresh()
 
 	tabbed_layout.switch_tab = (index) =>
 		util.for_children(@, "all_tabs_role", (child) ->
@@ -424,26 +664,28 @@ TabbedLayout = () ->
 	tabbed_layout
 
 get_shape_for_position = (position, corner_radius) ->
-	base_shape = gears.shape.partially_rounded_rect
 	corner_radius ??= beautiful.SystemCenter_corner_radius or util.scale(20)
+	base_shape = (tl, tr, br, bl) -> (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, tl, tr, br, bl, corner_radius)
 
 	switch position
 		when "right"
-			shape(base_shape, true, false, false, true, corner_radius)
+			base_shape(true, false, false, true)
 		when "left"
-			shape(base_shape, false, true, true, false, corner_radius)
+			base_shape(false, true, true, false)
 		when "top"
-			shape(base_shape, false, false, true, true, corner_radius)
+			base_shape(false, false, true, true)
 		when "bottom"
-			shape(base_shape, true, true, false, false, corner_radius)
+			base_shape(true, true, false, false)
 
-SystemCenter = (args={}) =>
+import "slimeos.boxes.animated_wibox"
+SystemCenter = (args={}) ->
 	with args
 		.position ??= "left"
 		.width    ??= util.scale(400)
 		.type     ??= "normal"
 		.shape    ??= beautiful.SystemCenter_shape or get_shape_for_position(.position)
-		.widget = {
+		.visible  ??= true
+		.widget = wibox.widget {
 			{
 				{
 					id:     "tabs_role"
@@ -458,18 +700,39 @@ SystemCenter = (args={}) =>
 		}
 		.bg = gears.color.transparent
 
-	system_center = awful.wibar(args)
+	system_center = animated_wibox {
+		full_width: args.width
+		full_height: args.screen.workarea.height
+		container: awful.wibar
+		container_args: args
+	}
 
-	system_center.toggle = () =>
-		if @visible
-			@hide()
-		else
-			@show()
-		
-		@visible
-	
-	system_center.show = () => @visible = true
-	system_center.hide = () => @visible = false
+	multimedia_tab = Tab {
+		text:        "󰎈  Media"
+		body_widget: builtin_tabs.multimedia()
+	}
+
+	system_tab = Tab {
+		text:        "     System"
+		body_widget: wibox.widget {
+			text:   "This is the tab for system info!"
+			widget: wibox.widget.textbox
+		}
+	}
+
+	widgets_tab = Tab {
+		text:        "󰜬    Widgets"
+		body_widget: builtin_tabs.widgets()
+	}
+
+	--[ [
+	util.for_children(args.widget, "tabs_role", (child) ->
+		child::add_tab { tab: multimedia_tab }
+		child::add_tab { tab: system_tab }
+		child::add_tab { tab: widgets_tab }
+		-- child::activate_tab(widgets_tab)
+	)
+	--]]
 
 	system_center
 

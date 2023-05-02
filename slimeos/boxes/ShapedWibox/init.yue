@@ -19,8 +19,8 @@ import Object, util, wrap from require("slimeos.lib")
 			__widget
 			bg: .bg ?? beautiful.bg_normal
 			shape: .shape
-			shape_border_width: .border_width
-			shape_border_color: .border_color
+			border_width: .border_width
+			border_color: .border_color
 			widget: wibox.container.background
 		}
 

@@ -1,0 +1,72 @@
+import mousegrabber from require("awesome_std")
+
+import abs from math
+
+import "slimeos.lib.util"
+import scale, notify from util
+
+calculate_is_dragging = (coords, args) ->
+	--- coords --> { initial_x, initial_y, current_x, current_y }
+	if args.direction != "vertical" -- (args.direction == "horizontal") or (args.direction == "any")
+		diff = abs(coords.current_x - coords.initial_x)
+
+		if diff > args.threshhold
+			return true
+
+	if args.direction != "horizontal" -- (args.direction == "vertical") or (args.direction == "any")
+		diff= abs(coords.current_y - coords.initial_y)
+
+		if diff > args.threshhold
+			return true
+	
+	false
+
+create_callback = (parent, args) ->
+	--- NOTE: `self` is the child, not the `wibox.layout.manual` (that would be `parent`)
+	(_, _, button) =>
+		if button != 1
+			return
+		
+		if mousegrabber.isrunning()
+			--mousegrabber.stop()
+			return
+
+		local initial_x, initial_y
+		is_dragging = false
+
+		current_wibox = mouse.current_wibox
+
+		start_point = @point
+
+		mousegrabber.run(((mousedata) ->
+			initial_x = initial_x or mousedata.x
+			initial_y = initial_y or mousedata.y
+
+			is_dragging = is_dragging or calculate_is_dragging({
+				:initial_x
+				:initial_y
+				current_x: mousedata.x
+				current_y: mousedata.y, args.threshhold
+			}, args)
+
+			if not is_dragging
+				return mousedata.buttons[1]
+
+			--util.apcall ->
+			--notify("x: #{mousedata.x - initial_x}\ny: #{mousedata.y - initial_y}")
+			parent::move_widget(@, {
+				x: mousedata.x - current_wibox.x - 20 -- + (mouse.current_widget_geometries[2].width  / 2) -- - initial_x + start_point.x
+				y: mousedata.y - current_wibox.y - 20 -- + (mouse.current_widget_geometries[2].height / 2) -- - initial_y + start_point.y
+			})
+
+			--- Stop the mousegrabber when left-click is no longer being held
+			mousedata.buttons[1]
+		), "fleur")
+
+export connect_widget = (widget, args={}) ->
+	with args
+		.threshhold ??= scale(3)
+		.direction ??= "horizontal" ---@type "horizontal"|"vertical"|"any"
+
+	for _, child in ipairs(widget.children)
+		child::connect_signal("button::press", create_callback(widget, args))

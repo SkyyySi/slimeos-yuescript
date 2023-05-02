@@ -1,6 +1,26 @@
 -- TODO: Rework this widget to use the global "playerctl::metadat" signal
 --       instead of making it run `playerctl` itself
 
+require  = require
+io       = io
+os       = os
+math     = math
+string   = string
+tostring = tostring
+tonumber = tonumber
+dofile   = dofile
+pcall    = pcall
+xpcall   = xpcall
+pairs    = pairs
+ipairs   = ipairs
+next     = next
+select   = select
+print    = print
+getmetatable = getmetatable
+setmetatable = setmetatable
+
+awesome = awesome
+
 import "awful"
 import "gears"
 import "wibox"
@@ -8,6 +28,106 @@ import "beautiful"
 
 import util, LRC, exception from require("slimeos.lib")
 import MissingParameterException from exception
+
+config_path_shell_safe = "#{gears.filesystem.get_configuration_dir()::gsub([[']], [['"'"']])}"
+
+lyrics_dir = os.getenv("HOME") .. "/Music"
+
+do
+	file = io.popen("xdg-user-dir MUSIC")
+
+	if file
+		lyrics_dir = file::read("*a")::gsub("\n", "")
+		file::close()
+	elseif xdg_music_home = os.getenv("XDG_MUSIC_HOME")
+		lyrics_dir = xdg_music_home
+
+lyrics_dir = lyrics_dir .. "/lyrics"
+
+cache_file = lyrics_dir .. "/.song_id_cache.lua"
+
+_, song_cache = try
+	{ data: dofile(io.read(cache_file, "r+")) }
+catch err
+	{}
+
+song_cache.data ??= {}
+
+format_string_for_saving = (str) ->
+	str = str
+		::gsub("\\", [[\\]])
+		::gsub("\a", [[\a]])
+		::gsub("\b", [[\b]])
+		::gsub("\f", [[\f]])
+		::gsub("\n", [[\n]])
+		::gsub("\r", [[\r]])
+		::gsub("\t", [[\t]])
+		::gsub("\v", [[\v]])
+		::gsub("\"", [[\"]])
+		::gsub("\127", "\\127") -- DEL / delete key
+
+	--- See: https://www.asciitable.com/
+	for i = 1, 26
+		c = string.char(i)
+		str = str::gsub(c, "\\#{i}")
+
+	for i = 28, 31
+		c = string.char(i)
+		str = str::gsub(c, "\\#{i}")
+
+	str
+
+song_cache.<> = {
+	clear: () =>
+		for k, _ in pairs(@data)
+			@[k] = nil
+
+		@
+
+	merge: (other) =>
+		for k, v in pairs(other)
+			@data[k] = v
+
+		@
+
+	reload: () =>
+		try
+			reloaded_cache = dofile(cache_file)
+
+			@clear()
+
+			@merge(reloaded_cache)
+		catch err
+			print("ERROR: #{err}")
+
+		@
+
+	__tostring: () =>
+		file_content = "return {\n"
+
+		for k, v in pairs(@data)
+			file_content ..= "\t[\"#{format_string_for_saving(k)}\"] = \"#{format_string_for_saving(v)}\",\n"
+
+		file_content .. "}\n"
+
+	save: () =>
+		util.protected_open(cache_file, "w", (file) ->
+			file::write(tostring(@))
+		)
+
+		@
+
+	get: (k) =>
+		@data[k]
+
+	set: (k, v) =>
+		@data[k] = v
+
+		@
+}
+song_cache.<>.__index = song_cache.<>
+
+song_cache::reload()
 
 lyricsbox = wibox.widget {
 	nil
@@ -58,18 +178,6 @@ lyricsbox.push = (line="", next_line="") =>
 	util.for_children(@, "next_line_role",     (child) -> child.text = next_line)
 	@_previous_line = line
 
-config_path_shell_safe = "#{gears.filesystem.get_configuration_dir()::gsub([[']], [['"'"']])}"
-lyrics_dir = os.getenv("HOME") .. "/Music"
-do
-	file = io.popen("xdg-user-dir MUSIC")
-
-	if file
-		lyrics_dir = file::read("*a")::gsub("\n", "")
-		file::close()
-	elseif xdg_music_home = os.getenv("XDG_MUSIC_HOME")
-		lyrics_dir = xdg_music_home
-lyrics_dir = (lyrics_dir .. "/lyrics")
-
 get_lyrics = (song_id, callback) ->
 	MissingParameterException()::assert(song_id,  1, "get_lyrics", "song_id")
 	MissingParameterException()::assert(callback, 2, "get_lyrics", "callback")
@@ -96,6 +204,15 @@ get_lyrics = (song_id, callback) ->
 get_song_id = (song_title, callback) ->
 	MissingParameterException()::assert(song_title, 1, "get_song_id", "song_title")
 	MissingParameterException()::assert(callback,   2, "get_song_id", "callback")
+
+	do
+		id = song_cache::get(song_title)
+
+		if id != nil
+			print("\027[1;34mINFO\027[0;1m:\027[0m Found cached id '#{id}' for song '#{song_title}'")
+			callback(id)
+			return
+
 	script = [[
 	cd ~/syrics &&
 	source venv/bin/activate &&]] ..
@@ -113,48 +230,55 @@ get_song_id = (song_title, callback) ->
 			--print("Could not find a song_id")
 			return
 
+		song_cache::set(song_title, song_id)::save()
 		callback(song_id)
 	)
 
 trim_song_fmt = (song_fmt) ->
-	song_fmt_no_bracket = song_fmt
+	song_fmt
 		--::gsub("%(.*%)", "")
 		::gsub("%{.*%}", "")
 		::gsub("%[.*%]", "")
+		|> util.string.strip()
 
-	util.string.strip(song_fmt_no_bracket)::gsub(" •$", "")
+format_title = (title) ->
+	title
+		::gsub("%(feat.*%)", "")
+		::gsub("feat.*", "")
+		::gsub("%(ft.*%)", "")
+		::gsub("ft.*", "")
+		|> util.string.strip()
 
-strict_search = true
-
-song_fmt = if strict_search
-	"track:{{title}} AND artist:{{artist}}"
-else
-	"{{title}} • {{artist}}"
+format_artists = (artists) ->
+	artists
+		::gsub(" and ",   ", ")
+		::gsub(" und ",   ", ") -- German "and"
+		::gsub(" [&Xx] ", ", ")
+		::gsub(" - Topic", "") -- YouTube likes to add this sometimes for some reason.
+		::gsub("%s*-$", "")
+		::gsub("%(feat.*%)", "")
+		::gsub("feat.*", "")
+		::gsub("%(ft.*%)", "")
+		::gsub("ft.*", "")
+		|> util.string.strip()
 
 local prev_song
 local prev_timer
-
-local _last_line_key
+local last_line_key
 
 gears.timer {
 	timeout:   3
 	autostart: true
 	call_now:  true
 	callback:  () ->
-		awful.spawn.easy_async({ "playerctl", "metadata", "--format", song_fmt }, (song_fmt, _, _, exit_code_song_fmt) ->
-			if exit_code_song_fmt != 0
-				--print("Lyrics Error: `exit_code_song_fmt` is not `0`")
-				return
-
-			if song_fmt::match("^[%s•-]*$")
-				--print("Lyrics Error: `song_fmt` empty or pure whitespace")
-				return
-
-			song = trim_song_fmt(song_fmt or "")
+		awesome.connect_signal("playerctl::metadata", (metadata) ->
+			song = trim_song_fmt("track:#{format_title(metadata.title)} AND artist:#{format_artists(metadata.artist)}")
 
 			if song == prev_song
 				--print("Lyrics Error: The song has not changed")
 				return
+
+			--print(song)
 
 			lyricsbox::clear()
 
@@ -163,9 +287,9 @@ gears.timer {
 			if prev_timer
 				prev_timer::stop()
 				prev_timer = nil
-			
+
 			get_song_id(song, (song_id) -> get_lyrics(song_id, (lyrics, data) ->
-				print("\027[1;34mINFO\027[0;1m:\027[0m Showing lyrics for: '#{song}' [#{song_id}]")
+				print("\027[1;34mINFO\027[0;1m:\027[0m Showing lyrics for: '#{format_artists(metadata.artist)} - #{metadata.title}' [#{song_id}]")
 
 				prev_timer = gears.timer {
 					timeout:   0.1
@@ -201,11 +325,11 @@ gears.timer {
 									if not (next_line or line).position
 										return
 
-									if (k != _last_line_key) and
+									if (k != last_line_key) and
 											((next_line or line).position::tonumber() > player_position_in_seconds) and
 											(player_position_in_seconds >= line.position::tonumber())
 										lyricsbox::push(line.text, next_line.text)
-										_last_line_key = k
+										last_line_key = k
 										break
 						)
 				}

@@ -1,8 +1,63 @@
+require = require
+os = os
+tostring = tostring
+
 import awful, wibox, gears, beautiful from require("awesome_std")
 import util from require("slimeos.lib")
 import List, Tuple from require("slimeos.lib.collection")
 import main_menu from require("slimeos.boxes")
 layouts = require("slimeos.layouts")
+
+import "slimeos.widgets.SystemCenter"
+import "slimeos.boxes.launcher"
+import "slimeos.widgets.Button"
+button_bg_normal   = beautiful.button_bg_normal   ?? beautiful.bg_alternate ?? "#131522"
+button_bg_active   = beautiful.button_bg_active   ?? "#1D2034"
+button_bg_selected = beautiful.button_bg_selected ?? "#252941"
+button_bg_press    = beautiful.button_bg_press    ?? "#303654"
+
+gen_shape = (tl, tr, br, bl) ->
+	(cr, w, h) ->
+		gears.shape.partially_rounded_rect(cr, w, h, tl, tr, br, bl, util.scale(10))
+
+section_shapes = {
+	left:   gen_shape(false, false, true,  false)
+	center: gen_shape(false, false, true,  true)
+	right:  gen_shape(false, false, false, true)
+}
+
+--section_margins = {
+--	left:   {                      bottom: util.scale(1), right: util.scale(1) }
+--	center: { left: util.scale(1), bottom: util.scale(1), right: util.scale(1) }
+--	right:  { left: util.scale(1), bottom: util.scale(1) }
+--}
+
+sidebar_icon_open   = beautiful.icons.Sidebar
+sidebar_icon_closed = beautiful.icons.SidebarOutline
+
+wrap_section = (side, widget) ->
+	--{
+	--	{
+	--		{
+	--			widget
+	--			bg:     beautiful.bg_normal
+	--			shape:  section_shapes[side]
+	--			widget: wibox.container.background
+	--		}
+	--		margins: section_margins[side]
+	--		widget:  wibox.container.margin
+	--	}
+	--	bg:     beautiful.fg_normal
+	--	shape:  section_shapes[side]
+	--	widget: wibox.container.background
+	--}
+
+	{
+		widget
+		bg:     beautiful.bg_normal
+		shape:  section_shapes[side]
+		widget: wibox.container.background
+	}
 
 (args={}) ->
 	s = args.screen
@@ -25,10 +80,10 @@ layouts = require("slimeos.layouts")
 	s.layoutbox = awful.widget.layoutbox {
 		screen:  s
 		buttons: {
-			awful.button(Tuple({}), 1, () -> awful.layout.inc( 1))
-			awful.button(Tuple({}), 3, () -> awful.layout.inc(-1))
-			awful.button(Tuple({}), 4, () -> awful.layout.inc(-1))
-			awful.button(Tuple({}), 5, () -> awful.layout.inc( 1))
+			awful.button(Tuple({}), 1, (() -> awful.layout.inc( 1)))
+			awful.button(Tuple({}), 3, (() -> awful.layout.inc(-1)))
+			awful.button(Tuple({}), 4, (() -> awful.layout.inc(-1)))
+			awful.button(Tuple({}), 5, (() -> awful.layout.inc( 1)))
 		}
 	}
 
@@ -38,6 +93,43 @@ layouts = require("slimeos.layouts")
 		screen:   s
 		bg:       gears.color.transparent
 	}
+
+	--- System center
+	s.system_center = SystemCenter {
+		position: "right"
+		screen: s
+	}
+
+	s.system_center::hide()
+
+	sidebar_toggle_widget = wibox.widget {
+		{
+			id:     "image_role"
+			image:  sidebar_icon_closed
+			widget: wibox.widget.imagebox
+		}
+		id:          "button_role"
+		bg:          button_bg_normal
+		bg_normal:   button_bg_normal
+		bg_active:   button_bg_active
+		bg_selected: button_bg_selected
+		bg_press:    button_bg_press
+		buttons:     {
+			awful.button({}, 1, nil, (() -> s.system_center::toggle()))
+		}
+		widget: Button
+	}
+
+	s.system_center::connect_signal("property::visible", () =>
+		icon = if @visible
+			sidebar_icon_open
+		else
+			sidebar_icon_closed
+
+		util.for_children(sidebar_toggle_widget, "image_role", (child) ->
+			child.image = icon
+		)
+	)
 
 	-- Create a taglist widget
 	s.taglist = awful.widget.taglist {
@@ -81,18 +173,18 @@ layouts = require("slimeos.layouts")
 			--	--print("'#{@}' | '#{current_tag.selected}' | '#{index}'")
 		}
 		buttons: {
-			awful.button({}, 1, (t) -> t::view_only())
-			awful.button({ modkey }, 1, (t) ->
+			awful.button({}, 1, ((t) -> t::view_only()))
+			awful.button({ modkey }, 1, ((t) ->
 				if client.focus
 					client.focus::move_to_tag(client.focus, t)
-			)
-			awful.button({}, 3, awful.tag.viewtoggle)
-			awful.button({ modkey }, 3, (t) ->
+			))
+			awful.button({}, 3, (() -> awful.tag.viewtoggle()))
+			awful.button({ modkey }, 3, ((t) ->
 				if client.focus
 					client.focus::toggle_tag(t)
-			)
-			awful.button({}, 4, (t) -> awful.tag.viewprev(t.screen))
-			awful.button({}, 5, (t) -> awful.tag.viewnext(t.screen))
+			))
+			awful.button({}, 4, ((t) -> awful.tag.viewprev(t.screen)))
+			awful.button({}, 5, ((t) -> awful.tag.viewnext(t.screen)))
 		}
 	}
 
@@ -116,18 +208,21 @@ layouts = require("slimeos.layouts")
 			widget: wibox.container.background
 		}
 		buttons: {
-			awful.button {}, 1, (c) -> c::activate
+			awful.button({}, 1, ((c) -> c::activate {
 				context: "tasklist"
 				action:  "toggle_minimization"
-			awful.button {}, 3, () -> awful.menu.client_list
-				theme:
+			}))
+			awful.button({}, 3, (() -> awful.menu.client_list {
+				theme: {
 					width: util.scale(250)
-			awful.button {}, 4, () -> awful.client.focus.byidx -1
-			awful.button {}, 5, () -> awful.client.focus.byidx  1
+				}
+			}))
+			awful.button({}, 4, () -> awful.client.focus.byidx(-1))
+			awful.button({}, 5, () -> awful.client.focus.byidx( 1))
 		}
 	}
 
-	main_wibar_buttons = buttons: {
+	main_wibar_buttons = {
 		awful.button({}, 3, () -> s.main_menu::toggle())
 		awful.button({}, 4, awful.tag.viewprev)
 		awful.button({}, 5, awful.tag.viewnext)
@@ -138,82 +233,36 @@ layouts = require("slimeos.layouts")
 		menu:  s.main_menu
 	}
 
+	l = launcher {
+		screen: s
+	}
+
 	s.main_wibar.widget = layouts.absolute_center(
-		{
+		wrap_section("left", {
+			--s.launcher
+			l.toggle_button
+			s.taglist
+			s.promptbox
+			layout: wibox.layout.fixed.horizontal
+		}),
+		wrap_section("center", {
+			s.tasklist
+			layout: wibox.layout.fixed.horizontal
+		}),
+		wrap_section("right", {
 			{
-				{
-					{
-						s.launcher
-						s.taglist
-						s.promptbox
-						layout: wibox.layout.fixed.horizontal
-					}
-					bg:     beautiful.bg_normal
-					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
-					widget: wibox.container.background
-				}
-				right: util.scale(1)
-				bottom: util.scale(1)
-				widget:  wibox.container.margin
+				awful.widget.keyboardlayout()
+				wibox.widget.systray()
+				wibox.widget.textclock()
+				s.layoutbox
+				sidebar_toggle_widget
+				layout: wibox.layout.fixed.horizontal
 			}
-			bg:     beautiful.fg_normal
-			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, false, util.scale(10))
-			widget: wibox.container.background
-		}, {
-			{
-				{
-					s.tasklist
-					bg:     beautiful.bg_normal
-					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
-					widget: wibox.container.background
-				}
-				id:     "tasklist_border_role"
-				right: util.scale(1)
-				bottom: util.scale(1)
-				left: util.scale(1)
-				widget:  wibox.container.margin
-			}
-			bg:     beautiful.fg_normal
-			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, true, true, util.scale(10))
-			widget: wibox.container.background
-		}, {
-			{
-				{
-					{
-						awful.widget.keyboardlayout()
-						wibox.widget.systray()
-						wibox.widget.textclock()
-						s.layoutbox
-						layout: wibox.layout.fixed.horizontal
-					}
-					bg:     beautiful.bg_normal
-					shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
-					widget: wibox.container.background
-				}
-				bottom: util.scale(1)
-				left: util.scale(1)
-				widget:  wibox.container.margin
-			}
-			bg:     beautiful.fg_normal
-			shape:  (cr, w, h) -> gears.shape.partially_rounded_rect(cr, w, h, false, false, false, true, util.scale(10))
-			widget: wibox.container.background
-		}, main_wibar_buttons
+			margins: util.scale(4)
+			widget:  wibox.container.margin
+		}),
+		main_wibar_buttons
 	)
-
-	s.update_dock_tasklist_separator = () =>
-		border_width = if #@clients > 0
-			util.scale(1)
-		else
-			0
-
-		util.for_children(@main_wibar, "tasklist_border_role", (child) ->
-			with child
-				.right = border_width
-				.bottom = border_width
-				.left = border_width
-		)
-
-	s::update_dock_tasklist_separator()
 
 	s.on_bar_refresh = (callback) =>
 		for tag in *s.tags
@@ -222,4 +271,42 @@ layouts = require("slimeos.layouts")
 		client.connect_signal(  "manage", callback)
 		client.connect_signal("unmanage", callback)
 
+	do
+		callback = () ->
+			gears.timer {
+				timeout:     0.01
+				autostart:   true
+				single_shot: true
+				callback: () ->
+					c = mouse.current_client
+
+					if not c
+						return
+
+					c::activate {
+						context: "mouse_enter"
+						raise:   false
+					}
+			}
+
+		for tag in *s.tags
+			tag::connect_signal("property::selected", callback)
+
+	--[[
+	s.update_dock_tasklist_separator = () =>
+		border_width = if #@clients > 0
+			util.scale(1)
+		else
+			0
+
+		util.for_children(@main_wibar.widget, "tasklist_border_role", (child) ->
+			with child
+				.right = border_width
+				.bottom = border_width
+				.left = border_width
+		)
+
+	s::update_dock_tasklist_separator()
+
 	s::on_bar_refresh(() -> s::update_dock_tasklist_separator())
+	--]]

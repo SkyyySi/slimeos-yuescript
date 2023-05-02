@@ -1,0 +1,197 @@
+require  = require
+tonumber = tonumber
+tostring = tostring
+math = math
+setmetatable = setmetatable
+getmetatable = getmetatable
+
+import awesome, awful, beautiful, gears, wibox from require("awesome_std")
+
+import util from require("slimeos.lib")
+
+volume_control = { <>: {} }
+
+volume_control.get_volume_shell_command = [[LANG=C pactl get-sink-volume "$(LANG=C pactl get-default-sink)" | awk '{print $5}' | tr -d '\n' | tr -d '%']]
+volume_control.set_volume_shell_command = [[LANG=C pactl set-sink-volume "$(LANG=C pactl get-default-sink)" ]]
+
+volume_control.get_volume_async = (callback) ->
+	awful.spawn.easy_async({ "bash", "-c", volume_control.get_volume_shell_command }, (stdout, stderr, reason, exit_code) ->
+		if exit_code > 0
+			return
+
+		callback(tonumber(stdout))
+	)
+
+do
+	local previous_volume
+
+	gears.timer {
+		timeout:   0.1
+		autostart: true
+		call_now:  true
+		callback:  () ->
+			volume_control.get_volume_async((volume) ->
+				if volume == previous_volume
+					return
+
+				previous_volume = volume
+
+				awesome.emit_signal("pulseaudio::get_volume", math.floor(volume + 0.5))
+			)
+	}
+
+volume_control.set_volume = (volume) ->
+	awful.spawn { "bash", "-c", (volume_control.set_volume_shell_command .. tostring(volume) .. "%") }
+	awesome.emit_signal("pulseaudio::get_volume", volume)
+
+volume_control.map_mouse_wheel_to_volume_change = (widget) ->
+	widget::connect_signal("button::press", (_, _, button) =>
+		switch button
+			when 4 -- wheel up
+				volume_control.get_volume_async((volume) ->
+					if volume >= 95
+						awful.spawn { "bash", "-c", [[LANG=C pactl set-sink-volume "$(LANG=C pactl get-default-sink)" 100%]] }
+						widget::update_value(100)
+						return
+
+					awful.spawn { "bash", "-c", [[LANG=C pactl set-sink-volume "$(LANG=C pactl get-default-sink)" +5%]] }
+					widget::update_value(volume + 5)
+				)
+			when 5 -- wheel down
+				volume_control.get_volume_async((volume) ->
+					if volume <= 5
+						awful.spawn { "bash", "-c", [[LANG=C pactl set-sink-volume "$(LANG=C pactl get-default-sink)" 0%]] }
+						widget::update_value(0)
+						return
+
+					awful.spawn { "bash", "-c", [[LANG=C pactl set-sink-volume "$(LANG=C pactl get-default-sink)" -5%]] }
+					widget::update_value(volume - 5)
+				)
+	)
+
+volume_control.link_value_to_volume = (widget) ->
+	widget._private ??= {}
+
+	widget.update_value = (value) =>
+		@value = value
+
+	widget::connect_signal("mouse::enter", () =>
+		@_private.mouse_is_above = true
+	)
+
+	widget::connect_signal("mouse::leave", () =>
+		@_private.mouse_is_above = false
+	)
+
+	widget::connect_signal("property::value", () ->
+		if not widget.value
+			return
+
+		volume_control.set_volume(widget.value)
+	)
+
+	awesome.connect_signal("pulseaudio::get_volume", (volume) ->
+		if widget._private.mouse_is_above
+			return
+
+		widget::update_value(volume)
+	)
+
+volume_control.volume_range_icons = {
+	muted:  beautiful.icons.VolumeDisabled
+	silent: beautiful.icons.VolumeOff
+	low:    beautiful.icons.VolumeMin
+	high:   beautiful.icons.VolumeMax 
+}
+
+volume_control.get_range_from_volume = (volume) ->
+	if volume < 1
+		"silent"
+	elseif volume < 51
+		"low"
+	else
+		"high"
+
+volume_control.link_imagebox_to_volume = (widget) ->
+	widget._private ??= {}
+
+	widget.update_image = (volume) =>
+		image = volume_control.volume_range_icons[volume_control.get_range_from_volume(volume)]
+		@image = image
+
+	awesome.connect_signal("pulseaudio::get_volume", (volume) ->
+		widget::update_image(volume)
+	)
+
+volume_control.link_textbox_to_volume = (widget) ->
+	widget._private ??= {}
+
+	widget.update_text = (volume) =>
+		@text = "%3d%%"::format(volume)
+
+	awesome.connect_signal("pulseaudio::get_volume", (volume) ->
+		widget::update_text(volume)
+	)
+
+volume_control.<call> = (args={}) =>
+	with args
+		.widget_template ??= {
+			{
+				id:     "image_role"
+				widget: wibox.widget.imagebox
+			}
+			{
+				id:     "text_role"
+				widget: wibox.widget.textbox
+			}
+			{
+				id:            "value_role"
+				bar_shape:     gears.shape.rounded_rect
+				bar_height:    util.scale(5),
+				bar_color:     "#303654"
+				handle_shape:  gears.shape.circle
+				handle_color:  beautiful.bg_focus
+				handle_width:  util.scale(20)
+				forced_height: util.scale(30)
+				min_value:     0
+				max_value:     100
+				widget:        wibox.widget.slider
+			}
+			spacing: util.scale(10)
+			layout:  wibox.layout.fixed.horizontal
+		}
+
+	widget = wibox.widget(args.widget_template)
+	--[[
+	widget = wibox.widget {
+		{
+			{
+				image:  beautiful.icons.VolumeMax
+				widget: wibox.widget.imagebox
+			}
+			margins: util.scale(10)
+			widget:  wibox.container.margin
+		}
+		id:           "value_role"
+		min_value:    0,
+		max_value:    100,
+		color:        beautiful.bg_focus
+		border_width: util.scale(5)
+		border_color: "#303654"
+		widget:       wibox.container.radialprogressbar
+	}
+	--]]
+
+	util.for_children(widget, "image_role", (child) -> volume_control.link_imagebox_to_volume(child))
+	util.for_children(widget, "text_role",  (child) -> volume_control.link_textbox_to_volume(child))
+	util.for_children(widget, "value_role", (child) -> volume_control.link_value_to_volume(child))
+
+	volume_control.map_mouse_wheel_to_volume_change(widget)
+
+	-- TODO:
+	--  * A mute button
+	--  * A icon (from yandex-ui-icons) and text label that responds to the current state
+
+	widget
+
+volume_control

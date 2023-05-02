@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 clear
 
-LUA_VERSION="${LUA_VERSION:-5.1}"
+#LUA_VERSION="${LUA_VERSION:-5.1}"
+
+# LuaJIT supports some 5.2 features like `goto`
+LUA_VERSION="${LUA_VERSION:-5.2}"
 
 # yue --target="$LUA_VERSION" -w "$PWD"
 
-yue .
 clear
+yue .
 
 function wait_for_change() {
 	inotifywait --event modify \
@@ -17,7 +20,7 @@ function wait_for_change() {
 }
 
 function compile() {
-	yue --target="$LUA_VERSION" "$1"
+	yue -c --target="$LUA_VERSION" "$1"
 }
 
 while true; do

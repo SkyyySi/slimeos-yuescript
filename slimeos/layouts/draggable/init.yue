@@ -1,0 +1,156 @@
+import awful, gears, wibox from require("awesome_std")
+import apcall, notify, scale from require("slimeos.lib.util")
+
+import abs from math
+
+_module = { mt: {} }
+_module.<> = _module.mt
+
+_module.move = (index, point) =>
+	-- assert(self._private.pos[index])
+	@_private.pos[index] = point or { x: 0, y: 0 }
+	@emit_signal("widget::layout_changed")
+
+--[[
+override_keys = {
+	"add"
+	"add_at"
+	"insert"
+	"set"
+	"replace_widget"
+	"remove"
+	"remove_widgets"
+	"move"
+	"move_widget"
+	"swap"
+	"swap_widgets"
+	"reset"
+}
+--]]
+
+--[[
+old_methods = {}
+for _, key in ipairs(override_keys)
+	old_methods[key] = _module[key]
+
+new_methods = {}
+--]]
+
+--[[
+new_methods.add = (...) =>
+	for _, widget in ipairs({ ... })
+		widget.point ??= { x: 0, y: 0 }
+
+	old_methods.add(@, ...)
+--]]
+
+calculate_is_dragging = (parent, coords) ->
+	--- coords --> { initial_x, initial_y, current_x, current_y }
+	if parent.direction != "vertical" -- (args.direction == "horizontal") or (args.direction == "any")
+		diff = abs(coords.current_x - coords.initial_x)
+
+		if diff > parent.threshhold
+			return true
+
+	if parent.direction != "horizontal" -- (args.direction == "vertical") or (args.direction == "any")
+		diff= abs(coords.current_y - coords.initial_y)
+
+		if diff > parent.threshhold
+			return true
+	
+	false
+
+create_callback = (parent) ->
+	--- NOTE: `self` is the child, not the `wibox.layout.manual` (that would be `parent`)
+	(_, _, button) =>
+		if button != 1
+			return
+		
+		if mousegrabber.isrunning()
+			--mousegrabber.stop()
+			return
+
+		local initial_x, initial_y
+		is_dragging = false
+
+		current_wibox = mouse.current_wibox
+
+		start_point = @point
+
+		mousegrabber.run(((mousedata) ->
+			apcall ->
+				initial_x = initial_x or mousedata.x
+				initial_y = initial_y or mousedata.y
+
+				is_dragging = is_dragging or calculate_is_dragging(parent, {
+					:initial_x
+					:initial_y
+					current_x: mousedata.x
+					current_y: mousedata.y --, parent.threshhold
+				})
+
+				if not is_dragging
+					return mousedata.buttons[1]
+
+				--util.apcall ->
+				--notify("x: #{mousedata.x - initial_x}\ny: #{mousedata.y - initial_y}")
+				parent::move_widget(@, {
+					x: mousedata.x - current_wibox.x - scale(15) -- + (mouse.current_widget_geometries[2].width  / 2) -- - initial_x + start_point.x
+					y: mousedata.y - current_wibox.y - scale(15) -- + (mouse.current_widget_geometries[2].height / 2) -- - initial_y + start_point.y
+				})
+
+			--- Stop the mousegrabber when left-click is no longer being held
+			mousedata.buttons[1]
+		), "fleur")
+
+connect_child = (widget, child) ->
+	with child
+		--if not .connect_signal
+		--	return
+
+		if .__draggable_layout_already_connected
+			return
+
+		::connect_signal("button::press", create_callback(widget))
+
+		.__draggable_layout_already_connected = true
+
+with old_set_children = wibox.layout.manual.set_children
+	_module.set_children = (value) =>
+		for _, child in ipairs(value)
+			connect_child(@, child)
+
+		old_set_children(@, value)
+
+with old_add = wibox.layout.manual.add
+	_module.add = (...) =>
+		for _, child in ipairs({ ... })
+			connect_child(@, child)
+
+		old_add(@, ...)
+
+_module.<call> = (_, ...) ->
+	instance = gears.table.crush(wibox.layout.manual(), _module)
+
+	with instance
+		.threshhold ??= scale(3)
+		.direction  ??= "horizontal" ---@type "horizontal"|"vertical"|"any"
+
+		._private.widgets.<> = {
+			__newindex: (key, value) =>
+				--notify(key, value)
+				connect_child(instance, value)
+
+				rawset(@, key, value)
+		}
+
+		._private.pos.<> = {
+			__index: (key) =>
+				point = { x: 0, y: 0 }
+				@_private.pos[key] = point
+				point
+		}
+
+	instance
+
+_module

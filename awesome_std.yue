@@ -6,13 +6,11 @@ export beautiful = require("beautiful")
 export menubar   = require("menubar")
 export naughty   = require("naughty")
 
-export capi = {
-	awesome: awesome
-	client: client
-	keygrabber: keygrabber
-	mouse: mouse
-	mousegrabber: mousegrabber
-	root: root
-	screen: screen
-	tag: tag
-}
+export awesome      = awesome
+export client       = client
+export keygrabber   = keygrabber
+export mouse        = mouse
+export mousegrabber = mousegrabber
+export root         = root
+export screen       = screen
+export tag          = tag

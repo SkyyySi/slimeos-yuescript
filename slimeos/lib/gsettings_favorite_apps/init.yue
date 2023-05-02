@@ -1,0 +1,72 @@
+require = require
+setmetatable = setmetatable
+next = next
+
+import awesome, awful, gears, wibox, ruled, beautiful, menubar, naughty from require("awesome_std")
+
+import "slimeos.lib.util"
+
+import "lgi"
+import Gio from lgi
+
+local *
+
+export schema = "org.gnome.shell"
+
+export watch = () ->
+	(stdout, stderr, reason, exit_code) <- awful.spawn.easy_async { "dconf", "watch", "/org/gnome/shell/favorite-apps" }
+
+export schema_exists = () ->
+	schema_list = Gio.Settings.list_schemas()
+
+	for found_schema in *schema_list
+		if schema == found_schema
+			return true
+
+	false
+
+export insert = (desktop_file_id, index) ->
+	if not schema_exists()
+		return -- {}
+
+	favs = Gio.Settings({ schema: schema })::get_strv("favorite-apps")
+	util.smart_insert(favs, desktop_file_id, index)
+	Gio.Settings({ schema: schema })::set_strv("favorite-apps", favs)
+
+	awesome.emit_signal("slimeos::gsettings_favorite_apps::update", favs)
+
+	-- favs
+
+export get = () ->
+	if not schema_exists()
+		return {}
+
+	favs = Gio.Settings({ schema: schema })::get_strv("favorite-apps")
+
+	awesome.emit_signal("slimeos::gsettings_favorite_apps::get", favs)
+
+	favs
+
+export shadow_schema = do
+	local iter_key, favs_temp
+
+	{
+		<index>: (key) =>
+			get()[key]
+
+		<newindex>: (key, value) =>
+			insert(value, key)
+		
+		<call>: () =>
+			favs_temp ??= get()
+
+			iter_key, value = next(favs_temp)
+
+			if value == nil
+				favs_temp = nil
+				return
+
+			value
+	}
+
+--export shadow_schema

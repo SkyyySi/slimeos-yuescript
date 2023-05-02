@@ -10,6 +10,7 @@ tostring = tostring
 tonumber = tonumber
 pairs = pairs
 ipairs = ipairs
+print = print
 
 awesome = awesome
 
@@ -31,12 +32,42 @@ else
 
 awful.spawn { "mkdir", "-p", cache_dir }
 
-art_path = cache_dir .. "/coverart"
-safe_art_path = util.string.shell_escape(art_path)--::gsub("%%", "%%%%")
-art_script_fmt = "curl -o '#{safe_art_path}' -fsSL '%s';ffmpeg -y -i '#{safe_art_path}' '#{safe_art_path}.png'"
+playerctl_fmt = "{{album}}\t{{mpris:artUrl}}\t{{artist}}\t{{mpris:length}}\t{{playerName}}\t{{position}}\t{{status}}\t{{title}}\t{{volume}}"
 
-gen_art_script = (metadata) ->
-	art_script_fmt::format(metadata.art_url)
+--current_player
+
+art_path = cache_dir .. "/coverart"
+converted_art_path = art_path .. ".png"
+safe_art_path = util.string.shell_escape(art_path)--::gsub("%%", "%%%%")
+art_script_fmt = "curl -o '#{safe_art_path}' -fsSL -- '%s'\n\nffmpeg -y -i '#{safe_art_path}' -vf " .. [["crop=w='min(min(iw\,ih)\,500)':h='min(min(iw\,ih)\,500)',scale=500:500,setsar=1"]] .. " -vframes 1 '#{safe_art_path}.png'"
+
+download_cover_art = do
+	local previous_cover_art_url
+
+	(url, callback) ->
+		if url == previous_cover_art_url
+			callback(converted_art_path)
+			return
+
+		previous_cover_art_url = url
+
+		safe_url = util.string.shell_escape(url)
+
+		awful.spawn.easy_async({ "curl", "-o", art_path, "-fsSL", "--", url }, (stdout, stderr, reason, exit_code) ->
+			if exit_code > 0
+				print("\027[31;1mAn error occoured while downloading the cover art:\027[0m\n -> #{stderr}")
+				callback(converted_art_path)
+				return
+
+			stdout, stderr, reason, exit_code = nil, nil, nil, nil
+
+			awful.spawn.easy_async({ "ffmpeg", "-y", "-i", art_path, "-vf", [[crop=w='min(min(iw\,ih)\,500)':h='min(min(iw\,ih)\,500)',scale=500:500,setsar=1]], "-vframes", "1", converted_art_path }, (stdout, stderr, reason, exit_code) ->
+				if exit_code > 0
+					print("\027[31;1mAn error occoured while converting the cover art:\027[0m\n -> #{stderr}")
+
+				callback(converted_art_path)
+			)
+		)
 
 is_playing_status_parser = (status_string) ->
 	status = false
@@ -116,30 +147,29 @@ send_metadata_signal = (line) ->
 	tmp = util.string.split(line, "\t")
 
 	metadata = PlayerctlMetadata {
-		album:       tmp[5]
-		art_url:     tmp[9]
-		artist:      tmp[6]
-		length:      tonumber(tmp[8]) or 100
-		player_name: tmp[1]
-		position:    tonumber(tmp[2]) or 0
-		status:      is_playing_status_parser(tmp[3]) or false
-		title:       tmp[7]
-		volume:      tonumber(tmp[4]) or 0
+		album:       tmp[1]
+		art_url:     util.string.strip(tmp[2])
+		artist:      tmp[3]
+		length:      tonumber(tmp[4]) or 100
+		player_name: tmp[5]
+		position:    tonumber(tmp[6]) or 0
+		playing:     is_playing_status_parser(tmp[7])
+		title:       tmp[8]
+		volume:      tonumber(tmp[9]) or 0
 	}
 
 	metadata.completion = metadata.position / (metadata.length / 100)
-	--print(metadata)
 
 	if (not metadata.art_url) or (metadata.art_url == "") or (metadata.art_url == old_metadata.art_url)
 		metadata.art_path = old_metadata.art_path
 		metadata.art_cairo = old_metadata.art_cairo
-
+	
 		awesome.emit_signal("playerctl::metadata", metadata)
 		old_metadata = metadata
 		return
 
-	awful.spawn.easy_async_with_shell(gen_art_script(metadata), (stdout, stderr, reason, exit_code) ->
-		metadata.art_path = art_path .. ".png"
+	download_cover_art(metadata.art_url, () ->
+		metadata.art_path = converted_art_path
 		metadata.art_cairo = cairo.ImageSurface.create_from_png(metadata.art_path)
 		awesome.emit_signal("playerctl::metadata", metadata)
 		old_metadata = metadata
@@ -154,8 +184,10 @@ make_metadata_update_signal_listener = () ->
 			awful.spawn.easy_async({
 				"playerctl"
 				"metadata"
+				-- "-p"
+				-- current_player
 				"--format"
-				"{{playerName}}\t{{position}}\t{{status}}\t{{volume}}\t{{album}}\t{{artist}}\t{{title}}\t{{mpris:length}}\t{{mpris:artUrl}}"
+				playerctl_fmt
 			}, (stdout, stderr, reason, exit_code) ->
 				send_metadata_signal(stdout)
 			)
@@ -176,25 +208,32 @@ make_player_list_signal_listener = () ->
 		autostart: true
 		call_now:  true
 		callback:  () ->
-			--awful.spawn.easy_async({ "playerctl", "--list-all" }, (stdout, stderr, reason, exit_code) ->
-				awesome.emit_signal("playerctl::available_players", Playerctl.list_players())
-			--)
+			--awesome.emit_signal("playerctl::available_players", Playerctl.list_players())
+			awful.spawn.easy_async({ "playerctl", "--list-all" }, (stdout, stderr, reason, exit_code) ->
+				if exit_code > 0
+					return
+
+				awesome.emit_signal("playerctl::available_players", util.string.split(stdout, "\n"))
+			)
 	}
 
-_previous_player_list = {}
+previous_active_player = {}
 awesome.connect_signal("playerctl::available_players", (player_list) ->
-	for index, player in ipairs(player_list)
-		if _previous_player_list[index] != player
-			return
+	--active_player = Playerctl.list_players()?[1]?.name
+	active_player = player_list[1]
 
-	_previous_player_list = player_list
+	if (not active_player) or (active_player == previous_active_player)
+		return
 
-	active_player = Playerctl.list_players()?[1]?.name
+	previous_active_player = active_player
 
-	awesome.emit_signal("playerctl::active_player", Playerctl.list_players())
+	-- TODO: Allow to switch the currently displayed player manually
+
+	awesome.emit_signal("playerctl::active_player", active_player)
 )
 
 make_metadata_update_signal_listener()
 make_control_signal_listeners()
+make_player_list_signal_listener()
 
 global __PLAYERCTL_SIGNALS_ALREADY_CREATED = true
