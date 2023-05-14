@@ -2,5 +2,7 @@
 !slimeos/lib/playerctl_cli/init.lua
 !slimeos/lib/util/tts.lua
 !slimeos/lib/util/tts_monochrome.lua
+!slimeos/lib/ClassPlus/init.lua
 config/syrics/config.json
 .mypy_cache
+!overflow.lua
