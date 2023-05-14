@@ -1,17 +1,33 @@
+import floor from math
+
 import awful, gears, wibox, ruled, beautiful, menubar, naughty, client from require("awesome_std")
+import surface from gears
 
 import util from require("slimeos.lib")
 import Button from require("slimeos.widgets")
 
 import "lgi"
 import Gio from lgi
+Gdk = lgi.require("Gdk", "3.0")
+import pixbuf_get_from_surface from Gdk
 
 macro INVERT = (var) ->
 	"#{var} = not #{var}"
 
 wrap_button = (widget) ->
-	{widget, widget: Button}
+	{
+		{
+			widget
+			left:   util.scale(10)
+			right:  util.scale(10)
+			widget: wibox.container.margin
+		}
+		widget: Button
+	}
 
+color_cache = { mt: {} }
+color_cache.<> = color_cache.mt
+color_cache.mt.__index = color_cache.mt
 
 --[[
 get_app_id_async = (c, callback) ->
@@ -36,6 +52,123 @@ get_app_id_async = (c, callback) ->
 		)
 	)
 --]]
+
+get_dominant_color = (c) ->
+	local color
+	local pb
+	local bytes
+	tally = {}
+	content = surface(c.content)
+	cgeo = c::geometry()
+	x_offset = 2
+	y_offset = 2
+	x_lim = floor(cgeo.width / 2)
+
+	for x_pos = 0, x_lim, 2
+		for y_pos = 0, 8, 1
+			pb = pixbuf_get_from_surface(content, x_offset + x_pos, y_offset + y_pos, 1, 1)
+			bytes = pb::get_pixels()
+			color = "#" .. bytes::gsub(".", (col) -> ("%02x")::format(col::byte()))
+
+			tally[color] = if not tally[color]
+				1
+			else
+				tally[color] + 1
+
+	local mode
+	mode_c = 0
+	for k, v in pairs(tally)
+		if v > mode_c
+			mode_c = v
+			mode = k
+
+	color = mode
+	color
+
+window_control_buttons = {}
+
+window_control_buttons.base_margins = {
+	top:    util.scale(6)
+	bottom: util.scale(6)
+	left:   util.scale(16)
+	right:  util.scale(16)
+}
+window_control_buttons.base_template = () ->
+	{
+		{
+			id:     "image_role"
+			widget: wibox.widget.imagebox
+		}
+		margins: window_control_buttons.base_margins
+		widget: wibox.container.margin
+	}
+
+window_control_buttons.minimize = (c) ->
+	w = wibox.widget {
+		window_control_buttons.base_template()
+		buttons: {
+			awful.button({}, 1, nil, () -> c.minimized = true)
+		}
+		widget: Button
+	}
+
+	util.for_children(w, "image_role", (child) ->
+		child.image = if c.active
+			beautiful.titlebar_minimize_button_focus
+		else
+			beautiful.titlebar_minimize_button_normal
+	)
+
+	w
+
+window_control_buttons.maximize = (c) ->
+	w = wibox.widget {
+		window_control_buttons.base_template()
+		buttons: {
+			awful.button({}, 1, nil, () -> c.maximized = not c.maximized)
+		}
+		widget: Button
+	}
+
+	w.update_icon = () =>
+		util.for_children(w, "image_role", (child) ->
+			child.image = if c.active
+				if c.maximized
+					beautiful.titlebar_maximized_button_focus_active
+				else
+					beautiful.titlebar_maximized_button_focus_inactive
+			else
+				if c.maximized
+					beautiful.titlebar_maximized_button_normal_active
+				else
+					beautiful.titlebar_maximized_button_normal_inactive
+		)
+	w::update_icon()
+	c::connect_signal("property::maximized", () -> w::update_icon())
+
+	w
+
+window_control_buttons.close = (c) ->
+	w = wibox.widget {
+		window_control_buttons.base_template()
+		buttons: {
+			awful.button({}, 1, nil, () -> c::kill())
+		}
+		bg: gears.color.transparent
+		bg_normal: gears.color.transparent
+		bg_selected: beautiful.color.red
+		bg_press: beautiful.color.red_alternate
+		widget: Button
+	}
+
+	util.for_children(w, "image_role", (child) ->
+		child.image = if c.active
+			beautiful.titlebar_close_button_focus
+		else
+			beautiful.titlebar_close_button_normal
+	)
+
+	w
 
 title_widget = (c) ->
 	--- Equivalent to `get_app_id_async(c, (gio_search_result) ->`,
@@ -108,40 +241,56 @@ client.connect_signal("request::titlebars", (c) ->
 			{
 				{
 					{
-						awful.titlebar.widget.iconwidget(c)
-						margins: util.scale(6)
-						widget:  wibox.container.margin
+						{
+							awful.titlebar.widget.iconwidget(c)
+							top:     util.scale(6)
+							bottom:  util.scale(6)
+							left:    util.scale(14)
+							right:   util.scale(14)
+							widget:  wibox.container.margin
+						}
+						buttons: {
+							awful.button({}, 1, nil, () -> menu::toggle())
+							awful.button({}, 2, nil, () -> menu::toggle())
+						}
+						widget: Button
 					}
-					buttons: {
-						awful.button({}, 1, nil, () -> menu::toggle())
-						awful.button({}, 2, nil, () -> menu::toggle())
-					}
-					widget: Button
+					--wrap_button(awful.titlebar.widget.floatingbutton(c))
+					--wrap_button(awful.titlebar.widget.stickybutton(c))
+					--wrap_button(awful.titlebar.widget.ontopbutton(c))
+					layout: wibox.layout.fixed.horizontal
 				}
-				--wrap_button(awful.titlebar.widget.floatingbutton(c))
-				--wrap_button(awful.titlebar.widget.stickybutton(c))
-				--wrap_button(awful.titlebar.widget.ontopbutton(c))
-				layout: wibox.layout.fixed.horizontal
+				{
+					font:    beautiful.titlebar_font ?? beautiful.bold_font ?? (beautiful.font .. " Bold")
+					halign:  "center"
+					buttons: buttons
+					widget:  title_widget(c)
+				}
+				spacing: util.scale(4)
+				layout:  wibox.layout.fixed.horizontal
 			}
 			{
-				font:    beautiful.titlebar_font ?? beautiful.bold_font ?? (beautiful.font .. " Bold")
-				halign:  "center"
 				buttons: buttons
-				widget:  title_widget(c)
+				layout:  wibox.layout.flex.horizontal
 			}
-			spacing: util.scale(4)
-			layout:  wibox.layout.fixed.horizontal
+			{
+				window_control_buttons.minimize(c)
+				window_control_buttons.maximize(c)
+				window_control_buttons.close(c)
+				layout: wibox.layout.fixed.horizontal
+			}
+			layout: wibox.layout.align.horizontal
 		}
-		{
-			buttons: buttons
-			layout:  wibox.layout.flex.horizontal
-		}
-		{
-			wrap_button(awful.titlebar.widget.minimizebutton(c))
-			wrap_button(awful.titlebar.widget.maximizedbutton(c))
-			wrap_button(awful.titlebar.widget.closebutton(c))
-			layout: wibox.layout.fixed.horizontal
-		}
-		layout: wibox.layout.align.horizontal
+		id:     "background_role"
+		widget: wibox.container.background
 	}
+
+	c.__update_titlebar_bg = () =>
+		color = get_dominant_color(@)
+		util.for_children(@titlebars.top.widget, "background_role", (child) ->
+			child.bg = color
+		)
+
+	c::__update_titlebar_bg()
+	util.after_timeout(2, () -> c::__update_titlebar_bg())
 )

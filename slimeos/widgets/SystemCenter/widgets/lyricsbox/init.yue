@@ -1,3 +1,16 @@
+--- HOW TO USE:
+---
+--- 1. Install `pyenv`
+--- 2. Run the following in your terminal:
+---
+--- ```sh
+--- mkdir -p ~/syrics
+--- cd ~/syrics
+--- pyenv local 3.10
+--- python -m venv venv
+--- pip install syrics
+--- ```
+
 -- TODO: Rework this widget to use the global "playerctl::metadat" signal
 --       instead of making it run `playerctl` itself
 
@@ -27,20 +40,35 @@ import "wibox"
 import "beautiful"
 
 import util, LRC, exception from require("slimeos.lib")
+import notify from util
 import MissingParameterException from exception
 
-config_path_shell_safe = "#{gears.filesystem.get_configuration_dir()::gsub([[']], [['"'"']])}"
+show_table_error = (header, data) ->
+	msg = "ERROR: #{header}! More info:\n\n"
 
-lyrics_dir = os.getenv("HOME") .. "/Music"
+	for k, v in pairs(data)
+		msg ..= switch type(v)
+			when "string"
+				"#{k}: \"#{v}\"\n"
+			else
+				"#{k}: #{v}\n"
 
-do
+	notify(msg, 0)
+
+make_shell_safe = (str) -> str::gsub([[']], [['"'"']])
+
+config_path_shell_safe = make_shell_safe(gears.filesystem.get_configuration_dir())
+
+
+lyrics_dir = do
 	file = io.popen("xdg-user-dir MUSIC")
 
 	if file
-		lyrics_dir = file::read("*a")::gsub("\n", "")
-		file::close()
+		file::read("*a")::gsub("\n", "")
 	elseif xdg_music_home = os.getenv("XDG_MUSIC_HOME")
-		lyrics_dir = xdg_music_home
+		xdg_music_home
+	else
+		os.getenv("HOME") .. "/Music"
 
 lyrics_dir = lyrics_dir .. "/lyrics"
 
@@ -64,9 +92,12 @@ format_string_for_saving = (str) ->
 		::gsub("\t", [[\t]])
 		::gsub("\v", [[\v]])
 		::gsub("\"", [[\"]])
-		::gsub("\127", "\\127") -- DEL / delete key
+		::gsub("\'", [[\']])
+		::gsub("\127", [[\127]]) -- DEL / delete key
 
 	--- See: https://www.asciitable.com/
+	--- Also: "\0" is not replaced here, because that doesn't work:
+	--- The string `"Hello\0world"` would not become `"Hello\\0world"`, but `"\\0H\\0e\\0l\\0l\\0o\\0\\0w\\0o\\0r\\0l\\0d\\0"`
 	for i = 1, 26
 		c = string.char(i)
 		str = str::gsub(c, "\\#{i}")
@@ -77,6 +108,14 @@ format_string_for_saving = (str) ->
 
 	str
 
+format_lyrics_cache_key = (str) ->
+	str
+		::gsub("%s+", " ")
+		::lower()
+		::gsub(" and artist:", " AND artist:")
+		|> util.string.strip()
+		-- |> format_string_for_saving()
+
 song_cache.<> = {
 	clear: () =>
 		for k, _ in pairs(@data)
@@ -86,7 +125,7 @@ song_cache.<> = {
 
 	merge: (other) =>
 		for k, v in pairs(other)
-			@data[k] = v
+			@data[format_lyrics_cache_key(k)] = v
 
 		@
 
@@ -106,7 +145,7 @@ song_cache.<> = {
 		file_content = "return {\n"
 
 		for k, v in pairs(@data)
-			file_content ..= "\t[\"#{format_string_for_saving(k)}\"] = \"#{format_string_for_saving(v)}\",\n"
+			file_content ..= "\t[\"#{format_string_for_saving(format_lyrics_cache_key(k))}\"] = \"#{format_string_for_saving(v)}\",\n"
 
 		file_content .. "}\n"
 
@@ -118,16 +157,14 @@ song_cache.<> = {
 		@
 
 	get: (k) =>
-		@data[k]
+		@data[format_lyrics_cache_key(k)]
 
 	set: (k, v) =>
-		@data[k] = v
+		@data[format_lyrics_cache_key(k)] = v
 
 		@
 }
 song_cache.<>.__index = song_cache.<>
-
-song_cache::reload()
 
 lyricsbox = wibox.widget {
 	nil
@@ -140,15 +177,19 @@ lyricsbox = wibox.widget {
 				valign: "center"
 				widget: wibox.widget.textbox
 			}
-			fg:     "#CCC8C3"
+			fg:     beautiful.lyricsbox_fg_normal or "#DEDEDE"
 			widget: wibox.container.background
 		}
 		{
-			id:     "current_line_role"
-			font:   "Sans Bold " .. tostring(math.floor(util.scale(16) + 0.5))
-			halign: "center"
-			valign: "center"
-			widget: wibox.widget.textbox
+			{
+				id:     "current_line_role"
+				font:   "Sans Bold " .. tostring(math.floor(util.scale(16) + 0.5))
+				halign: "center"
+				valign: "center"
+				widget: wibox.widget.textbox
+			}
+			fg:     beautiful.lyricsbox_fg_focus or "#FFFFFF"
+			widget: wibox.container.background
 		}
 		{
 			{
@@ -158,7 +199,7 @@ lyricsbox = wibox.widget {
 				valign: "center"
 				widget: wibox.widget.textbox
 			}
-			fg:     "#CCC8C3"
+			fg:     beautiful.lyricsbox_fg_normal or "#DEDEDE"
 			widget: wibox.container.background
 		}
 		layout: wibox.layout.flex.vertical
@@ -185,12 +226,17 @@ get_lyrics = (song_id, callback) ->
 	cd ~/syrics &&
 	source venv/bin/activate &&
 	syrics ]] ..
-		"--directory '#{lyrics_dir::gsub([[']], [['"'"']])}' " ..
+		"--directory '#{make_shell_safe(lyrics_dir)}' " ..
 		"--config '#{config_path_shell_safe}/config/syrics/config.json' " .. -- This flag seems to be ignored...
 		"'https://open.spotify.com/track/#{song_id}'"
 
 	awful.spawn.easy_async({ "bash", "-c", script }, (stdout, stderr, reason, exit_code) ->
 		if exit_code != 0
+			show_table_error("An error occured while trying to use syrics", { :stdout, :stderr, :reason, :exit_code })
+			return
+
+		if stdout == ""
+			--- No song found
 			return
 
 		lyrics = LRC.LRCData::from_file("#{lyrics_dir}/#{song_id}.lrc")
@@ -204,7 +250,6 @@ get_lyrics = (song_id, callback) ->
 get_song_id = (song_title, callback) ->
 	MissingParameterException()::assert(song_title, 1, "get_song_id", "song_title")
 	MissingParameterException()::assert(callback,   2, "get_song_id", "callback")
-
 	do
 		id = song_cache::get(song_title)
 
@@ -218,10 +263,11 @@ get_song_id = (song_title, callback) ->
 	source venv/bin/activate &&]] ..
 		"'#{config_path_shell_safe}/config/syrics/search_song_id.py' " ..
 		"'#{config_path_shell_safe}/config/syrics/config.json' " ..
-		"'#{song_title::gsub([[']], [['"'"']])}'"
-	
+		"'#{make_shell_safe(song_title)}'"
+
 	awful.spawn.easy_async({ "bash", "-c", script }, (stdout, stderr, reason, exit_code) ->
 		if exit_code != 0
+			notify("An error occured while trying to use syrics! More info:\n\nstdout: \"#{stdout}\"\nstderr: \"#{stderr}\"\nreason: \"#{reason}\"\nexit_code: \"#{exit_code}\"", 0)
 			return
 
 		song_id = util.string.strip(stdout or "")

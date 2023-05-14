@@ -37,16 +37,16 @@ t.color = {
 
 with t
 	.bg_normal     = .color.black
-	.bg_alternate  = .color.black_alternate -- "#135515C822FB"
-	.bg_focus      = .color.blue -- "#00008E07F911"
-	.bg_urgent     = .color.red -- "#FFFF00000F12"
-	.bg_minimize   = .color.grey_alternate -- "#445744574457"
+	.bg_alternate  = .color.black_alternate
+	.bg_focus      = .color.blue
+	.bg_urgent     = .color.red
+	.bg_minimize   = .color.grey_alternate
 	.bg_systray    = .bg_normal
 
-	.fg_normal     = .color.white -- "#FFFFFAFFF499"
-	.fg_focus      = .fg_normal
-	.fg_urgent     = .fg_normal
-	.fg_minimize   = .fg_normal
+	.fg_normal     = .color.white
+	.fg_focus      = .color.white_alternate
+	.fg_urgent     = .color.white_alternate
+	.fg_minimize   = .color.white_alternate
 
 	.useless_gap         = scale(2)
 	.border_width        = scale(1)
@@ -58,6 +58,14 @@ with t
 	.button_bg_active   = "#1D2034"
 	.button_bg_selected = "#252941"
 	.button_bg_press    = "#303654"
+
+	.titlebar_bg_normal  = .color.black
+	.titlebar_bg_focus  = .color.black_alternate
+	.titlebar_fg_normal = "#dedede"
+	.titlebar_fg_focus = .fg_normal
+
+	.lyricsbox_fg_normal = "#dedede"
+	.lyricsbox_fg_focus = .fg_normal
 
 -- There are other variable sets
 -- overriding the default one when
@@ -106,37 +114,82 @@ t.menu_width  = scale(200)
 -- beautiful.variable in your rc.lua
 --theme.bg_widget = "#cc0000"
 
-t.icon_color = t.fg_focus or "#ffffff"
-load_icon = (path) ->
-	gears.color.recolor_image(theme_path .. path, t.icon_color)
+t.icon_color_focus = t.fg_focus or "#ffffff"
+t.icon_color_normal = t.fg_normal or "#dedede"
+load_icon = (path, unfocused) ->
+	gears.color.recolor_image(theme_path .. path, unfocused and t.icon_color_normal or t.icon_color_focus)
+
+t.window_control_icon_padding = scale(64)
+add_padding = (image, padding=t.window_control_icon_padding) ->
+	res = image
+
+	try
+		w = wibox.widget {
+			nil
+			{
+				{
+					image:  image
+					halign: "center"
+					valign: "center"
+					widget: wibox.widget.imagebox
+				}
+				margins: padding
+				widget:  wibox.container.margin
+			}
+			layout: wibox.layout.align.horizontal
+		}
+
+		res = wibox.widget.draw_to_image_surface(w, 256, 256)
+
+		--util.notify(res, 0)
+	catch err
+		util.notify(err, 0)
+
+	res
 
 with t
-	-- Define the image to load
+	--[[
 	.titlebar_close_button_normal = load_icon("titlebar/close_normal.png")
 	.titlebar_close_button_focus  = load_icon("titlebar/close_focus.png")
 
 	.titlebar_minimize_button_normal = load_icon("titlebar/minimize_normal.png")
 	.titlebar_minimize_button_focus  = load_icon("titlebar/minimize_focus.png")
 
-	.titlebar_ontop_button_normal_inactive = load_icon("titlebar/ontop_normal_inactive.png")
-	.titlebar_ontop_button_focus_inactive  = load_icon("titlebar/ontop_focus_inactive.png")
-	.titlebar_ontop_button_normal_active   = load_icon("titlebar/ontop_normal_active.png")
-	.titlebar_ontop_button_focus_active    = load_icon("titlebar/ontop_focus_active.png")
-
-	.titlebar_sticky_button_normal_inactive = load_icon("titlebar/sticky_normal_inactive.png")
-	.titlebar_sticky_button_focus_inactive  = load_icon("titlebar/sticky_focus_inactive.png")
-	.titlebar_sticky_button_normal_active   = load_icon("titlebar/sticky_normal_active.png")
-	.titlebar_sticky_button_focus_active    = load_icon("titlebar/sticky_focus_active.png")
-
-	.titlebar_floating_button_normal_inactive = load_icon("titlebar/floating_normal_inactive.png")
-	.titlebar_floating_button_focus_inactive  = load_icon("titlebar/floating_focus_inactive.png")
-	.titlebar_floating_button_normal_active   = load_icon("titlebar/floating_normal_active.png")
-	.titlebar_floating_button_focus_active    = load_icon("titlebar/floating_focus_active.png")
-
 	.titlebar_maximized_button_normal_inactive = load_icon("titlebar/maximized_normal_inactive.png")
 	.titlebar_maximized_button_focus_inactive  = load_icon("titlebar/maximized_focus_inactive.png")
 	.titlebar_maximized_button_normal_active   = load_icon("titlebar/maximized_normal_active.png")
 	.titlebar_maximized_button_focus_active    = load_icon("titlebar/maximized_focus_active.png")
+
+	.titlebar_ontop_button_normal_inactive = load_icon("titlebar/ontop_normal_inactive.png")
+	.titlebar_ontop_button_focus_inactive  = load_icon("titlebar/ontop_focus_inactive.png")
+	.titlebar_ontop_button_normal_active   = load_icon("titlebar/ontop_normal_active.png")
+	.titlebar_ontop_button_focus_active    = load_icon("titlebar/ontop_focus_active.png")
+	--]]
+	.titlebar_close_button_normal = add_padding load_icon("icons/window-controls/close.png", true)
+	.titlebar_close_button_focus  = add_padding load_icon("icons/window-controls/close.png", false)
+
+	.titlebar_minimize_button_normal = add_padding load_icon("icons/window-controls/minimize.png", true)
+	.titlebar_minimize_button_focus  = add_padding load_icon("icons/window-controls/minimize.png", false)
+
+	.titlebar_maximized_button_normal_inactive = add_padding load_icon("icons/window-controls/maximize.png", true)
+	.titlebar_maximized_button_focus_inactive  = add_padding load_icon("icons/window-controls/maximize.png", false)
+	.titlebar_maximized_button_normal_active   = add_padding load_icon("icons/window-controls/restore.png", true)
+	.titlebar_maximized_button_focus_active    = add_padding load_icon("icons/window-controls/restore.png", false)
+
+	.titlebar_ontop_button_normal_inactive = load_icon("titlebar/ontop_normal_inactive.png", true)
+	.titlebar_ontop_button_focus_inactive  = load_icon("titlebar/ontop_focus_inactive.png", false)
+	.titlebar_ontop_button_normal_active   = load_icon("titlebar/ontop_normal_active.png", true)
+	.titlebar_ontop_button_focus_active    = load_icon("titlebar/ontop_focus_active.png", false)
+
+	.titlebar_sticky_button_normal_inactive = load_icon("titlebar/sticky_normal_inactive.png", true)
+	.titlebar_sticky_button_focus_inactive  = load_icon("titlebar/sticky_focus_inactive.png", false)
+	.titlebar_sticky_button_normal_active   = load_icon("titlebar/sticky_normal_active.png", true)
+	.titlebar_sticky_button_focus_active    = load_icon("titlebar/sticky_focus_active.png", false)
+
+	.titlebar_floating_button_normal_inactive = load_icon("titlebar/floating_normal_inactive.png", true)
+	.titlebar_floating_button_focus_inactive  = load_icon("titlebar/floating_focus_inactive.png", false)
+	.titlebar_floating_button_normal_active   = load_icon("titlebar/floating_normal_active.png", true)
+	.titlebar_floating_button_focus_active    = load_icon("titlebar/floating_focus_active.png", false)
 
 	.wallpaper = theme_path .. "background.jpg"
 

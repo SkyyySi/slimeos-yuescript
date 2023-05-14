@@ -195,6 +195,7 @@ export clamp = (value, min, max) ->
 	value
 
 export smart_insert = (tb, value, index) ->
+	-- TODO: This is unnecessary, because `table.insert()` can also move items
 	if index == nil
 		tb[] = value
 	elseif tb[index] == nil

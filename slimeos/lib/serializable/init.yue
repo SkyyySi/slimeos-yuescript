@@ -1,0 +1,86 @@
+import "dkjson"
+
+local *
+
+export escape_string = (str) ->
+	str = str
+		::gsub("\\", [[\\]])
+		::gsub("\a", [[\a]])
+		::gsub("\b", [[\b]])
+		::gsub("\f", [[\f]])
+		::gsub("\n", [[\n]])
+		::gsub("\r", [[\r]])
+		::gsub("\t", [[\t]])
+		::gsub("\v", [[\v]])
+		::gsub("\"", [[\"]])
+		::gsub("\'", [[\']])
+		::gsub("\127", [[\127]]) -- DEL / delete key
+
+	--- See: https://www.asciitable.com/
+	--- Also: "\0" is not replaced here, because that doesn't work:
+	--- The string `"Hello\0world"` would not become `"Hello\\0world"`, but `"\\0H\\0e\\0l\\0l\\0o\\0\\0w\\0o\\0r\\0l\\0d\\0"`
+	for i = 1, 26
+		c = string.char(i)
+		str = str::gsub(c, "\\#{i}")
+
+	for i = 28, 31
+		c = string.char(i)
+		str = str::gsub(c, "\\#{i}")
+
+	str
+
+export table_is_list = (tb) ->
+	for k, v in pairs(tb)
+		if type(k) != "number"
+			return false
+	
+	true
+
+export table_to_string = (tb, depth) ->
+	depth ??= 0
+	indent = "    "::rep(depth*4)
+
+	is_list = table_is_list(tb)
+
+	if is_list
+		result = "[\n"
+
+		--for i = 1, #tb
+		--	'"' .. escape_string(k) .. '"'
+
+		result .. "]"
+	else
+		result = "{\n"
+
+		for k, v in pairs(tb)
+			v = switch type(v)
+				when "string"
+					'"' .. escape_string(v) .. '"'
+				when "table"
+					table_to_string(v)
+				else
+					tostring(v)
+
+			result ..= if next(tb, k) == nil
+				'"' .. escape_string(k) .. '"'
+
+		result .. "}"
+
+
+export class Serializable
+	new: () =>
+		@data = {}
+
+	get: (key) =>
+		@data[key]
+
+	set: (key, value) =>
+		@data[key] = value
+
+		@
+
+	to_json: () =>
+		dkjson.encode(@data)
+
+	<tostring>: (tb, depth) =>
+	--save: 

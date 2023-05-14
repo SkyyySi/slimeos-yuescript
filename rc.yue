@@ -382,6 +382,65 @@ do
 	--draggable.connect_widget(my_box.widget)
 --]]
 
+update_client_shape = do
+	forced_rect_shape = false
+
+	client_border_width = beautiful.border_width or util.scale(1)
+	client_shape = beautiful.client_shape or (cr, w, h) ->
+		gears.shape.rounded_rect(cr, w, h, beautiful.corner_radius or util.scale(20))
+	rectangle = gears.shape.rectangle
+
+	awesome.connect_signal("beautiful::gaps_status_changed", () ->
+		forced_rect_shape = not beautiful.gaps_enabled
+
+		for _, c in ipairs(client.get())
+			update_shape_of(c)
+	)
+
+	set_picom_property = (window, enabled) ->
+		awful.spawn { "xprop", "-id", tostring(window), "-f", "_PICOM_ROUNDED_CORNERS", "32c", "-set", "_PICOM_ROUNDED_CORNERS", enabled and "1" or "0" }
+
+	(c) ->
+		window = c.window
+
+		if forced_rect_shape
+			c._old_border_width = c._old_border_width or client_border_width
+			c.border_width = client_border_width
+			c.shape = rectangle
+			set_picom_property(window, false)
+			return
+
+		set_picom_property(window, true)
+
+		if c.maximized or c.fullscreen
+			c._old_border_width = c._old_border_width or client_border_width
+			c.border_width = 0
+			c.shape = rectangle
+			set_picom_property(window, false)
+		else
+			c.border_width = c._old_border_width or client_border_width
+			if c.type == "normal"
+				c.shape = client_shape
+				set_picom_property(window, true)
+
+for _, c in ipairs(client.get())
+	update_client_shape(c)
+client.connect_signal("manage", update_client_shape)
+client.connect_signal("property::fullscreen", update_client_shape)
+client.connect_signal("property::maximized", update_client_shape)
+
+tag_has_maxmimized_client = (t) ->
+	result = false
+	for _, c in t::clients()
+		if c.maximized or c.fullscreen
+			result = true
+			break
+
+	awesome.emit_signal("tag::has_maximized_client", result)
+	result
+
+-- TODO: Make the panel and system center have rectengular corners if a client is maximized on the current tag
+
 do
 	cg = collectgarbage
 	cg("setpause", 110)

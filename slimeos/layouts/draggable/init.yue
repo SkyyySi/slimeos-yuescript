@@ -11,39 +11,6 @@ _module.move = (index, point) =>
 	@_private.pos[index] = point or { x: 0, y: 0 }
 	@emit_signal("widget::layout_changed")
 
---[[
-override_keys = {
-	"add"
-	"add_at"
-	"insert"
-	"set"
-	"replace_widget"
-	"remove"
-	"remove_widgets"
-	"move"
-	"move_widget"
-	"swap"
-	"swap_widgets"
-	"reset"
-}
---]]
-
---[[
-old_methods = {}
-for _, key in ipairs(override_keys)
-	old_methods[key] = _module[key]
-
-new_methods = {}
---]]
-
---[[
-new_methods.add = (...) =>
-	for _, widget in ipairs({ ... })
-		widget.point ??= { x: 0, y: 0 }
-
-	old_methods.add(@, ...)
---]]
-
 calculate_is_dragging = (parent, coords) ->
 	--- coords --> { initial_x, initial_y, current_x, current_y }
 	if parent.direction != "vertical" -- (args.direction == "horizontal") or (args.direction == "any")

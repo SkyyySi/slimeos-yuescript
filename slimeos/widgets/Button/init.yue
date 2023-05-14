@@ -9,10 +9,10 @@ import "naughty"
 import Object, util, wrap, ClassPlus from require("slimeos.lib")
 
 --[ [
-Button = { __name: "Button", __meta: { __tostring: (cls) -> "<widget '#{cls.__name}'>" } }
-Button.__index = Button
-Button.__meta.__index = Button.__meta
-setmetatable(Button, Button.__meta)
+Button = { mt: {} }
+Button.mt.__index = Button.mt
+Button.mt.__name = "slimeos.widget.Button"
+setmetatable(Button, Button.mt)
 
 properties = {
 	"bg_normal"
@@ -25,18 +25,18 @@ properties = {
 }
 
 for property in *properties
-	Button["get_" .. property] = ()      => @__private[property]
-	Button["set_" .. property] = (value) => @__private[property] = value
+	Button["get_" .. property] = ()      => @_private[property]
+	Button["set_" .. property] = (value) => @_private[property] = value
 
-Button.__meta.__call = (cls, args={}) ->
+Button.mt.__call = (cls, args={}) ->
 	@ = wibox.container.background()
 
 	gears.table.crush(@, cls)
 
-	if @__private == nil
-		@__private = {}
+	if @_private == nil
+		@_private = {}
 
-	p = @__private
+	p = @_private
 
 	with args
 		p.bg_normal   = .bg_normal   ?? beautiful.Button_bg_normal   ?? "#FFFFFF00"
@@ -83,153 +83,5 @@ Button.__meta.__call = (cls, args={}) ->
 	)
 
 	@
-
---[[
-	init: (args={}) =>
-		p = @__private
-
-		with args
-			p.bg_normal   = .bg_normal   ?? "#FFFFFF00"
-			p.bg_selected = .bg_selected ?? "#FFFFFF20"
-			p.bg_press    = .bg_press    ?? "#FFFFFF40"
-
-			p.fg_normal   = .fg_normal
-			p.fg_selected = .fg_selected
-			p.fg_press    = .fg_press
-
-			@bg = .initial_bg ?? p.bg_normal
-			@fg = .initial_fg ?? p.fg_normal
-
-			p.mouse_effects = .mouse_effects ?? true
-
-		p.pressed = false
-		p.below_cursor = false
-
-		@connect_signal("mouse::enter", () ->
-			@bg = p.bg_selected
-			@bg = p.bg_selected
-			p.below_cursor = true
-
-			if p.mouse_effects
-				wb = mouse.current_wibox ?? {}
-				p.previous_cursor, p.previous_wibox = wb.cursor, wb
-				wb.cursor = "hand1"
-		)
-
-		@connect_signal("mouse::leave", () ->
-			@bg = p.bg_normal
-			p.below_cursor = false
-
-			if p.mouse_effects and previous_wibox
-				p.previous_wibox.cursor = previous_cursor
-				p.previous_wibox = nil
-		)
-
-		@connect_signal("button::press", (_, _, _, button) ->
-			@bg = p.bg_press
-			p.pressed = true
-		)
-
-		@connect_signal("button::release", (_, _, _, button) ->
-			@bg = p.bg_selected
-
-			p.pressed = false
-		)
-
-		@__name = "Button"
-		@.<tostring> = () => "<Widget '#{@__name}' instance>"
---]]
-
---[[
-local Button
-Button = ClassPlus
-	name: "Button"
-
-	--parents: { wrap.GearsObjectCP(wibox.container.background, "wibox.container.background") }
-
-	new: (cls, args={}) ->
-		with args
-			.type ??= "normal"
-			.bg = gears.color.transparent
-
-		ClassPlus.super(Button).__new(cls, args)
-
-	init: (args={}) =>
-		@__private ??= {}
-		p = @__private
-
-		with args
-			p.bg_normal   = .bg_normal   ?? "#FFFFFF00"
-			p.bg_selected = .bg_selected ?? "#FFFFFF20"
-			p.bg_press    = .bg_press    ?? "#FFFFFF40"
-
-			p.fg_normal   = .fg_normal
-			p.fg_selected = .fg_selected
-			p.fg_press    = .fg_press
-
-			@bg = .initial_bg ?? p.bg_normal
-			@fg = .initial_fg ?? p.fg_normal
-
-			p.mouse_effects = .mouse_effects ?? true
-
-		util.gen_properties {
-			object: @
-			properties: {
-				"bg_normal"
-				"bg_selected"
-				"bg_press"
-				"fg_normal"
-				"fg_selected"
-				"fg_press"
-				"mouse_effects"
-			}
-		}
-
-		p.pressed = false
-		p.below_cursor = false
-
-		@connect_signal("mouse::enter", () ->
-			@bg = p.bg_selected
-			@bg = p.bg_selected
-			p.below_cursor = true
-
-			if p.mouse_effects
-				wb = mouse.current_wibox ?? {}
-				p.previous_cursor, p.previous_wibox = wb.cursor, wb
-				wb.cursor = "hand1"
-		)
-
-		@connect_signal("mouse::leave", () ->
-			@bg = p.bg_normal
-			p.below_cursor = false
-
-			if p.mouse_effects and previous_wibox
-				p.previous_wibox.cursor = previous_cursor
-				p.previous_wibox = nil
-		)
-
-		@connect_signal("button::press", (_, _, _, button) ->
-			@bg = p.bg_press
-			p.pressed = true
-		)
-
-		@connect_signal("button::release", (_, _, _, button) ->
-			@bg = p.bg_selected
-
-			p.pressed = false
-		)
-
-		--@__name = "Button"
-		--@.<tostring> = () => "<Widget '#{@__name}' instance>"
-
-for k, v in pairs(Button)
-	print("Button.#{k}\t= #{v}")
-print(Button().layout)
---]]
-
---[[
-Button = (args={}) ->
-	wibox.container.background(args)
---]]
 
 Button

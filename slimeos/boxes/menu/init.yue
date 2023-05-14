@@ -1,0 +1,20 @@
+require = require
+tostring = tostring
+getmetatable = getmetatable
+setmetatable = setmetatable
+
+import awful, beautiful, gears, wibox, screen from require("awesome_std")
+
+import "slimeos.lib.util"
+import "slimeos.widgets.Button"
+
+local *
+
+print = util.notify
+
+_module = { <call>: (...) => @.new(...) }
+
+_module.new = (args={}) ->
+	container = awful.popup {}
+
+_module
