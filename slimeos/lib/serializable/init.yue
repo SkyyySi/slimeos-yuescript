@@ -50,7 +50,9 @@ print = print
 error = error
 tostring = tostring
 
-import "dkjson"
+--- If you want to use `json.lua` by rxi instead, replace it with
+--- import "json"
+import "dkjson" as json
 
 import "lgi"
 import Gio, GLib from lgi
@@ -147,11 +149,11 @@ export class JSONSerializable
 
 	to_json: () =>
 		log.debug("Called #{@@__name}.to_json()")
-		dkjson.encode(@data)
+		json.encode(@data)
 
 	<tostring>: (tb, depth) =>
 		log.debug("Called #{@@__name}.<>.tostring()")
-		@@__name .. "(" .. dkjson.encode(@data, { indent: true }) .. ")"
+		@@__name .. "(" .. json.encode(@data, { indent: true }) .. ")"
 
 	load: (callback, path) =>
 		log.debug("Called #{@@__name}.load()")
@@ -163,7 +165,7 @@ export class JSONSerializable
 		read_file_async(path, (success, content) ->
 			if success
 				log.info("The reading from '#{path}' was successful")
-				@data = dkjson.decode(content)
+				@data = json.decode(content)
 			else
 				log.error("Something went wrong while trying to load from '#{path}'")
 
