@@ -1,86 +1,193 @@
+--- Usage example:
+---
+--- ```yuescript
+--- import JSONSerializable from require("slimeos.lib.serializable")
+--- 
+--- my_data_store = JSONSerializable {
+--- 	data: {
+--- 		foo: "bar"
+--- 		biz: "baz"
+--- 		langs: { "lua", "moonscript", "yuescript", "fennel", "teal" }
+--- 	}
+--- 	path: "/tmp/test.json"
+--- }
+--- 
+--- print("my_data_store.<tostring> = #{my_data_store}")
+--- print("my_data_store::to_json() = #{my_data_store::to_json()}")
+--- 
+--- my_data_store::save((success) -> print("success = #{success}, data = #{my_data_store::to_json()}"))
+--- 
+--- -- Note: in the unlikely scenario that you actually want to `load()` right
+--- -- after running `save()`, the thing you really want to do is to run the `load()`
+--- -- nested inside of the callback passed to `save()`.
+--- my_data_store::load((success) -> print("success = #{success}, data = #{my_data_store::to_json()}"))
+--- ```
+---
+--- Or, if you would like to test this in a stand-alone Lua session:
+---
+--- ```lua
+--- JSONSerializable = require("slimeos.lib.serializable").JSONSerializable
+--- 
+--- local my_data_store = JSONSerializable {
+--- 	data = {
+--- 		foo = "bar",
+--- 		biz = "baz",
+--- 		langs = { "lua", "moonscript", "yuescript", "fennel", "teal" },
+--- 	},
+--- 	path = "/tmp/test.json",
+--- }
+--- 
+--- my_data_store:save(function(success)
+--- 	--- Should print somehting like this:
+--- 	--- success = true, data = {"biz":"baz","foo":"bar","langs":["lua","moonscript","yuescript","fennel","teal"]}
+--- 	print(("success = %s, data = %s"):format(success, my_data_store:to_json()))
+--- end)
+--- 
+--- require("lgi").GLib.MainLoop():run()
+--- ```
+
+print = print
+error = error
+tostring = tostring
+
 import "dkjson"
+
+import "lgi"
+import Gio, GLib from lgi
 
 local *
 
-export escape_string = (str) ->
-	str = str
-		::gsub("\\", [[\\]])
-		::gsub("\a", [[\a]])
-		::gsub("\b", [[\b]])
-		::gsub("\f", [[\f]])
-		::gsub("\n", [[\n]])
-		::gsub("\r", [[\r]])
-		::gsub("\t", [[\t]])
-		::gsub("\v", [[\v]])
-		::gsub("\"", [[\"]])
-		::gsub("\'", [[\']])
-		::gsub("\127", [[\127]]) -- DEL / delete key
+unpack = unpack or table.unpack
 
-	--- See: https://www.asciitable.com/
-	--- Also: "\0" is not replaced here, because that doesn't work:
-	--- The string `"Hello\0world"` would not become `"Hello\\0world"`, but `"\\0H\\0e\\0l\\0l\\0o\\0\\0w\\0o\\0r\\0l\\0d\\0"`
-	for i = 1, 26
-		c = string.char(i)
-		str = str::gsub(c, "\\#{i}")
+export disable_error_catching = false
 
-	for i = 28, 31
-		c = string.char(i)
-		str = str::gsub(c, "\\#{i}")
+export log = {
+	level: 2
 
-	str
+	debug:  (msg) ->
+		if log.level >= 4
+			print("\027[1;35mDEBUG\027[0m: #{msg}")
 
-export table_is_list = (tb) ->
-	for k, v in pairs(tb)
-		if type(k) != "number"
-			return false
-	
-	true
+	info:  (msg) ->
+		if log.level >= 3
+			print("\027[1;34mINFO\027[0m: #{msg}")
 
-export table_to_string = (tb, depth) ->
-	depth ??= 0
-	indent = "    "::rep(depth*4)
+	warn:  (msg) ->
+		if log.level >= 2
+			print("\027[1;33mWARNING\027[0m: #{msg}")
 
-	is_list = table_is_list(tb)
+	error: (msg) ->
+		if disable_error_catching
+			error(msg)
 
-	if is_list
-		result = "[\n"
+		if log.level >= 1
+			print("\027[1;31mERROR\027[0m: #{msg}")
+}
 
-		--for i = 1, #tb
-		--	'"' .. escape_string(k) .. '"'
+__read_file_async_impl = (file_path, callback) ->
+	file = Gio.File.new_for_path(file_path)
 
-		result .. "]"
-	else
-		result = "{\n"
+	file::load_contents_async(nil, (file_, result) ->
+		local contents
 
-		for k, v in pairs(tb)
-			v = switch type(v)
-				when "string"
-					'"' .. escape_string(v) .. '"'
-				when "table"
-					table_to_string(v)
-				else
-					tostring(v)
+		success = try
+			contents = file::load_contents_finish(result)
+		catch err
+			log.error("Something went wrong while trying to read from file '#{file_path}': " .. tostring(err))
 
-			result ..= if next(tb, k) == nil
-				'"' .. escape_string(k) .. '"'
+		if type(contents) != "string"
+			success = false
 
-		result .. "}"
+		if callback
+			log.debug("Executing callback for `serializable.write_file_async()`-call")
+			callback(success, contents)
+	)
 
+export read_file_async = (...) ->
+	Gio.Async.start(__read_file_async_impl)(...)
 
-export class Serializable
-	new: () =>
-		@data = {}
+__write_file_async_impl = (file_path, content, callback) ->
+	file = Gio.File.new_for_path(file_path)
+
+	file::replace_contents_bytes_async(
+		GLib.Bytes(content),
+		nil,
+		false,
+		Gio.FileCreateFlags.REPLACE_DESTINATION,
+		nil,
+		(file_, result) ->
+			success = try
+				file::replace_contents_finish(result)
+			catch err
+				log.error("Something went wrong while trying to write to file '#{file_path}'" .. tostring(err))
+
+			if callback
+				log.debug("Executing callback for `serializable.write_file_async()`-call")
+				callback(success)
+	)
+
+export write_file_async = (...) ->
+	Gio.Async.start(__write_file_async_impl)(...)
+
+export class JSONSerializable
+	new: (kwargs={}) =>
+		log.debug("Created new #{@@__name}-object")
+		@data = kwargs.data ?? {}
+		@path = kwargs.path
 
 	get: (key) =>
+		log.debug("Called #{@@__name}.get()")
 		@data[key]
 
 	set: (key, value) =>
+		log.debug("Called #{@@__name}.set()")
 		@data[key] = value
 
 		@
 
 	to_json: () =>
+		log.debug("Called #{@@__name}.to_json()")
 		dkjson.encode(@data)
 
 	<tostring>: (tb, depth) =>
-	--save: 
+		log.debug("Called #{@@__name}.<>.tostring()")
+		@@__name .. "(" .. dkjson.encode(@data, { indent: true }) .. ")"
+
+	load: (callback, path) =>
+		log.debug("Called #{@@__name}.load()")
+		path ??= @path
+
+		if not path?
+			log.error("Attemted to load data from file, but neither was a path provided nor was @path set.")
+
+		read_file_async(path, (success, content) ->
+			if success
+				log.info("The reading from '#{path}' was successful")
+				@data = dkjson.decode(content)
+			else
+				log.error("Something went wrong while trying to load from '#{path}'")
+
+			log.debug("Executing callback for #{@@__name}.load()")
+			callback(success)
+		)
+
+		@
+
+	save: (callback, path) =>
+		log.debug("Called #{@@__name}.save()")
+		path ??= @path
+
+		if not path?
+			log.error("Attemted to save data to file, but neither was a path provided nor was @path set.")
+
+		write_file_async(path, @to_json(), (success) ->
+			if success
+				log.info("The saving to '#{path}' was successful")
+			else
+				log.error("Something went wrong while trying to save to '#{path}'")
+
+			log.debug("Executing callback for #{@@__name}.save()")
+			callback(success)
+		)
+
+		@

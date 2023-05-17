@@ -1,3 +1,7 @@
-export lyricsbox           = require("slimeos.widgets.SystemCenter.widgets.lyricsbox")
-export notification_center = require("slimeos.widgets.SystemCenter.widgets.notification_center")
-export volume_control      = require("slimeos.widgets.SystemCenter.widgets.volume_control")
+{ name, require("slimeos.widgets.SystemCenter.widgets.#{name}") for _, name in ipairs {
+	"cava"
+	"lyricsbox"
+	--"multimedia_remote"
+	"notification_center"
+	"volume_control"
+} }

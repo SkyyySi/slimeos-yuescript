@@ -1,0 +1,17 @@
+{
+	// See https://go.microsoft.com/fwlink/?LinkId=733558
+	// for the documentation about the tasks.json format
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Watch Yuescript files",
+			"type": "shell",
+			"command": "bash watch.sh"
+		},
+		{
+			"label": "Debug using Xephyr",
+			"type": "shell",
+			"command": "bash debug.sh"
+		}
+	]
+}

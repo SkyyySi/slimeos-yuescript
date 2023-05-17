@@ -197,10 +197,12 @@ multimedia_remote_controls = () ->
 
 	previous_metadata = {}
 	awesome.connect_signal("playerctl::metadata", (metadata) ->
-		$RUN_IF_CHANGED(metadata.title,      previous_metadata.title,      util.for_children(title,        "text_role",        (child) -> child.text  = metadata.title))
-		$RUN_IF_CHANGED(metadata.artist,     previous_metadata.artist,     util.for_children(artist,       "text_role",        (child) -> child.text  = metadata.artist))
-		$RUN_IF_CHANGED(metadata.art_cairo,  previous_metadata.art_cairo,  util.for_children(coverart,     "image_role",       (child) -> child.image = metadata.art_cairo))
-		$RUN_IF_CHANGED(metadata.completion, previous_metadata.completion, util.for_children(progress_bar, "progressbar_role", (child) -> child.value = metadata.completion))
+		-- TODO: Switch back to using `$RUN_IF_CHANGED(old, new, fn)` instead of `if new != old then fn`
+		-- after macros have been fixed.
+		if previous_metadata.title      != metadata.title      then util.for_children(title,        "text_role",        (child) -> child.text  = metadata.title)
+		if previous_metadata.artist     != metadata.artist     then util.for_children(artist,       "text_role",        (child) -> child.text  = metadata.artist)
+		if previous_metadata.art_cairo  != metadata.art_cairo  then util.for_children(coverart,     "image_role",       (child) -> child.image = metadata.art_cairo)
+		if previous_metadata.completion != metadata.completion then util.for_children(progress_bar, "progressbar_role", (child) -> child.value = metadata.completion)
 
 		previous_metadata = {
 			title:      metadata.title
@@ -328,7 +330,9 @@ multimedia_remote_controls = () ->
 	}
 
 
-import lyricsbox, volume_control, notification_center from require("slimeos.widgets.SystemCenter.widgets")
+import cava, lyricsbox, volume_control, notification_center from require("slimeos.widgets.SystemCenter.widgets")
+
+global __SYSTEMCENTER_CAVA_INSTANCE = __SYSTEMCENTER_CAVA_INSTANCE ?? cava()
 
 builtin_tabs.multimedia = () ->
 	wibox.widget {
@@ -341,6 +345,12 @@ builtin_tabs.multimedia = () ->
 			volume_control
 			height:   util.scale(30)
 			strategy: "max"
+			widget:   wibox.container.constraint
+		})
+		wrap_tab_block(wibox.widget {
+			__SYSTEMCENTER_CAVA_INSTANCE
+			height:   util.scale(300)
+			strategy: "min"
 			widget:   wibox.container.constraint
 		})
 		spacing: base_spacing

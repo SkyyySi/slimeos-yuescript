@@ -4,6 +4,7 @@ import awful, gears, wibox, ruled, beautiful, menubar, naughty, client from requ
 import surface from gears
 
 import util from require("slimeos.lib")
+import apcall, notify from util
 import Button from require("slimeos.widgets")
 
 import "lgi"
@@ -12,6 +13,7 @@ Gdk = lgi.require("Gdk", "3.0")
 import pixbuf_get_from_surface from Gdk
 
 macro INVERT = (var) ->
+	print("Inverting '#{var}'")
 	"#{var} = not #{var}"
 
 wrap_button = (widget) ->
@@ -122,6 +124,9 @@ window_control_buttons.minimize = (c) ->
 	w
 
 window_control_buttons.maximize = (c) ->
+	if c::is_fixed()
+		return
+
 	w = wibox.widget {
 		window_control_buttons.base_template()
 		buttons: {
@@ -174,7 +179,7 @@ title_widget = (c) ->
 	--- Equivalent to `get_app_id_async(c, (gio_search_result) ->`,
 	--- just without the need to indent.
 	--gio_search_result <- get_app_id_async(C)
-	gio_search_result = Gio.DesktopAppInfo.search(c.class)[1]
+	gio_search_result = c.class and Gio.DesktopAppInfo.search(c.class)[1]
 
 	widget = wibox.widget.textbox()
 
@@ -193,24 +198,31 @@ title_widget = (c) ->
 	widget
 
 client.connect_signal("request::titlebars", (c) ->
+	<- apcall()
+
 	if c.requests_no_titlebar
 		return
+
+	-- TODO: Switch back to using `$INVERT(x)` instead of `x = not x`
+	-- after macros have been fixed.
 
 	menu = awful.menu {
 		items: {
 			{ "Close",        (() -> c::kill()), beautiful.titlebar_close_button_focus }
-			{ "Maximize",     (() -> $INVERT(c.maximized)), beautiful.titlebar_maximized_button_focus_inactive }
-			{ "Minimize",     (() -> $INVERT(c.minimized)), beautiful.titlebar_minimize_button_focus }
-			{ "Sticky",       (() -> $INVERT(c.sticky)), beautiful.titlebar_sticky_button_focus_inactive }
-			{ "Float / tile", (() -> $INVERT(c.floating)), beautiful.titlebar_floating_button_focus_active }
+			{ "Maximize",     (() -> c.maximized = not c.maximized), beautiful.titlebar_maximized_button_focus_inactive }
+			{ "Minimize",     (() -> c.minimized = not c.minimized), beautiful.titlebar_minimize_button_focus }
+			{ "Sticky",       (() -> c.sticky = not c.sticky), beautiful.titlebar_sticky_button_focus_inactive }
+			{ "Float / tile", (() -> c.floating = not c.floating), beautiful.titlebar_floating_button_focus_active }
 			{ "Keep above",   (() ->
 				c.below = false
-				$INVERT(c.above)
+				c.above = not c.above
 			), beautiful.titlebar_ontop_button_focus_active }
 			{ "Keep below",   (() ->
 				c.above = false
-				$INVERT(c.below)
+				c.below = not c.below
 			), beautiful.titlebar_below_button_focus_active } -- Note: this icon doesn't exist in the deault icon set
+			{ "-----------------" }
+			{ "Reload color", (() -> c::__update_titlebar_bg()) }
 		}
 	}
 

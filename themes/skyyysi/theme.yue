@@ -6,7 +6,7 @@ import "menubar"
 import "naughty"
 
 import "slimeos.lib.util"
-import scale from util
+import lookup_icon, scale from util
 
 import "beautiful.theme_assets"
 
@@ -38,6 +38,7 @@ t.color = {
 with t
 	.bg_normal     = .color.black
 	.bg_alternate  = .color.black_alternate
+	.bg_accent     = .color.blue
 	.bg_focus      = .color.blue
 	.bg_urgent     = .color.red
 	.bg_minimize   = .color.grey_alternate
@@ -215,6 +216,8 @@ with t
 t.awesome_icon = theme_assets.awesome_icon(
     scale(64), t.bg_focus, t.fg_focus
 )
+
+t.fallback_icon = lookup_icon("application-default-icon") or t.awesome_icon
 
 -- Fix blurry tasklist icons
 awesome.set_preferred_icon_size(128)

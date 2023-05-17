@@ -40,8 +40,10 @@ import "wibox"
 import "beautiful"
 
 import util, LRC, exception from require("slimeos.lib")
-import notify from util
+import notify, notify_error from util
 import MissingParameterException from exception
+
+import JSONSerializable from require("slimeos.lib.serializable")
 
 show_table_error = (header, data) ->
 	msg = "ERROR: #{header}! More info:\n\n"
@@ -137,7 +139,7 @@ song_cache.<> = {
 
 			@merge(reloaded_cache)
 		catch err
-			print("ERROR: #{err}")
+			notify_error("ERROR: #{err}")
 
 		@
 
@@ -165,6 +167,8 @@ song_cache.<> = {
 		@
 }
 song_cache.<>.__index = song_cache.<>
+
+song_cache::reload()
 
 lyricsbox = wibox.widget {
 	nil
@@ -326,7 +330,7 @@ gears.timer {
 
 			--print(song)
 
-			lyricsbox::clear()
+			--lyricsbox::clear()
 
 			prev_song = song
 

@@ -47,6 +47,14 @@ export create_module = (name) ->
 	setmetatable(module, module.__meta)
 --]]
 
+export create_module = (name) ->
+	mod = { mt: {} }
+	mod.<> = mod.mt
+	mod.mt.__index = mod.mt
+	mod.mt.__name = name
+
+	mod
+
 export string   = require("slimeos.lib.util.string")
 export terminal = require("slimeos.lib.util.terminal")
 
@@ -54,6 +62,13 @@ export notify = (msg, timeout) ->
 	naughty.notification {
 		timeout: timeout ?? 5
 		message: tostring(msg)
+	}
+
+export notify_error = (msg) ->
+	naughty.notification {
+		message: "ERROR: #{msg}\n#{yue.traceback(2)}"
+		urgency: "critical"
+		timeout: 0
 	}
 
 export pretty_print = (value) -> tts.prettify(value)
@@ -66,12 +81,7 @@ export apcall = (fn, ...) ->
 	args = { ... }
 	xpcall(
 		(() -> fn(unpack(args))),
-		(msg) ->
-			naughty.notification {
-				message: "ERROR: #{msg}\n#{yue.traceback(2)}"
-				urgency: "critical"
-				timeout: 0
-			}
+		notify_error
 	)
 
 export lookup_icon = (icon_name) ->
@@ -185,14 +195,13 @@ export protected_open = (path, mode, callback) ->
 
 	file::close()
 
-export clamp = (value, min, max) ->
-	if value <= min
-		return min
-
-	if value >= max
-		return max
-	
-	value
+export clamp = (value, floor, ceiling) ->
+	if value < floor
+		floor
+	elseif value > ceiling
+		ceiling
+	else
+		value
 
 export smart_insert = (tb, value, index) ->
 	-- TODO: This is unnecessary, because `table.insert()` can also move items
@@ -215,14 +224,6 @@ export after_timeout = (timeout, callback) ->
 		single_shot: true
 		callback: callback
 	}
-
-export clamp = (value, floor, ceiling) ->
-	if value < floor
-		floor
-	elseif value > ceiling
-		ceiling
-	else
-		value
 
 export shape = (s, ...) ->
 	args = { ... }

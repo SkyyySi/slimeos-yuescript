@@ -2,7 +2,7 @@ require = require
 setmetatable = setmetatable
 next = next
 
-import awesome, awful, gears, wibox, ruled, beautiful, menubar, naughty from require("awesome_std")
+import awesome, awful from require("awesome_std")
 
 import "slimeos.lib.util"
 

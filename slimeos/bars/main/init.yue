@@ -199,6 +199,7 @@ wrap_section = (side, widget) ->
 			{
 				{
 					id:     "icon_role"
+					image:  beautiful.fallback_icon
 					widget: wibox.widget.imagebox
 				}
 				margins: util.scale(4)

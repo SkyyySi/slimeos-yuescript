@@ -1,0 +1,100 @@
+require = require
+setmetatable = setmetatable
+tonumber = tonumber
+tostring = tostring
+
+import awesome, awful, beautiful, gears, wibox from require("awesome_std")
+
+import apcall, for_children, scale, notify from require("slimeos.lib.util")
+import split from require("slimeos.lib.util.string")
+
+local *
+
+macro EXPORT = (name, value) ->
+	if not value
+		"table.insert(_module, #{name})"
+	elseif name_number = tonumber(name)
+		"_module[#{name}] = #{value}"
+	elseif pure_name = (name::match([["([^"]*)"]]) or name::match([['([^']*)']]))
+		"_module[#{name}] = #{name}"
+	else
+		"local #{name}\n#{name} = #{value}\n_module[\"#{name}\"] = #{name}"
+
+export awesome_config_path = gears.filesystem.get_configuration_dir()
+export cava_config_path = awesome_config_path .. "config/cava/config.ini"
+export cava_command = "cava -p #{cava_config_path::gsub([[']], [['"'"']])}"
+export create_bar = (kwargs) ->
+	wibox.widget(kwargs.widget_template)
+
+instance_get_bars = () => @_private.bars
+instance_set_bars = (value) =>
+	@_private.bars = value
+
+	for_children(@, "bars_role", (child) ->
+		child::reset()
+		for _, bar in ipairs(value)
+			child::add(bar)
+	)
+
+new = (kwargs={}) ->
+	with kwargs
+		.bar_count ??= 32
+		.widget_template ??= {
+			id:      "bars_role"
+			spacing: scale(2)
+			layout:  wibox.layout.flex.horizontal
+		}
+		.bar_template ??= {
+			{
+				id:     "counter_role"
+				halign: "center"
+				valign: "top"
+				font:   beautiful.apply_font_size(beautiful.font, scale(6))
+				widget: wibox.widget.textbox
+			}
+			{
+				{
+					id:               "bar_role"
+					min_value:        0
+					max_value:        1000
+					value:            0
+					color:            beautiful.system_center_cava_visbar_color or beautiful.bg_accent
+					background_color: beautiful.system_center_cava_visbar_background_color or gears.color.transparent
+					shape:            beautiful.system_center_cava_visbar_shape or gears.shape.rounded_bar
+					bar_shape:        beautiful.system_center_cava_visbar_bar_shape or gears.shape.rounded_bar
+					widget:           wibox.widget.progressbar
+				}
+				direction: "east"
+				layout:    wibox.container.rotate
+			}
+			spacing: scale(5)
+			layout:  wibox.layout.fixed.vertical
+		}
+	
+	instance = wibox.widget(kwargs.widget_template)
+	instance.get_bars = instance_get_bars
+	instance.set_bars = instance_set_bars
+	instance.bars = [ create_bar({ widget_template: kwargs.bar_template }) for i = 1, kwargs.bar_count ]
+
+	--[ [
+	awful.spawn.with_line_callback(cava_command, stdout: (line) ->
+		<- apcall()
+		values = split(line, ";")
+		for i, value in ipairs(values)
+			current_bar = instance._private.bars[i]
+
+			value_number = tonumber(value)
+			for_children(current_bar, "bar_role", (child) ->
+				child::set_value(value_number)
+			)
+
+			count_string = tostring(i)
+			for_children(current_bar, "counter_role", (child) ->
+				child::set_text(count_string)
+			)
+	)
+	--]]
+
+	instance
+
+export.<call> = (module, ...) -> new(...)
