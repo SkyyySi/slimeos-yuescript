@@ -50,6 +50,8 @@ print = print
 error = error
 tostring = tostring
 
+import beautiful from require("awesome_std")
+
 --- If you want to use `json.lua` by rxi instead, replace it with
 --- import "json"
 import "dkjson" as json
@@ -57,33 +59,75 @@ import "dkjson" as json
 import "lgi"
 import Gio, GLib from lgi
 
+gio_async_start = Gio.Async.start
+
 local *
 
 unpack = unpack or table.unpack
 
 export disable_error_catching = false
 
-export log = {
-	level: 2
+import notify from require("slimeos.lib.util")
+import split from require("slimeos.lib.util.string")
 
-	debug:  (msg) ->
-		if log.level >= 4
-			print("\027[1;35mDEBUG\027[0m: #{msg}")
+import traceback from require("yue")
+
+color_map = {
+	"0": "</span></b>"
+	"1": "<b>"
+	"3": "<i>"
+	"30": "<span foreground='#{beautiful.color.black}'>"
+	"31": "<span foreground='#{beautiful.color.red}'>"
+	"32": "<span foreground='#{beautiful.color.green}'>"
+	"33": "<span foreground='#{beautiful.color.yellow}'>"
+	"34": "<span foreground='#{beautiful.color.blue}'>"
+	"35": "<span foreground='#{beautiful.color.magenta}'>"
+	"36": "<span foreground='#{beautiful.color.cyan}'>"
+	"37": "<span foreground='#{beautiful.color.white}'>"
+
+	<index>: (key) => ""
+}
+
+parse_colors = (str) ->
+	str::gsub("\027%[([^m]*)m", (match) ->
+		table.concat([ color_map[substr] for substr in *split(match, ";") ])
+	)
+
+export log = {
+	level: 0
+
+	print: (msg) ->
+		notify(
+			parse_colors(msg), 0
+		)
+
+	get_caller_name: (offset=0) ->
+		debug.getinfo(2 + offset).name
+
+	debug: {
+		method_call: () =>
+			if log.level >= 4
+				log.print("\027[1;35mDEBUG:\027[0m Called #{@@__name}.#{log.get_caller_name(1)}()")
+
+		<call>: (_, msg) ->
+			if log.level >= 4
+				log.print("\027[1;35mDEBUG:\027[0m #{msg}")
+	}
 
 	info:  (msg) ->
 		if log.level >= 3
-			print("\027[1;34mINFO\027[0m: #{msg}")
+			log.print("\027[1;34mINFO:\027[0m #{msg}")
 
 	warn:  (msg) ->
 		if log.level >= 2
-			print("\027[1;33mWARNING\027[0m: #{msg}")
+			log.print("\027[1;33mWARNING:\027[0m #{msg}")
 
-	error: (msg) ->
+	error: (msg, err) ->
 		if disable_error_catching
 			error(msg)
 
 		if log.level >= 1
-			print("\027[1;31mERROR\027[0m: #{msg}")
+			log.print("\027[1;31mERROR:\027[0m #{msg}\n#{traceback(err)}")
 }
 
 __read_file_async_impl = (file_path, callback) ->
@@ -106,7 +150,7 @@ __read_file_async_impl = (file_path, callback) ->
 	)
 
 export read_file_async = (...) ->
-	Gio.Async.start(__read_file_async_impl)(...)
+	gio_async_start(__read_file_async_impl)(...)
 
 __write_file_async_impl = (file_path, content, callback) ->
 	file = Gio.File.new_for_path(file_path)
@@ -129,7 +173,7 @@ __write_file_async_impl = (file_path, content, callback) ->
 	)
 
 export write_file_async = (...) ->
-	Gio.Async.start(__write_file_async_impl)(...)
+	gio_async_start(__write_file_async_impl)(...)
 
 export class JSONSerializable
 	new: (kwargs={}) =>
@@ -138,25 +182,25 @@ export class JSONSerializable
 		@path = kwargs.path
 
 	get: (key) =>
-		log.debug("Called #{@@__name}.get()")
+		log.debug.method_call(@)
 		@data[key]
 
 	set: (key, value) =>
-		log.debug("Called #{@@__name}.set()")
+		log.debug.method_call(@)
 		@data[key] = value
 
 		@
 
 	to_json: () =>
-		log.debug("Called #{@@__name}.to_json()")
+		log.debug.method_call(@)
 		json.encode(@data)
 
 	<tostring>: (tb, depth) =>
-		log.debug("Called #{@@__name}.<>.tostring()")
+		log.debug.method_call(@)
 		@@__name .. "(" .. json.encode(@data, { indent: true }) .. ")"
 
 	load: (callback, path) =>
-		log.debug("Called #{@@__name}.load()")
+		log.debug.method_call(@)
 		path ??= @path
 
 		if not path?
@@ -165,7 +209,7 @@ export class JSONSerializable
 		read_file_async(path, (success, content) ->
 			if success
 				log.info("The reading from '#{path}' was successful")
-				@data = json.decode(content)
+				@data = json.decode(content) ?? {}
 			else
 				log.error("Something went wrong while trying to load from '#{path}'")
 
@@ -175,8 +219,43 @@ export class JSONSerializable
 
 		@
 
+	load_blocking: (path) =>
+		log.debug.method_call(@)
+		path ??= @path
+
+		if not path?
+			log.error("Attemted to load data from file, but neither was a path provided nor was @path set.")
+
+		f, err = io.open(path, "r")
+
+		if not f
+			f2, err2 = io.open(path, "w")
+
+			if not f2
+				log.error("Something went wrong while trying to open '#{path}'", err2)
+				return
+
+			f2::write("")
+			f2::close()
+
+			f, err = io.open(path, "r")
+
+		if not f
+			log.error("Something went wrong while trying to open '#{path}'", err)
+			return
+
+		log.info("The opening of '#{path}' was successful")
+
+		content = f::read("*a")
+
+		log.info("The reading from '#{path}' was successful")
+
+		@data = json.decode(content) ?? {}
+
+		@
+
 	save: (callback, path) =>
-		log.debug("Called #{@@__name}.save()")
+		log.debug.method_call(@)
 		path ??= @path
 
 		if not path?
@@ -191,5 +270,26 @@ export class JSONSerializable
 			log.debug("Executing callback for #{@@__name}.save()")
 			callback(success)
 		)
+
+		@
+
+	save_blocking: (path) =>
+		log.debug.method_call(@)
+		path ??= @path
+
+		if not path?
+			log.error("Attemted to load data from file, but neither was a path provided nor was @path set.")
+
+		f, err = io.open(path, "w")
+
+		if not f
+			log.error("Something went wrong while trying to open '#{path}'", err)
+			return
+
+		log.info("The opening of '#{path}' was successful")
+
+		f::write(@to_json())
+
+		log.info("The reading from '#{path}' was successful")
 
 		@

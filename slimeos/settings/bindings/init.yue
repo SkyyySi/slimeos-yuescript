@@ -1,54 +1,47 @@
-awful     = require("awful")
-gears     = require("gears")
-wibox     = require("wibox")
-ruled     = require("ruled")
-beautiful = require("beautiful")
-menubar   = require("menubar")
-naughty   = require("naughty")
-
-Tuple = require("slimeos.lib.collection.Tuple")
+import awful, menubar from require("awesome_std")
 
 (args={}) ->
 	with args
 		.menu        ??= {}
-		.menu.show   ??= (() ->)
-		.menu.hide   ??= (() ->)
-		.menu.toggle ??= (() ->)
+		.menu.show   ??= () ->
+		.menu.hide   ??= () ->
+		.menu.toggle ??= () ->
 		.modkey      ??= "Mod4"
 		.terminal    ??= "xterm"
+		.launcher_show_callback ??= () -> menubar.show()
 
 	-- {{{ Mouse bindings
 	awful.mouse.append_global_mousebindings {
-		awful.button(Tuple({}), 3, (() -> args.menu::toggle()))
-		awful.button(Tuple({}), 4, awful.tag.viewprev)
-		awful.button(Tuple({}), 5, awful.tag.viewnext)
+		awful.button({}, 3, (() -> args.menu::toggle()))
+		awful.button({}, 4, awful.tag.viewprev)
+		awful.button({}, 5, awful.tag.viewnext)
 	}
 	-- }}}
 
 	-- {{{ Key bindings
 	-- General Awesome keys
 	awful.keyboard.append_global_keybindings {
-		awful.key(Tuple({ args.modkey }), "s", awful.hotkeys_popup.show_help, {
+		awful.key({ args.modkey }, "s", awful.hotkeys_popup.show_help, {
 			description: "show help"
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey }), "w", (() -> args.menu::show()), {
+		awful.key({ args.modkey }, "w", (() -> args.menu::show()), {
 			description: "show main menu"
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "r", (() -> awesome.restart()), {
+		awful.key({ args.modkey, "Control" }, "r", (() -> awesome.restart()), {
 			description: "reload awesome"
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "q", (() -> awesome.quit()), {
+		awful.key({ args.modkey, "Shift" }, "q", (() -> awesome.quit()), {
 			description: "quit awesome"
 			group: "awesome"
 		})
 
-		awful.key(Tuple({ args.modkey }), "x", (() ->
+		awful.key({ args.modkey }, "x", (() ->
 			awful.prompt.run {
 				prompt:       "Run Lua code: "
 				textbox:      awful.screen.focused().promptbox.widget
@@ -61,17 +54,17 @@ Tuple = require("slimeos.lib.collection.Tuple")
 			}
 		)
 
-		awful.key(Tuple({ args.modkey }), "Return", (() -> awful.spawn(args.terminal)), {
+		awful.key({ args.modkey }, "Return", (() -> awful.spawn(args.terminal)), {
 			description: "open a terminal"
 			group: "launcher"
 		})
 
-		awful.key(Tuple({ args.modkey }), "r", (() -> awful.screen.focused().promptbox::run()), {
+		awful.key({ args.modkey }, "r", (() -> awful.screen.focused().promptbox::run()), {
 			description: "run prompt"
 			group: "launcher"
 		})
 
-		awful.key(Tuple({ args.modkey }), "p", (() -> menubar.show()), {
+		awful.key({ args.modkey }, "p", args.launcher_show_callback, {
 			description: "show the menubar"
 			group: "launcher"
 		})
@@ -79,17 +72,17 @@ Tuple = require("slimeos.lib.collection.Tuple")
 
 	-- Tags related keybindings
 	awful.keyboard.append_global_keybindings {
-		awful.key(Tuple({ args.modkey }), "Left", (() -> awful.tag.viewprev()), {
+		awful.key({ args.modkey }, "Left", (() -> awful.tag.viewprev()), {
 			description: "view previous"
 			group: "tag"
 		})
 
-		awful.key(Tuple({ args.modkey }), "Right", (() -> awful.tag.viewnext()), {
+		awful.key({ args.modkey }, "Right", (() -> awful.tag.viewnext()), {
 			description: "view next"
 			group: "tag"
 		})
 
-		awful.key(Tuple({ args.modkey }), "Escape", (() -> awful.tag.history.restore()), {
+		awful.key({ args.modkey }, "Escape", (() -> awful.tag.history.restore()), {
 			description: "go back"
 			group: "tag"
 		})
@@ -97,17 +90,17 @@ Tuple = require("slimeos.lib.collection.Tuple")
 
 	-- Focus related keybindings
 	awful.keyboard.append_global_keybindings {
-		awful.key(Tuple({ args.modkey }), "j", (() -> awful.client.focus.byidx(1)), {
+		awful.key({ args.modkey }, "j", (() -> awful.client.focus.byidx(1)), {
 			description: "focus next by index"
 			group: "client"
 		})
 
-	awful.key(Tuple({ args.modkey }), "k", (() -> awful.client.focus.byidx(-1)), {
+	awful.key({ args.modkey }, "k", (() -> awful.client.focus.byidx(-1)), {
 			description: "focus previous by index"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey }), "Tab", (() ->
+		awful.key({ args.modkey }, "Tab", (() ->
 			awful.client.focus.history.previous()
 
 			if client.focus
@@ -117,17 +110,17 @@ Tuple = require("slimeos.lib.collection.Tuple")
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "j", (() -> awful.screen.focus_relative(1)), {
+		awful.key({ args.modkey, "Control" }, "j", (() -> awful.screen.focus_relative(1)), {
 			description: "focus the next screen"
 			group: "screen"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "k", (() -> awful.screen.focus_relative(-1)), {
+		awful.key({ args.modkey, "Control" }, "k", (() -> awful.screen.focus_relative(-1)), {
 			description: "focus the previous screen"
 			group: "screen"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "n", (() ->
+		awful.key({ args.modkey, "Control" }, "n", (() ->
 			-- Focus restored client
 			if c = awful.client.restore()
 				c::activate {
@@ -142,57 +135,57 @@ Tuple = require("slimeos.lib.collection.Tuple")
 
 	-- Layout related keybindings
 	awful.keyboard.append_global_keybindings {
-		awful.key(Tuple({ args.modkey, "Shift" }), "j", (() -> awful.client.swap.byidx(1)), {
+		awful.key({ args.modkey, "Shift" }, "j", (() -> awful.client.swap.byidx(1)), {
 			description: "swap with next client by index"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "k", (() -> awful.client.swap.byidx(-1)), {
+		awful.key({ args.modkey, "Shift" }, "k", (() -> awful.client.swap.byidx(-1)), {
 			description: "swap with previous client by index"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey }), "u", (() -> awful.client.urgent.jumpto()), {
+		awful.key({ args.modkey }, "u", (() -> awful.client.urgent.jumpto()), {
 			description: "jump to urgent client"
 			group: "client"
 		})
 
-		awful.key(Tuple({ args.modkey }), "l", (() -> awful.tag.incmwfact(0.05)), {
+		awful.key({ args.modkey }, "l", (() -> awful.tag.incmwfact(0.05)), {
 			description: "increase master width factor"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey }), "h", (() -> awful.tag.incmwfact(-0.05)), {
+		awful.key({ args.modkey }, "h", (() -> awful.tag.incmwfact(-0.05)), {
 			description: "decrease master width factor"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "h", (() -> awful.tag.incnmaster(1, nil, true)), {
+		awful.key({ args.modkey, "Shift" }, "h", (() -> awful.tag.incnmaster(1, nil, true)), {
 			description: "increase the number of master clients"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "l", (() -> awful.tag.incnmaster(-1, nil, true)), {
+		awful.key({ args.modkey, "Shift" }, "l", (() -> awful.tag.incnmaster(-1, nil, true)), {
 			description: "decrease the number of master clients"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "h", (() -> awful.tag.incncol(1, nil, true)), {
+		awful.key({ args.modkey, "Control" }, "h", (() -> awful.tag.incncol(1, nil, true)), {
 			description: "increase the number of columns"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Control" }), "l", (() -> awful.tag.incncol(-1, nil, true)), {
+		awful.key({ args.modkey, "Control" }, "l", (() -> awful.tag.incncol(-1, nil, true)), {
 			description: "decrease the number of columns"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey }), "space", (() -> awful.layout.inc(1)), {
+		awful.key({ args.modkey }, "space", (() -> awful.layout.inc(1)), {
 			description: "select next"
 			group: "layout"
 		})
 
-		awful.key(Tuple({ args.modkey, "Shift" }), "space", (() -> awful.layout.inc(-1)), {
+		awful.key({ args.modkey, "Shift" }, "space", (() -> awful.layout.inc(-1)), {
 			description: "select previous"
 			group: "layout"
 		})
@@ -201,7 +194,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 
 	awful.keyboard.append_global_keybindings {
 		awful.key {
-			modifiers:   Tuple({ args.modkey })
+			modifiers:   { args.modkey }
 			keygroup:    "numrow"
 			description: "only view tag"
 			group:       "tag"
@@ -213,7 +206,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 		}
 
 		awful.key {
-			modifiers:   Tuple({ args.modkey, "Control" })
+			modifiers:   { args.modkey, "Control" }
 			keygroup:    "numrow"
 			description: "toggle tag"
 			group:       "tag"
@@ -225,7 +218,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 		}
 
 		awful.key {
-			modifiers:   Tuple({ args.modkey, "Shift" })
+			modifiers:   { args.modkey, "Shift" }
 			keygroup:    "numrow",
 			description: "move focused client to tag"
 			group:       "tag",
@@ -236,7 +229,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 		}
 
 		awful.key {
-			modifiers:   Tuple({ args.modkey, "Control", "Shift" }),
+			modifiers:   { args.modkey, "Control", "Shift" },
 			keygroup:    "numrow",
 			description: "toggle focused client on tag",
 			group:       "tag",
@@ -247,7 +240,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 		}
 
 		awful.key {
-			modifiers:   Tuple({ args.modkey }),
+			modifiers:   { args.modkey },
 			keygroup:    "numpad",
 			description: "select layout directly",
 			group:       "layout",
@@ -265,14 +258,14 @@ Tuple = require("slimeos.lib.collection.Tuple")
 				}
 			)
 
-			awful.button(Tuple({ args.modkey }), 1, (c) ->
+			awful.button({ args.modkey }, 1, (c) ->
 				c::activate {
 					context: "mouse_click"
 					action:  "mouse_move"
 				}
 			)
 
-			awful.button(Tuple({ args.modkey }), 3, ((c) ->
+			awful.button({ args.modkey }, 3, ((c) ->
 				c::activate {
 					context: "mouse_click"
 					action:  "mouse_resize"
@@ -283,7 +276,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 
 	client.connect_signal("request::default_keybindings", () ->
 		awful.keyboard.append_client_keybindings {
-			awful.key(Tuple({ args.modkey }), "f", ((c) ->
+			awful.key({ args.modkey }, "f", ((c) ->
 					c.fullscreen = not c.fullscreen
 					c::raise()
 				), {
@@ -292,32 +285,32 @@ Tuple = require("slimeos.lib.collection.Tuple")
 				}
 			)
 
-			awful.key(Tuple({ args.modkey, "Shift" }), "c", ((c) -> c::kill()), {
+			awful.key({ args.modkey, "Shift" }, "c", ((c) -> c::kill()), {
 				description: "close"
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey, "Control" }), "space", awful.client.floating.toggle, {
+			awful.key({ args.modkey, "Control" }, "space", awful.client.floating.toggle, {
 				description: "toggle floating"
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey, "Control" }), "Return", ((c) -> c::swap(awful.client.getmaster())), {
+			awful.key({ args.modkey, "Control" }, "Return", ((c) -> c::swap(awful.client.getmaster())), {
 				description: "move to master"
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey }), "o", (c) -> c::move_to_screen(), {
+			awful.key({ args.modkey }, "o", (c) -> c::move_to_screen(), {
 				description: "move to screen"
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey }), "t", ((c) -> c.ontop = not c.ontop), {
+			awful.key({ args.modkey }, "t", ((c) -> c.ontop = not c.ontop), {
 				description: "toggle keep on top"
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey }), "n", {
+			awful.key({ args.modkey }, "n", {
 				(c) ->
 					-- The client currently has the input focus, so it cannot be
 					-- minimized, since minimized clients can't have the focus.
@@ -326,7 +319,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey }), "m", {
+			awful.key({ args.modkey }, "m", {
 				(c) ->
 					c.maximized = not c.maximized
 					c::raise()
@@ -334,7 +327,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey, "Control" }), "m", {
+			awful.key({ args.modkey, "Control" }, "m", {
 				(c) ->
 					c.maximized_vertical = not c.maximized_vertical
 					c::raise()
@@ -342,7 +335,7 @@ Tuple = require("slimeos.lib.collection.Tuple")
 				group: "client"
 			})
 
-			awful.key(Tuple({ args.modkey, "Shift" }), "m", {
+			awful.key({ args.modkey, "Shift" }, "m", {
 				(c) ->
 					c.maximized_horizontal = not c.maximized_horizontal
 					c::raise()

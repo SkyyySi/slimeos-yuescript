@@ -1,8 +1,55 @@
+--- Clear the console. Makes it cleaner for debugging.
+os.execute("clear")
+
+macro LUA = (code) ->
+	{
+		:code
+		type: "lua"
+	}
+
+$LUA [==[
+if something then
+	print("YES")
+end
+]==]
+
+macro FENNEL = (input) ->
+	path = os.tmpname()
+
+	file = assert(io.open(path, "w"))
+
+	code = ""
+
+	try
+		file::write(input)
+
+		command = assert(io.popen("fennel --compile #{path}", "r"))
+		stdout = command
+			::read("*all")
+			::gsub("^%s*", "")
+			::gsub("%s*$", "")
+		command::close()
+
+		code = "(function()\n\t#{stdout}\nend)()"
+
+		file::close()
+	catch err
+		file::close()
+		print("COMPILE ERROR: #{err}")
+
+	{
+		:code
+		type: "lua"
+	}
+
+$FENNEL [[(print "Hello, world!")]]
+
+require = require
+xpcall  = xpcall
+
 --- Turn globals into locals for performance
-require  = require
 print    = print
 pcall    = pcall
-xpcall   = xpcall
 os       = os
 io       = io
 table    = table
@@ -21,9 +68,6 @@ screen  = screen
 client  = client
 mouse   = mouse
 
---- Clear the console. Makes it cleaner for debugging.
-os.execute("clear")
-
 --- If LuaRocks is installed, make sure that packages installed through it are
 --- found (e.g. lgi). If LuaRocks is not installed, do nothing.
 pcall(require, "luarocks.loader")
@@ -34,13 +78,20 @@ import "lgi"
 import Gio, GLib from lgi
 
 --- Import awesome standard libraries
-import "awful"
+import awful, gears, wibox, naughty, beautiful, menubar from require("awesome_std")
 awful.hotkeys_popup = require("awful.hotkeys_popup")
-import "gears"
-import "wibox"
-import "naughty"
-import "beautiful"
-import "menubar"
+
+do
+	cg = collectgarbage
+	cg("setpause", 110)
+	cg("setstepmul", 1000)
+	gears.timer {
+		timeout:   5
+		autostart: true
+		call_now:  true
+		callback:  () ->
+			cg("collect")
+	}
 
 wibox.layout.overflow = require("overflow")
 
@@ -51,16 +102,24 @@ require("awful.hotkeys_popup.keys")
 --- {{{ Error handling
 --- Check if awesome encountered an error during startup and fell back to
 --- another config (This code will only ever execute for the fallback config)
-naughty.connect_signal("request::display_error", (message, startup) -> naughty.notification {
-	urgency: "critical"
-	title:   "Oops, an error occured during " .. startup and "startup!" or "runtime!"
-	message: message
-})
+naughty.connect_signal("request::display_error", (message, startup=false) ->
+	message = tostring(message)
+
+	if not message::match("traceback")
+		message = yue.traceback(message, 4)
+
+	naughty.notification {
+		urgency: "critical"
+		title:   "An error occured during " .. (startup and "startup!" or "runtime!")
+		message: message
+		timeout: 0
+	}
+)
 
 do
 	_error = error
-	error = (msg, ...) ->
-		naughty.emit_signal(msg)
+	global error = (msg, ...) ->
+		naughty.emit_signal("request::display_error", msg)
 		_error(msg, ...)
 --- }}}
 
@@ -90,7 +149,7 @@ awful.spawn.once { "picom", --[[ "--backend=xrender" ]] }
 --- Themes define colours, icons, font and wallpapers.
 beautiful.init(gears.filesystem.get_configuration_dir() .. "themes/skyyysi/theme.lua")
 
-slimeos = require("slimeos")
+import "slimeos"
 import util from slimeos.lib
 import Enum from slimeos.lib.collection
 
@@ -266,13 +325,19 @@ screen.connect_signal("request::desktop_decoration", (s) ->
 
 --- }}}
 
+popup_launcher = slimeos.boxes.popup_launcher()
+
 require("slimeos.settings.bindings") {
 	menu:     main_menu
 	modkey:   modkey
 	terminal: terminal
+	launcher_show_callback: () ->
+		popup_launcher::launcher_toggle()
 }
 
 require("slimeos.settings.rules")
+
+require("slimeos.settings.titlebar")
 
 --- Enable sloppy focus, so that focus follows mouse.
 client.connect_signal("mouse::enter", (c) ->
@@ -284,7 +349,7 @@ client.connect_signal("mouse::enter", (c) ->
 
 parse_action = (app_info) ->
 	if not app_info
-		return
+		return {}
 
 	file = app_info::get_filename()
 	keyfile = GLib.KeyFile()
@@ -382,23 +447,34 @@ do
 	--draggable.connect_widget(my_box.widget)
 --]]
 
+picom_set = (window, property, value) ->
+	window = tostring(window)
+
+	if type(value) == "boolean"
+		value = if value
+			"1"
+		else
+			"0"
+	
+	awful.spawn { "xprop", "-id", window, "-f", property, "32c", "-set", property, value }
+
 update_client_shape = do
 	forced_rect_shape = false
 
 	client_border_width = beautiful.border_width or util.scale(1)
+
 	client_shape = beautiful.client_shape or (cr, w, h) ->
 		gears.shape.rounded_rect(cr, w, h, beautiful.corner_radius or util.scale(20))
+
 	rectangle = gears.shape.rectangle
 
-	awesome.connect_signal("beautiful::gaps_status_changed", () ->
-		forced_rect_shape = not beautiful.gaps_enabled
-
-		for _, c in ipairs(client.get())
-			update_shape_of(c)
-	)
-
 	set_picom_property = (window, enabled) ->
-		awful.spawn { "xprop", "-id", tostring(window), "-f", "_PICOM_ROUNDED_CORNERS", "32c", "-set", "_PICOM_ROUNDED_CORNERS", enabled and "1" or "0" }
+		--enabled_str = enabled and "1" or "0"
+		--window_str  = tostring(window)
+		picom_set(window, "_PICOM_ROUNDED_CORNERS", enabled)
+		picom_set(window, "_PICOM_SHADOWS", enabled)
+		--awful.spawn { "xprop", "-id", window_str, "-f", "_PICOM_ROUNDED_CORNERS", "32c", "-set", "_PICOM_ROUNDED_CORNERS", enabled_str }
+		--awful.spawn { "xprop", "-id", window_str, "-f", "_PICOM_SHADOWS",         "32c", "-set", "_PICOM_SHADOWS",         enabled_str }
 
 	(c) ->
 		window = c.window
@@ -410,8 +486,6 @@ update_client_shape = do
 			set_picom_property(window, false)
 			return
 
-		set_picom_property(window, true)
-
 		if c.maximized or c.fullscreen
 			c._old_border_width = c._old_border_width or client_border_width
 			c.border_width = 0
@@ -421,7 +495,14 @@ update_client_shape = do
 			c.border_width = c._old_border_width or client_border_width
 			if c.type == "normal"
 				c.shape = client_shape
-				set_picom_property(window, true)
+			set_picom_property(window, true)
+
+awesome.connect_signal("beautiful::gaps_status_changed", () ->
+	forced_rect_shape = not beautiful.gaps_enabled
+
+	for _, c in ipairs(client.get())
+		update_client_shape(c)
+)
 
 for _, c in ipairs(client.get())
 	update_client_shape(c)
@@ -441,16 +522,15 @@ tag_has_maxmimized_client = (t) ->
 
 -- TODO: Make the panel and system center have rectengular corners if a client is maximized on the current tag
 
+require("awesome-extrautils")()
+
 do
-	cg = collectgarbage
-	cg("setpause", 110)
-	cg("setstepmul", 1000)
-	gears.timer {
-		timeout:   5
-		autostart: true
-		call_now:  true
-		callback:  () ->
-			cg("collect")
+	rwdesktop = require("awesome-rwdesktop")()
+	global notify = util.notify
+	--notify(rwdesktop)
+
+	rwdesktop {
+		screen: screen[2]
 	}
 
 --{{{ Experiments
@@ -758,3 +838,26 @@ do
 	--wb.widget.bg = "#00FF00" --- Doesn't work :(
 --]]
 --}}}
+
+--[[
+util.apcall ->
+	local print = (msg) ->
+		util.notify(msg, 0, true)
+
+	extrautils = require("awesome-extrautils")()
+
+	import asyncio from extrautils
+	import async, await, async_run from asyncio
+
+	async_run ->
+		--await asyncio.sleep(7.5)
+		print("Running now...")
+		stdout, stderr, reason, exit_code = await asyncio.spawn_with_bash([=[echo $HOME]=])
+		print("stdout = '%s'\nstderr = '%s'\nreason = '%s'\nexit_code = '%d'\n"::format(
+			stdout
+				::gsub("\027%[[^a-zA-Z]*[a-zA-Z]", "")
+				::gsub("%s+$", ""),
+			stderr, reason, exit_code
+		))
+		print("Done!")
+--]]

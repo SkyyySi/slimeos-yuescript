@@ -7,6 +7,8 @@ import util from require("slimeos.lib")
 import apcall, notify from util
 import Button from require("slimeos.widgets")
 
+import JSONSerializable from require("slimeos.lib.serializable")
+
 import "lgi"
 import Gio from lgi
 Gdk = lgi.require("Gdk", "3.0")
@@ -26,10 +28,6 @@ wrap_button = (widget) ->
 		}
 		widget: Button
 	}
-
-color_cache = { mt: {} }
-color_cache.<> = color_cache.mt
-color_cache.mt.__index = color_cache.mt
 
 --[[
 get_app_id_async = (c, callback) ->
@@ -55,7 +53,18 @@ get_app_id_async = (c, callback) ->
 	)
 --]]
 
-get_dominant_color = (c) ->
+color_cache = JSONSerializable {
+	path: (os.getenv("XDG_CACHE_HOME") or (os.getenv("HOME") .. "/.cache")) .. "/awesome/titlebar_colors_cache.json"
+}
+
+color_cache::load_blocking()
+
+get_dominant_color = (c, manual) ->
+	client_class = (c.class)
+	if (client_class) and (not manual)
+		if color = color_cache::get(client_class)
+			return color
+
 	local color
 	local pb
 	local bytes
@@ -72,10 +81,7 @@ get_dominant_color = (c) ->
 			bytes = pb::get_pixels()
 			color = "#" .. bytes::gsub(".", (col) -> ("%02x")::format(col::byte()))
 
-			tally[color] = if not tally[color]
-				1
-			else
-				tally[color] + 1
+			tally[color] = (tally[color] or 0) + 1
 
 	local mode
 	mode_c = 0
@@ -85,6 +91,11 @@ get_dominant_color = (c) ->
 			mode = k
 
 	color = mode
+
+	if (client_class) and (not color::match("#00000000")) and (manual or color_cache::get(client_class) == nil)
+		color_cache::set(client_class, color)
+		color_cache::save()
+
 	color
 
 window_control_buttons = {}
@@ -95,6 +106,7 @@ window_control_buttons.base_margins = {
 	left:   util.scale(16)
 	right:  util.scale(16)
 }
+
 window_control_buttons.base_template = () ->
 	{
 		{
@@ -108,9 +120,10 @@ window_control_buttons.base_template = () ->
 window_control_buttons.minimize = (c) ->
 	w = wibox.widget {
 		window_control_buttons.base_template()
-		buttons: {
-			awful.button({}, 1, nil, () -> c.minimized = true)
-		}
+		--buttons: {
+		--	awful.button({}, 1, nil, () -> c.minimized = true)
+		--}
+		on_click: () -> c.minimized = true
 		widget: Button
 	}
 
@@ -129,9 +142,10 @@ window_control_buttons.maximize = (c) ->
 
 	w = wibox.widget {
 		window_control_buttons.base_template()
-		buttons: {
-			awful.button({}, 1, nil, () -> c.maximized = not c.maximized)
-		}
+		--buttons: {
+		--	awful.button({}, 1, nil, () -> c.maximized = not c.maximized)
+		--}
+		on_click: () -> c.maximized = not c.maximized
 		widget: Button
 	}
 
@@ -156,9 +170,10 @@ window_control_buttons.maximize = (c) ->
 window_control_buttons.close = (c) ->
 	w = wibox.widget {
 		window_control_buttons.base_template()
-		buttons: {
-			awful.button({}, 1, nil, () -> c::kill())
-		}
+		--buttons: {
+		--	awful.button({}, 1, nil, () -> c::kill())
+		--}
+		on_click: () -> c::kill()
 		bg: gears.color.transparent
 		bg_normal: gears.color.transparent
 		bg_selected: beautiful.color.red
@@ -222,7 +237,7 @@ client.connect_signal("request::titlebars", (c) ->
 				c.below = not c.below
 			), beautiful.titlebar_below_button_focus_active } -- Note: this icon doesn't exist in the deault icon set
 			{ "-----------------" }
-			{ "Reload color", (() -> c::__update_titlebar_bg()) }
+			{ "Reload color", (() -> c::__update_titlebar_bg(true)) }
 		}
 	}
 
@@ -294,11 +309,12 @@ client.connect_signal("request::titlebars", (c) ->
 			layout: wibox.layout.align.horizontal
 		}
 		id:     "background_role"
+		bg:     color_cache[c.class]
 		widget: wibox.container.background
 	}
 
-	c.__update_titlebar_bg = () =>
-		color = get_dominant_color(@)
+	c.__update_titlebar_bg = (manual) =>
+		color = get_dominant_color(@, manual)
 		util.for_children(@titlebars.top.widget, "background_role", (child) ->
 			child.bg = color
 		)

@@ -1,0 +1,35 @@
+--[[
+export macro CREATE_MODULE = () ->
+	[[_module_metatable = {
+	__name: $FILE::match("./(.*)/init.yue")::gsub("/", ".") or ...
+	__tostring: () => "<module \"#{@__name}\">"
+	__call: (...) => new(...)
+}
+_module_metatable.__index = _module_metatable
+--export _module_metatable
+--export.<> = _module_metatable
+]]
+--]]
+
+export macro NAMESPACE = () ->
+	[[
+return {
+	<>:
+		__name: $FILE::match("./(.*)/[a-zA-Z0-9_-]+.yue")::gsub("/", ".")
+		__tostring: () => "<module \"#{@__name}\">"
+		__index: (key) =>
+			mt = @.<>
+
+			do
+				value = mt[key]
+
+				if value != nil
+					return value
+
+			if type(key) != "string"
+				return
+
+			module = require(@__name .. "." .. key)
+			@[key] = module
+			module
+}]]

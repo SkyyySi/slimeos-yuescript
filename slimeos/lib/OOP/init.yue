@@ -1,0 +1,95 @@
+getmetatable = getmetatable
+setmetatable = setmetatable
+rawget = rawget
+rawset = rawset
+pairs  = pairs
+ipairs = ipairs
+
+---@class slimeos.lib.OOP.MetaClass : metatable
+---@field __name string
+---@field __tostring fun(cls: slimeos.lib.OOP.Class): string
+---@field __index fun(cls: slimeos.lib.OOP.Class, key: unknown): unknown
+---@field __newindex fun(cls: slimeos.lib.OOP.Class, key: unknown, value: unknown)
+---@field __call fun(cls: slimeos.lib.OOP.Class, ...): slimeos.lib.OOP.Class
+export MetaClass = {
+	__name: "Class"
+	__tostring: (cls) -> "<class \"#{cls.__name}\">"
+	__index: (cls, key) -> cls.__base.__index[key]
+	__newindex: (cls, key, value) -> cls.__base[key] = value
+	__call: (cls, ...) ->
+		@ = cls.__new(cls, ...)
+		cls.__init(@, ...)
+		@
+
+	<tostring>: (mcs) -> "<metaclass \"#{mcs.__name}\">"
+}
+
+---@class slimeos.lib.OOP.Class
+---@field __name string
+---@field __base metatable
+---@field __parents slimeos.lib.OOP.Class[]
+-- -@operator call: slimeos.lib.OOP.Object
+-- -@overload fun(cls: slimeos.lib.OOP.Class, ...): slimeos.lib.OOP.Object
+export Class = {
+	__name: "Object"
+	__base: {
+		__index: (key) =>
+			mt = @.<>
+			cls = mt.__class
+
+			do
+				value = @__data[key]
+
+				if type(value) == "table"
+					if getter = value.__get
+						return getter(@)
+
+				if value != nil
+					return value
+
+			if parents = cls.__parents
+				for parent in *parents
+					value = parent.__base[key]
+
+					if value != nil
+						return value
+		
+		__tostring: () => "<instance of class \"#{@@__name}\">"
+	}
+	__parents: {}
+
+	__new: (cls) ->
+		{
+			__data: {}
+			<>: cls.__base
+		}
+	__init: () => --
+
+	<>: MetaClass
+}
+
+---@class slimeos.lib.OOP.Object : table
+---@field __data table
+---@field __class slimeos.lib.OOP.Class
+Object = {}
+
+create = (name, base={}, parents={ Class }, metaclass=MetaClass) ->
+	for i = #parents, 1, -1
+		parent = parents[i]
+
+		for k, v in pairs(parent)
+			base[k] ??= v
+
+	cls = {
+		__name: name
+		__base: base
+		__parents: parents
+
+		<>: metaclass
+	}
+
+	base.__class = cls
+
+	cls
+
+export.<call> = (module, ...) -> create(...)

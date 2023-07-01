@@ -1,0 +1,336 @@
+require = require
+pairs = pairs
+setmetatable = setmetatable
+
+import awesome, awful, beautiful, gears, wibox from require("awesome_std")
+
+import apcall, for_children, scale, notify, after_timeout from require("slimeos.lib.util")
+import Button from require("slimeos.widgets")
+
+import "lgi"
+import Gio from lgi
+
+extrautils = require("awesome-extrautils")() -- ("/home/simon/projects/awesome/awesome-extrautils")
+
+local *
+
+export mt = {}
+export.<> = mt
+
+export base_spacing = scale(10)
+export base_shape   = (cr, w, h) -> gears.shape.rounded_rect(cr, w, h, scale(10))
+
+export app_cache = { app.desktop_id, app for _, app in ipairs(extrautils.apps.get_all()) when app.show }
+
+export create_app_widget = (app_data, container, app_widget_template) ->
+	widget = wibox.widget(app_widget_template)
+
+	widget._private ??= {}
+
+	widget._private.app_data = app_data
+
+	for_children(widget, "name_role", (child) ->
+		child.text = app_data.name or ""
+	)
+
+	for_children(widget, "description_role", (child) ->
+		child.text = app_data.description or ""
+	)
+
+	for_children(widget, "icon_role", (child) ->
+		child.image = app_data.icon or beautiful.fallback_icon
+	)
+
+	for_children(widget, "button_role", (child) ->
+		child.on_click = () ->
+			app_data.launch()
+			container::stop_input()
+	)
+
+	widget
+
+export default_kwargs = {}
+
+with default_kwargs
+	.container = wibox -- awful.popup
+
+	.container_template = {
+		type:    "normal"
+		visible: false
+		ontop:   true
+		width:   scale(800)
+		height:  scale(500)
+		shape:   base_shape
+		bg:      gears.color.transparent
+	}
+
+	.app_widget_template = {
+		{
+			{
+				{
+					id:     "icon_role"
+					halign: "left"
+					valign: "center"
+					widget: wibox.widget.imagebox
+				}
+				{
+					{
+						id:     "name_role"
+						font:   beautiful.apply_font_size("Source Sans Pro, Bold", math.floor(scale(16) + 0.5))
+						halign: "left"
+						valign: "center"
+						widget: wibox.widget.textbox
+					}
+					{
+						id:     "description_role"
+						font:   beautiful.apply_font_size("Source Sans Pro", math.floor(scale(16) + 0.5))
+						halign: "left"
+						valign: "center"
+						widget: wibox.widget.textbox
+					}
+					spacing: base_spacing
+					layout:  wibox.layout.flex.vertical
+				}
+				spacing: base_spacing
+				layout:  wibox.layout.fixed.horizontal
+			}
+			margins: base_spacing
+			widget:  wibox.container.margin
+		}
+		id:          "button_role"
+		bg:          "#131522"
+		bg_normal:   "#131522"
+		bg_selected: "#1D2034"
+		bg_press:    "#252941"
+		shape:       base_shape
+		widget:      Button
+	}
+
+	--notify(app_cache["firefox.desktop"], 0)
+
+	.widget_template = {
+		{
+			{
+				{
+					{
+						{
+							{
+								id:     "prompt_role"
+								halign: "left"
+								valign: "top"
+								widget: wibox.widget.textbox
+							}
+							margins: base_spacing
+							widget:  wibox.container.margin
+						}
+						bg:     beautiful.bg_alternate ?? "#131522"
+						shape:  base_shape
+						widget: wibox.container.background
+					}
+					layout: wibox.layout.fixed.vertical
+				}
+				{
+					{
+						color: gears.color.transparent
+						forced_height: base_spacing
+						widget: wibox.widget.separator
+					}
+					{
+						id:      "app_list_role"
+						spacing: base_spacing
+						layout:  wibox.layout.flex.vertical
+					}
+					layout: wibox.layout.align.vertical
+				}
+				layout: wibox.layout.align.vertical
+			}
+			margins: base_spacing
+			widget:  wibox.container.margin
+		}
+		id:     "background_role"
+		widget: wibox.container.background
+	}
+
+export init_widget = (container, widget=container.widget) ->
+	for_children(widget, "background_role", (child) ->
+		child.fg = beautiful.popup_launcher_fg ?? beautiful.fg_normal ?? "#0E1019"
+		child.bg = beautiful.popup_launcher_bg ?? beautiful.bg_normal ?? "#FFFAF4"
+		child.shape = beautiful.popup_launcher_shape ?? base_shape
+		child.border_width = beautiful.popup_launcher_border_width
+		child.border_color = beautiful.popup_launcher_border_color
+	)
+
+export methods = {}
+
+export empty_place_holder_widget = wibox.widget {}
+
+---@param prompt string
+---@return boolean success, table results 
+export search_app = (prompt) ->
+	results_tmp = Gio.DesktopAppInfo.search(prompt)
+
+	if (not results_tmp) or (next(results_tmp) == nil)
+		return false, {}
+
+	results = results_tmp[1]
+
+	if (not results) or (next(results) == nil)
+		return false, {}
+	
+	return true, results
+
+with methods
+	.launcher_placement_fn = () =>
+		@screen = mouse.screen
+		awful.placement.centered(@, {
+			honor_workarea: false
+		})
+
+	.stop_input = () =>
+		<- apcall!
+		@launcher_hide()
+		keygrabber.stop()
+		@_private.prompt_is_running = false
+
+	.clear_app_list_widget = () =>
+		for_children(@widget, "app_list_role", (child) ->
+			child::reset()
+		)
+
+	.update_app_list = (mod, key, command) =>
+		--notify("Pressed key '#{key}'" .. ((next(mod) != nil) and "(with modifiers #{table.concat(mod, ', ')})" or "") .. "\nThe full command is '#{command}'")
+		prompt = command
+
+		if #key == 1
+			prompt ..= key
+		elseif key == "BackSpace"
+			prompt = prompt::sub(1, (#prompt - 1))
+
+		if prompt == ""
+			@clear_app_list_widget()
+
+			@_private.current_target_app = nil
+			return
+
+		success, results = search_app(prompt)
+		if not success
+			return
+
+		apps = { k, @_private.app_widgets[v] for k, v in pairs(results) when (@_private.app_widgets[v] != nil) }
+
+		_, current_target_app = next(apps)
+
+		if current_target_app == nil
+			@clear_app_list_widget()
+
+			return
+
+		@_private.current_target_app = current_target_app._private.app_data
+
+		for_children(@widget, "app_list_role", (child) ->
+			child::reset()
+
+			count = 0
+			local k
+			end_reached = false
+			while count < 3
+				count += 1
+				local app
+				if not end_reached
+					k, app = next(apps, k)
+				if k == nil
+					end_reached = true
+				child::add(app or empty_place_holder_widget)
+		)
+
+	.launcher_show = () =>
+
+		if @show
+			@show()
+		else
+			@visible = true
+
+		@launcher_placement_fn()
+
+		for_children(@widget, "app_list_role", (child) ->
+			child::reset()
+		)
+
+		@_private.prompt_is_running = true
+		for_children(@widget, "prompt_role", (child) ->
+			awful.prompt.run {
+				prompt:  "<b>Search: </b>",
+				textbox: child
+				font:    beautiful.popup_launcher_prompt_font ?? beautiful.monospace_font ?? "monospace #{math.floor(scale(12) + 0.5)}"
+				keypressed_callback: (mod, key, command) ->
+					--notify("Pressed key '#{key}'" .. ((next(mod) != nil) and "(with modifiers #{table.concat(mod, ', ')})" or "") .. "\nThe full command is '#{command}'")
+					if key == "Tab"
+						-- TODO: Allow to cycle through the 1 - 3 apps using the tab key
+
+					if key == "Escape"
+						@stop_input()
+
+					@update_app_list(mod, key, command)
+				exe_callback: (input) ->
+					if (not input) or (#input == 0)
+						--notify("No input provided...")
+						return
+
+					success, results = search_app(input)
+					if (not success) or (not results)
+						awful.spawn { "bash", "-c", input }
+						@stop_input()
+						return
+
+					apcall () ->
+						if @_private.current_target_app
+							--notify(@_private.current_target_app)
+							@_private.current_target_app.launch()
+
+					@stop_input()
+			}
+		)
+
+	.launcher_hide = () =>
+		if @hide
+			@hide()
+		else
+			@visible = false
+
+		if @_private.prompt_is_running == true
+			@_private.prompt_is_running = false
+			keygrabber.stop()
+
+	.launcher_toggle = () =>
+		if @visible
+			@launcher_hide()
+		else
+			@launcher_show()
+
+mt.__call = (cls, kwargs={}) ->
+	for k, v in pairs(default_kwargs)
+		kwargs[k] ??= v
+
+	local instance
+
+	with kwargs
+		.container_template.widget ??= .widget_template
+
+		instance = .container(.container_template)
+
+		for k, v in pairs(methods)
+			instance[k] = v
+
+		instance._private ??= {}
+		
+		instance._private.app_widgets = { k, create_app_widget(v, instance, .app_widget_template) for k, v in pairs(app_cache) }
+
+		init_widget(instance)
+
+		--instance::launcher_show()
+
+		--<- after_timeout(0.01)
+
+		--instance::launcher_hide()
+
+	instance

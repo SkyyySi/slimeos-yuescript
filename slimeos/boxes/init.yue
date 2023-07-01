@@ -1,3 +1,4 @@
-export launcher    = require("slimeos.boxes.launcher")
-export main_menu   = require("slimeos.boxes.main_menu")
-export ShapedWibox = require("slimeos.boxes.ShapedWibox")
+export launcher       = require("slimeos.boxes.launcher")
+export main_menu      = require("slimeos.boxes.main_menu")
+export popup_launcher = require("slimeos.boxes.popup_launcher")
+export ShapedWibox    = require("slimeos.boxes.ShapedWibox")

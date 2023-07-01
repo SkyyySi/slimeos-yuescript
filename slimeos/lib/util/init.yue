@@ -58,10 +58,14 @@ export create_module = (name) ->
 export string   = require("slimeos.lib.util.string")
 export terminal = require("slimeos.lib.util.terminal")
 
-export notify = (msg, timeout) ->
+export notify = (msg, timeout=5, use_monospace=false) ->
 	naughty.notification {
-		timeout: timeout ?? 5
+		timeout: timeout
 		message: tostring(msg)
+		font:    if use_monospace
+			beautiful.monospace_font
+		else
+			beautiful.font
 	}
 
 export notify_error = (msg) ->
@@ -106,10 +110,10 @@ export lookup_gicon = (gicon) ->
 
 scaling_factor = 1
 dpi = beautiful.xresources.apply_dpi
-export scale = (x, s=screen.primary) -> scaling_factor * dpi x * (s.scaling_factor or 1)
+export scale = (x, s=screen.primary) -> scaling_factor * dpi(x) * (s.scaling_factor or 1)
 
 export for_children = (widget, id, callback) ->
-	for _, child in ipairs widget::get_children_by_id id
+	for _, child in ipairs widget::get_children_by_id(id)
 		callback child
 
 export is_private = (key) -> not not (type(key) == "string" and key::match("^__"))

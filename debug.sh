@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 _DISPLAY=':4'
-CONFIG_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CONFIG_DIR="${1:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )}"
 cd "$CONFIG_DIR" || exit 1
 
 #Xephyr "$_DISPLAY" -dpi 96x96 -ac -br -noreset -screen 1600x900&

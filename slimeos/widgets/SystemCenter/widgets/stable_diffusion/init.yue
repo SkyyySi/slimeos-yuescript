@@ -1,0 +1,987 @@
+import awesome, awful, beautiful, gears, wibox from require("awesome_std")
+
+import apcall, for_children, scale, notify, notify_error, clamp from require("slimeos.lib.util")
+
+import Button from require("slimeos.widgets")
+
+import "lgi"
+import cairo, GLib, GdkPixbuf, Gio from lgi
+async_run = (callback, ...) -> Gio.Async.start(callback)(...)
+
+import "json"
+
+local *
+
+macro LOG = (...) ->
+	args = { ... }
+	len  = select("#", ...)
+
+	"notify(" .. table.concat(["\"#{args[i]} = \" .. tostring(#{args[i]}) .. \"\\n\"" for i = 1, len], " .. ") ..")"
+
+cache_dir = gears.filesystem.get_cache_dir()
+
+export mt = {
+	__name: $FILE::match("./(.*)/init.yue")::gsub("/", ".") or ...
+}
+mt.__index = mt
+export.<> = mt
+
+webiu_url = "0.0.0.0:7860"
+
+api_routes = {
+	txt2img:   "sdapi/v1/txt2img"
+	progress:  "sdapi/v1/progress"
+	interrupt: "sdapi/v1/interrupt"
+	options:   "sdapi/v1/options"
+	models:    "sdapi/v1/sd-models"
+	ping:      "internal/ping"
+}
+
+post_schemas = {
+	txt2img: {
+		"enable_hr": false
+		"denoising_strength": 0
+		"firstphase_width": 0
+		"firstphase_height": 0
+		"hr_scale": 2
+		"hr_upscaler": ""
+		"hr_second_pass_steps": 0
+		"hr_resize_x": 0
+		"hr_resize_y": 0
+		"prompt": ""
+		"styles": {}
+		"seed": -1
+		"subseed": -1
+		"subseed_strength": 0
+		"seed_resize_from_h": -1
+		"seed_resize_from_w": -1
+		"sampler_name": ""
+		"batch_size": 1
+		"n_iter": 1
+		"steps": 50
+		"cfg_scale": 7
+		"width": 512
+		"height": 512
+		"restore_faces": false
+		"tiling": false
+		"do_not_save_samples": false
+		"do_not_save_grid": false
+		"negative_prompt": ""
+		"eta": 0
+		"s_min_uncond": 0
+		"s_churn": 0
+		"s_tmax": 0
+		"s_tmin": 0
+		"s_noise": 1
+		"override_settings": {}
+		"override_settings_restore_afterwards": true
+		"script_args": {}
+		"sampler_index": "Euler"
+		"script_name": ""
+		"send_images": true
+		"save_images": false
+		"alwayson_scripts": {}
+	}
+}
+
+export test_data = {
+	prompt: "highres, masterpiece, genshin impact, raiden shogun, purple hair, medium hair, purple eyes"
+	negative_prompt: "lowres, blurry, bad quality, bad hands, text, watermark, copyright, handle, username"
+	width: 768
+	height: 768
+	sampler_name: "Euler a"
+	steps: 50
+	cfg_scale: 11
+}
+
+export send_ping = (callback) ->
+	(stdout, stderr, reason, exit_code) <- awful.spawn.easy_async({
+		"curl", "-sSL"
+		webiu_url .. "/" .. api_routes.ping
+	})
+
+	callback(not not ((exit_code == 0) and (stdout) and (stdout != "")))
+
+export safe_spawn = (args, callback) ->
+	(stdout, stderr, reason, exit_code) <- awful.spawn.easy_async(args)
+
+	if not ((exit_code == 0) and (stdout) and (stdout != ""))
+		error("Bad response from Stable Diffusion Webui API!\n\n#{stderr}")
+		return
+
+	if not callback
+		--error("No callback!")
+		return
+
+	callback(stdout)
+
+export web_get = (route, callback) ->
+	safe_spawn({
+		"curl", "-sSL"
+		webiu_url .. "/" .. route
+	}, callback)
+
+export web_post = (route, callback) ->
+	safe_spawn({
+		"curl", "-sSL"
+		"-X", "POST"
+		webiu_url .. "/" .. route
+	}, callback)
+
+export web_post_json = (route, data, callback) ->
+	safe_spawn({
+		"curl", "-sSL"
+		"-X", "POST"
+		"-H", "Content-Type: application/json"
+		"-d", data
+		webiu_url .. "/" .. route
+	}, callback)
+
+export read_file_async = (file, callback) ->
+	gfile = if type(file) == "string"
+		Gio.File.new_for_path(file)
+	else
+		file
+
+	<- async_run()
+	(_gfile, async_result) <- gfile::load_contents_async(nil)
+	contents = gfile::load_contents_finish(async_result)
+	callback(contents)
+
+export write_file_async = (file, contents, callback) ->
+	gfile = if type(file) == "string"
+		Gio.File.new_for_path(file)
+	else
+		file
+
+	<- async_run()
+	(_gfile, async_result) <- gfile::replace_contents_async(contents, nil, false, Gio.FileCreateFlags.NONE, nil)
+	gfile::replace_contents_finish(async_result)
+	callback()
+
+export append_file_async = (file, callback) ->
+	gfile = if type(file) == "string"
+		Gio.File.new_for_path(file)
+	else
+		file
+
+	<- async_run()
+	(_gfile, async_result) <- gfile::append_to_async(Gio.FileCreateFlags.NONE, 0, nil)
+	output_stream = gfile::append_to_finish(async_result)
+	callback(output_stream)
+
+--- The code
+--- 
+--- ```yuescript
+--- $await output_stream::write("foo", "bar")
+--- ```
+---
+--- becomes
+---
+--- ```yuescript
+--- (_, __async_result) <- output_stream::write_async("foo", "bar", nil)
+--- output_stream::write_finish(__async_result)
+--- ```
+macro await = (call, body) ->
+	object, method, args = call::match([[([a-zA-Z_][a-zA-Z0-9_]*)\([a-zA-Z_][a-zA-Z0-9_]*)%((.*)%)]])
+
+	full_args = if args != ""
+		"#{args}, nil"
+	else
+		"nil"
+
+	--print("... = #{... or nil}")
+
+	result = "
+(_, __async_result) <- #{object}::#{method}_async(#{full_args})
+(#{body})(#{object}::#{method}_finish(__async_result))
+"
+	--#{body::sub(5)::gsub('\n\t', '\n')}
+
+	--print(result)
+
+	result
+
+do
+	path = "/tmp/test.txt"
+
+	() <- awful.spawn.easy_async { "touch", path }
+
+	(output_stream) <- append_file_async(path)
+
+	() <- $await output_stream::write("Foo\n", 1)
+	--(_output_stream, async_result) <- output_stream::write_async("Foo\n", 1, nil)
+	--output_stream::write_finish(async_result)
+
+	--print("Hello, world!")
+
+	() <- $await output_stream::write("Bar\n", 1)
+	-- --(_output_stream, async_result) <- output_stream::write_async("Bar\n", 1, nil)
+	-- --output_stream::write_finish(async_result)
+
+	() <- $await output_stream::flush(1)
+	-- --(_output_stream, async_result) <- output_stream::flush_async(1, nil)
+	-- --output_stream::flush_finish(async_result)
+
+	() <- $await output_stream::close(1)
+	-- --(_output_stream, async_result) <- output_stream::close_async(1, nil)
+	-- --output_stream::close_finish(async_result)
+
+export convert_png_string_to_surface = (pngstr) ->
+	loader = GdkPixbuf.PixbufLoader()
+	local pixbuf
+	
+	with loader
+		::write(pngstr)
+		::close()
+		pixbuf = ::get_pixbuf()
+
+	surface = awesome.pixbuf_to_surface(pixbuf._native, gears.surface())
+
+	if cairo.Surface::is_type_of(surface)
+		surface
+	else
+		cairo.Surface(surface, true)
+
+image_dir = "/ssdhome/simon/sd-images/"
+
+export get_image_base64 = (image_base64, callback, save=false) ->
+	if not image_base64
+		return gears.surface()
+
+	image_unbase64ed = GLib.base64_decode(image_base64)
+
+	image_path = image_dir .. "#{os.time()}.png"
+
+	if save
+		() <- write_file_async(image_path, image_unbase64ed)
+
+	surface = convert_png_string_to_surface(image_unbase64ed)
+
+	callback(surface, image_path)
+
+force_crush = (target, source) ->
+	for k, v in pairs(source)
+		target[k] = v
+
+	target
+
+export generate = (data={}, callback) =>
+	table_data = if type(data) == "string"
+		json.decode(data)
+	else
+		data
+
+	full_table_data = {}
+		|> force_crush(post_schemas.txt2img)
+		|> force_crush(table_data)
+
+	json_data = json.encode(full_table_data)
+
+	image_callback = (image, image_path) ->
+		for_children(@, "image_role", (child) ->
+			with child
+				.image = image
+				.__image_path = image_path
+		)
+
+	progress_callback = (progress) ->
+		progress_is_nil = progress == nil
+
+		for_children(@, "progress_role", (child) ->
+			with child
+				.visible = not progress_is_nil
+		)
+
+		if progress_is_nil
+			return
+
+		if progress == 100
+			@sd_is_generating = false
+
+		for_children(@, "progressbar_role", (child) ->
+			with child
+				.value = progress
+		)
+
+		for_children(@, "progresstext_role", (child) ->
+			with child
+				.text = "%3d%%"::format(progress)
+		)
+
+	do
+		@sd_is_generating = true
+
+		(stdout) <- web_post_json(api_routes.txt2img, json_data)
+
+		@sd_is_generating = false
+
+		result = json.decode(stdout)
+
+		(image, image_path) <- get_image_base64(result.images[1], _, true)
+
+		() <- gears.timer.delayed_call()
+
+		image_callback(image, image_path)
+		progress_callback()
+		callback()
+
+	progress_updater(@, image_callback, progress_callback)
+
+progress_updater = (widget, image_callback, progress_callback) ->
+	(stdout) <- web_get(api_routes.progress)
+
+	result    = json.decode(stdout)
+	image_str = result.current_image
+
+	if (not widget.sd_is_generating) or (result.state.job_count == 0)
+		progress_callback()
+		return
+
+	if not image_str
+		gears.timer {
+			timeout: 1
+			autostart: true
+			single_shot: true
+			callback: () -> if widget.sd_is_generating then progress_updater(widget, image_callback, progress_callback)
+		}
+		return
+
+	(image) <- get_image_base64(image_str)
+
+	if widget.sd_is_generating
+		if image
+			image_callback(image)
+			progress_callback(result.progress * 100)
+
+		progress_updater(widget, image_callback, progress_callback)
+
+get_active_client = () ->
+	for _, c in ipairs(client.get())
+		if c.active
+			return c
+
+deactivate_active_client = () ->
+	c = get_active_client()
+	c.active = false
+	c
+
+vararg_to_string = (...) ->
+	args = { ... }
+	len  = select("#", ...)
+
+	table.concat(['"' .. tostring(args[i]) .. '"' for i = 1, len], ", ")
+
+export create_input_box = (prompt="", history_path=cache_dir .. "sd_input_box_history.txt") ->
+	local *
+
+	awful.spawn { "touch", history_path }
+
+	input_box = wibox.widget {
+		halign:    "left"
+		valign:    "center"
+		ellipsize: "start"
+		widget:    wibox.widget.textbox
+	}
+
+	previous_sequence = nil
+
+	kg = awful.keygrabber {
+		keybindings: {
+			awful.key {
+				modifiers: {}
+				key:       "Tab"
+				on_press:  () =>
+					--notify(@)
+					-- TODO: Switch to the next keygrabber when presing the tab key
+					@stop()
+			}
+			awful.key {
+				modifiers: {}
+				key:       "Up"
+				on_press:  () =>
+					current = widget.__input_history_index - 1
+					index   = clamp(current, 1, #widget.__input_history + 1)
+
+					notify(widget.__input_history[current])
+			}
+			awful.key {
+				modifiers: {}
+				key:       "Down"
+				on_press:  () =>
+					current = widget.__input_history_index + 1
+					index   = clamp(current, 1, #widget.__input_history + 1)
+
+					notify(widget.__input_history[current])
+			}
+		}
+		start_callback: () =>
+			typing_indicator.visible = true
+
+			text = widget.__inputted_text or ""
+			kg.sequence = text
+			input_box.text = text
+			widget.__previously_active_client = deactivate_active_client()
+		stop_callback: (stop_key, stop_mods, sequence) =>
+			typing_indicator.visible = false
+
+			if c = widget.__previously_active_client
+				c.active = true
+				widget.__previously_active_client = nil
+
+			widget.__inputted_text = kg.sequence
+
+			--widget::save_history()
+		keypressed_callback: (mod, key, event) =>
+			if not kg_is_started
+				return
+
+			if (@sequence == previous_sequence) and (@previous_sequence != "")
+				if key == "BackSpace"
+					seq = @sequence
+					@sequence = seq::sub(1, #seq - 1)
+				elseif #key == 1
+					@sequence ..= key
+			
+			previous_sequence = @sequence
+
+			--$LOG(key, @sequence)
+		keyreleased_callback: (mod, key, event) => --$LOG(mod, key, event)
+		stop_key: "Escape"
+	}
+
+	kg_is_started = false
+	kg::connect_signal("property::sequence", () =>
+		if not kg_is_started
+			return
+	
+		text = @sequence
+		input_box.text = text
+		widget.__inputted_text = text
+	)
+
+	awesome.connect_signal("stop_all_input_boxes", (_kg) ->
+		if _kg != kg
+			kg::stop()
+	)
+
+	typing_indicator = wibox.widget {
+		{
+			{
+				right:  scale(5)
+				widget: wibox.container.margin
+			}
+			bg:     beautiful.bg_accent
+			widget: wibox.container.background
+		}
+		top:     scale(5)
+		bottom:  scale(5)
+		visible: false
+		widget:  wibox.container.margin
+	}
+
+	widget = wibox.widget {
+		{
+			{
+				{
+					markup: "<b>#{prompt}: </b> "
+					widget: wibox.widget.textbox
+				}
+				{
+					input_box
+					typing_indicator
+					layout: wibox.layout.fixed.horizontal
+				}
+				layout: wibox.layout.align.horizontal
+			}
+			left:   scale(10)
+			right:  scale(10)
+			widget: wibox.container.margin
+		}
+		bg:     beautiful.button_bg_active
+		shape:  gears.shape.rounded_rect
+		widget: wibox.container.background
+	}
+
+	widget.__input_history_index = 1
+
+	widget.load_history = () =>
+		(history_json) <- read_file_async(history_path)
+
+		history = if (history_json) and (history_json != "")
+			setmetatable(json.decode(history_json) or {}, {
+				__index: (key) => ""
+			})
+		else
+			{ <index>: (key) => "" }
+
+		@__input_history_index = #history + 1
+
+		@__input_history = history
+
+	widget::load_history()
+
+	widget.save_history = () =>
+		history = @__input_history
+
+		if not history
+			return
+		
+		() <- write_file_async(history_path, json.encode(@__input_history))
+
+	widget::connect_signal("button::press", (x, y, b) =>
+		switch b
+			when 1
+				awesome.emit_signal("stop_all_input_boxes", kg)
+				kg_is_started = false
+				kg::start()
+				kg_is_started = true
+			when 3
+				kg::stop()
+	)
+
+	widget.__inputted_text = ""
+
+	widget.keygrabber = kg
+
+	widget
+
+export prompt_templates = require(... .. ".prompt_templates")
+
+export default_prompt = [[1girl, woman, solo, highres, absurdres, very detailed, masterpiece, best quality, perfect quality, very sharp graphics, outline, photoshop \(medium\), commentary request, commission, paid reward, patreon reward, blush, cute, narrow waist, looking at viewer, ]]
+export default_negative_prompt = [[lowres, anatomical nonsense, bad anatomy, ((bad hands)), ((extra digits)), text, error, missing fingers, fewer digits, jpeg artifacts, signature, watermark, username, blurry, artist name, extra arm, (head out of frame), (sad), (scared), worried, embarrassed, upset, negative_hand-neg ng_deepnegative_v1_75t verybadimagenegative_v1.3 <lora:EasyNegative:0.75> ]]
+--default_prompt = [[(1girl), woman, (solo), __waifus/base_prompt__, looking at viewer, smile, light smile, naughty face, __waifus/breast_sizes__, multicolored hair, gradient hair, __waifus/hair__, __waifus/eyes__, ((dress, __waifus/colors__ dress)), contemporary, {(sleeveless), sleeveless dress|off shoulder, off-shoulder dress, ({long|short} sleeves)}, short dress, skirt, miniskirt, cleavage, bodystocking, collarbone, pelvic curtain, two-tone dress, {__waifus/necklaces__|__waifus/chokers__} <lora:atdan:0.35> <lora:Buchi:0.8> <lora:ke-ta:0.2> <lora:Tsubasu_V2.0:0.85> <lora:Tony Taka Style:0.15>]]
+--default_negative_prompt = [[(2girls, 3girls), __waifus/no_sad__, __waifus/base_negative_prompt__ negative_hand-neg ng_deepnegative_v1_75t verybadimagenegative_v1.3<lora:EasyNegative:0.75>]]
+
+choose_string = (a, b) ->
+	if (not a) or (a == "")
+		b or ""
+	else
+		a
+
+wrap_widgets = (widgets, is_button=false) ->
+	{
+		{
+			{
+				...widgets
+				spacing: scale(10)
+				layout:  wibox.layout.fixed.horizontal
+			}
+			margins: scale(10)
+			widget:  wibox.container.margin
+		}
+		bg:          beautiful.button_bg_active
+		bg_normal:   beautiful.button_bg_active
+		bg_selected: beautiful.button_bg_selected
+		bg_press:    beautiful.button_bg_press
+		shape:       gears.shape.rounded_rect
+		widget:      is_button and Button or wibox.container.background
+	}
+
+create_check_box = (label, callback, default_checked=false) ->
+	checkbox = wibox.widget {
+		checked:       default_checked
+		bg:            beautiful.bg_normal -- gears.color.transparent
+		color:         beautiful.bg_normal
+		shape:         gears.shape.circle
+		paddings:      scale(2)
+		check_color:   beautiful.bg_accent
+		check_shape:   gears.shape.circle
+		forced_widht:  scale(20)
+		forced_height: scale(20)
+		widget:        wibox.widget.checkbox
+	}
+
+	--- `@checked` is `true|nil`, not `true|false` like it should be, hence the `@checked == true` boolean expression
+	checkbox::connect_signal("property::checked", () => callback(@checked == true))
+
+	textbox = wibox.widget {
+		markup: label
+		halign: "left"
+		valign: "center"
+		widget: wibox.widget.textbox
+	}
+
+	widget = wibox.widget(wrap_widgets {
+		checkbox
+		textbox
+	})
+
+	widget::connect_signal("button::press", (x, y, b) => checkbox.checked = not checkbox.checked)
+
+	widget
+
+create_model_chooser = () ->
+	local *
+	local menu
+
+	conncted = false
+
+	label_widget = wibox.widget {
+		text:   "Loading current checkpoint title..."
+		widget: wibox.widget.textbox
+	}
+
+	refresh = () ->
+		model_was_manually_changed = false
+
+		do
+			(models_json) <- web_get(api_routes.models)
+
+			if model_was_manually_changed
+				return
+
+			models = json.decode(models_json)
+
+			(options_json) <- web_get(api_routes.options)
+
+			if model_was_manually_changed
+				return
+
+			options = json.decode(options_json)
+
+			current_checkpoint = options.sd_model_checkpoint
+
+			for model in *models
+				if model.title == current_checkpoint
+					label_widget.text = model.title
+					widget._private.model_chooser_current_model = model
+					break
+
+		do
+			(models_json) <- web_get(api_routes.models)
+
+			models = json.decode(models_json)
+
+			menu_items = for _, model in ipairs(models)
+				{
+					model.title
+					() ->
+						menu::hide()
+
+						p = widget._private
+
+						model_was_manually_changed = true
+
+						label_widget.text = "Loading checkpoint, please wait..."
+
+						if p.model_chooser_currently_changing_model
+							notify("Another model is currently already being loaded. Please be patient.")
+							return
+
+						p.model_chooser_currently_changing_model = true
+
+						() <- web_post_json(api_routes.options, json.encode {
+							"sd_model_checkpoint": model.title
+						})
+
+						--() <- gears.timer.delayed_call()
+
+						p.model_chooser_current_model = model
+						label_widget.text = model.title
+
+						p.model_chooser_currently_changing_model = false
+				}
+
+			menu = awful.menu {
+				items: menu_items
+				theme: {
+					width: scale(300)
+				}
+			}
+
+	try_refresh = () ->
+		(success) <- send_ping()
+
+		conncted = success
+
+		if success
+			refresh()
+		else
+			label_widget.text = "Could not connect to Stable Diffusion Webui API!"
+
+	try_refresh()
+
+	widget = wibox.widget(wrap_widgets({
+		label_widget
+	}, true))
+
+	--widget::connect_signal("button::press", (x, y, b) => menu::toggle())
+	widget.on_click = (b) ->
+		if not conncted
+			try_refresh()
+			return
+
+		switch b
+			when 1
+				if menu
+					menu::toggle()
+			when 2
+				try_refresh()
+			when 3
+				path = "/tmp/awesome_#{os.getenv('USER')}_sd_current_model.txt"
+				current_model = if m = widget._private.model_chooser_current_model
+					m.title
+				else
+					""
+
+				() <- awful.spawn.easy_async { "touch", path }
+
+				() <- write_file_async(path, current_model)
+
+				() <- awful.spawn.easy_async { "xclip", "-sel", "clipboard", "-i", path }
+
+				notify("Copied model name to clipboard!")
+
+	widget
+
+mt.__call = (cls, kwargs={}) ->
+	local widget
+
+	options = {
+		restore_faces: false
+		waifu_mode: true
+	}
+
+	prompt_base, negative_prompt_base = "", ""
+
+	prompt_input_box          = create_input_box("Prompt",   "#{cache_dir}/stable_diffusion_prompt_cache.json")
+	negative_prompt_input_box = create_input_box("Negative", "#{cache_dir}/stable_diffusion_negative_prompt_cache.json")
+
+	prompt_display          = wibox.widget { widget: wibox.widget.textbox }
+	negative_prompt_display = wibox.widget { widget: wibox.widget.textbox }
+
+	stop_generate_forever = false
+
+	on_click_generate = (b, forever=false) ->
+		if b != 1
+			return
+		
+		if forever and stop_generate_forever
+			stop_generate_forever = false
+			return
+
+		awesome.emit_signal("stop_all_input_boxes")
+
+		prompt, negative_prompt = if options.waifu_mode
+			suffix, negative_suffix = prompt_templates.get_prompt()
+
+			prompt_base          = choose_string prompt_input_box.__inputted_text,          suffix .. ", closed mouth, light smile, <lora:atdan:0.35> <lora:Buchi:0.8> <lora:ke-ta:0.2> <lora:Tsubasu_V2.0:0.85> <lora:Tony Taka Style:0.15>"
+			negative_prompt_base = choose_string(negative_prompt_input_box.__inputted_text, negative_suffix)
+
+			(cls.default_prompt .. prompt_base), (cls.default_negative_prompt .. negative_prompt_base)
+		else
+			pi  = prompt_input_box.__inputted_text
+			npi = negative_prompt_input_box.__inputted_text
+
+			(cls.default_prompt .. choose_string(pi)), (cls.default_negative_prompt .. choose_string(npi))
+
+		prompt_display.text          = "Prompt: #{prompt}"
+		negative_prompt_display.text = "Negative prompt: #{negative_prompt}"
+
+		widget::generate({
+			:prompt
+			:negative_prompt
+			restore_faces: options.restore_faces
+			width: 600
+			height: 900
+			sampler_name: "Euler a"
+			steps: 50
+			cfg_scale: 11
+		}, (if forever then (() -> on_click_generate(b, forever)) else (() -> )))
+
+	on_click_interrupt = (b) ->
+		if b != 1
+			return
+		
+		--(stdout, stderr, reason, exit_code) <- awful.spawn.easy_async {
+		--	"curl", "-sSL"
+		--	"-X", "POST"
+		--	(webiu_url .. "/" .. api_routes.interrupt)
+		--}
+		stop_generate_forever = true
+		web_post(api_routes.interrupt)
+
+	generate_button = wibox.widget {
+		{
+			{
+				id:     "text_role"
+				font:   "Source Sans Pro, Bold #{math.floor(scale(16) + 0.5)}"
+				text:   "Generate"
+				halign: "center"
+				valign: "center"
+				widget: wibox.widget.textbox
+			}
+			left:   scale(15)
+			right:  scale(15)
+			widget: wibox.container.margin
+		}
+		id:          "button_role"
+		on_click:    (b) -> on_click_generate(b)
+		bg:          beautiful.button_bg_active
+		bg_normal:   beautiful.button_bg_active
+		bg_selected: beautiful.button_bg_selected
+		bg_press:    beautiful.button_bg_press
+		shape:       gears.shape.rounded_rect
+		widget:      Button
+	}
+
+	generate_button.generate_mode = () =>
+		--notify("Switched to generate mode!")
+		for_children(@, "text_role",   (child) -> child.text     = "Generate")
+		for_children(@, "button_role", (child) -> child.on_click = (b) -> on_click_generate(b))
+
+	generate_button.interrupt_mode = () =>
+		--notify("Switched to interrupt mode!")
+		for_children(@, "text_role",   (child) -> child.text     = "Interrupt")
+		for_children(@, "button_role", (child) -> child.on_click = (b) -> on_click_interrupt(b))
+
+	generate_forever_button = wibox.widget {
+		{
+			{
+				id:     "text_role"
+				font:   "Source Sans Pro, Bold #{math.floor(scale(16) + 0.5)}"
+				text:   "Generate\nforever"
+				halign: "center"
+				valign: "center"
+				widget: wibox.widget.textbox
+			}
+			left:   scale(15)
+			right:  scale(15)
+			widget: wibox.container.margin
+		}
+		id:          "button_role"
+		on_click:    (b) -> on_click_generate(b, true)
+		bg:          beautiful.button_bg_active
+		bg_normal:   beautiful.button_bg_active
+		bg_selected: beautiful.button_bg_selected
+		bg_press:    beautiful.button_bg_press
+		shape:       gears.shape.rounded_rect
+		widget:      Button
+	}
+
+	widget_progress = {
+		--{
+			{
+				id:               "progressbar_role"
+				min_value:        0
+				max_value:        100
+				value:            0
+				color:            beautiful.bg_focus
+				background_color: beautiful.button_bg_active
+				forced_height:    scale(30),
+				shape:            (cr, w, h) -> gears.shape.rounded_rect(cr, w, h, scale(10))
+				bar_shape:        (cr, w, h) -> gears.shape.rounded_rect(cr, w, h, scale(10))
+				widget:           wibox.widget.progressbar
+			}
+			{
+				{
+					id:     "progresstext_role"
+					halign: "right"
+					font:   beautiful.monospace_font or "monospace 12"
+					widget: wibox.widget.textbox
+				}
+				right:  scale(10)
+				widget: wibox.container.margin
+			}
+			--bottom: scale(10)
+			--widget: wibox.container.margin
+		--}
+		id:      "progress_role"
+		visible: false
+		layout:  wibox.layout.stack
+	}
+
+	widget_imagebox = {
+		{
+			id:     "image_role"
+			halign: "center"
+			valign: "top"
+			widget: wibox.widget.imagebox
+		}
+		bg:     beautiful.button_bg_active
+		shape:  gears.shape.rounded_rect
+		widget: wibox.container.background
+	}
+
+	widget_inputs = {
+		{
+			prompt_input_box
+			negative_prompt_input_box
+			spacing: scale(10)
+			layout:  wibox.layout.flex.vertical
+		}
+		{
+			generate_button
+			generate_forever_button
+			forced_height: scale(80)
+			spacing:       scale(10)
+			layout:        wibox.layout.flex.horizontal
+		}
+		spacing: scale(10)
+		layout:  wibox.layout.flex.vertical
+	}
+
+	widget_options = wibox.widget {
+		create_check_box("Restore faces", ((checked) -> options.restore_faces = checked), options.restore_faces)
+		create_check_box("Waifu mode", ((checked) -> options.waifu_mode = checked), options.waifu_mode)
+		spacing: scale(10)
+		widget:  wibox.layout.fixed.horizontal
+	}
+
+	widget_model_chooser = create_model_chooser()
+
+	widget = wibox.widget {
+		widget_model_chooser
+		widget_inputs
+		widget_options
+		widget_progress
+		widget_imagebox
+		{
+			{
+				{
+					prompt_display
+					{
+						orientation: "horizontal"
+						color: "#808080"
+						thickness: scale(1)
+						forced_height: scale(5)
+						widget: wibox.widget.separator
+					}
+					negative_prompt_display
+					layout:  wibox.layout.align.vertical
+				}
+				right:  scale(10)
+				layout: wibox.container.margin
+			}
+			layout: wibox.layout.overflow.vertical
+		}
+		spacing: scale(10)
+		layout:  wibox.layout.fixed.vertical
+	}
+
+	for_children(widget, "image_role", (child) ->
+		child::connect_signal("button::press", (x, y, b) =>
+			if b != 1
+				return
+
+			if not @__image_path
+				return
+
+			awful.spawn { "firefox", "file://#{@__image_path}" }
+		)
+	)
+
+	widget._private.sd_is_generating = false
+	widget.get_sd_is_generating = () =>
+		@_private.sd_is_generating
+	widget.set_sd_is_generating = (value) =>
+		if value
+			generate_button::interrupt_mode()
+		else
+			generate_button::generate_mode()
+		@_private.sd_is_generating = value
+
+	gears.table.crush(widget, cls)
+
+	widget

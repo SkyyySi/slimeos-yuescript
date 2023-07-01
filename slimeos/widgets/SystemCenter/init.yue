@@ -22,6 +22,40 @@ button_bg_active   = beautiful.SystemCenter_Tab_bg_active   or "#1D2034"
 button_bg_selected = beautiful.SystemCenter_Tab_bg_selected or "#252941"
 button_bg_press    = beautiful.SystemCenter_Tab_bg_press    or "#303654"
 
+custom_rounded_rect = (cr, width, height, tl, tr, br, bl) ->
+    --if width / 2 < rad then
+    --    rad = width / 2
+
+    --if height / 2 < rad then
+    --    rad = height / 2
+
+    cr::new_sub_path()
+
+    -- Top left
+    if tl then
+        cr::arc(tl, tl, tl, math.pi, 3*(math.pi/2))
+    else
+        cr::move_to(0,0)
+
+    -- Top right
+    if tr then
+        cr::arc(width-tr, tr, tr, 3*(math.pi/2), math.pi*2)
+    else
+        cr::line_to(width, 0)
+
+    -- Bottom right
+    if br then
+        cr::arc(width-br, height-br, br, math.pi*2, math.pi/2)
+    else
+        cr::line_to(width, height)
+
+    -- Bottom left
+    if bl then
+        cr::arc(bl, height-bl, bl, math.pi/2, math.pi)
+    else
+        cr::line_to(0, height)
+
+    cr::close_path()
 
 macro RUN_IF_CHANGED = (old, new, fn) ->
 	"if #{new} != #{old} then #{fn}"
@@ -32,7 +66,7 @@ shape = (base_shape, ...) ->
 	(cr, width, height) -> base_shape(cr, width, height, unpack(args))
 
 
-wrap_tab_block = (widget) ->
+wrap_tab_block = (widget, center=true) ->
 	wibox.widget {
 		{
 			nil
@@ -41,7 +75,7 @@ wrap_tab_block = (widget) ->
 				margins: base_spacing
 				widget:  wibox.container.margin
 			}
-			expand: "outside"
+			expand: center and "outside" or "inside"
 			layout: wibox.layout.align.horizontal
 		}
 		bg:     beautiful.bg_alternate
@@ -330,7 +364,7 @@ multimedia_remote_controls = () ->
 	}
 
 
-import cava, lyricsbox, volume_control, notification_center from require("slimeos.widgets.SystemCenter.widgets")
+import cava, lyricsbox, volume_control, stable_diffusion, notification_center from require("slimeos.widgets.SystemCenter.widgets")
 
 global __SYSTEMCENTER_CAVA_INSTANCE = __SYSTEMCENTER_CAVA_INSTANCE ?? cava()
 
@@ -501,13 +535,56 @@ builtin_tabs.widgets.notification_center = () ->
 
 	widget
 
+generation_already_run = false
+builtin_tabs.stable_diffusion = () ->
+	widget = stable_diffusion()
+
+	--[[
+	if not generation_already_run
+		generation_already_run = true
+
+		gears.timer {
+			timeout:     2
+			autostart:   true
+			single_shot: true
+			callback:    () ->
+				<- util.apcall!
+				notify("Generating image!")
+				widget::generate(stable_diffusion.test_data)
+		}
+	--]]
+
+	widget
+
+--wibox {
+--	x:       20 + 1920
+--	y:       20
+--	width:   768
+--	height:  768
+--	visible: true
+--	ontop:   true
+--	widget:  {
+--		builtin_tabs.widgets.stable_diffusion()
+--		bg:     "#202020"
+--		widget: wibox.container.background
+--	}
+--}
+
 builtin_tabs.widgets.<call> = () =>
 	widget = wibox.widget {
-		wrap_tab_block(builtin_tabs.widgets.clock())
-		wrap_tab_block(builtin_tabs.widgets.calendar())
-		wrap_tab_block(builtin_tabs.widgets.notification_center())
-		spacing: base_spacing
-		layout:  wibox.layout.fixed.vertical
+		--{
+			wrap_tab_block(builtin_tabs.widgets.clock())
+			wrap_tab_block(builtin_tabs.widgets.calendar())
+			--wrap_tab_block(builtin_tabs.widgets.notification_center())
+			spacing: base_spacing
+			layout:  wibox.layout.fixed.vertical
+		--}
+		--{
+		--	wrap_tab_block(builtin_tabs.widgets.stable_diffusion(), false)
+		--	top:    base_spacing
+		--	widget: wibox.container.margin
+		--}
+		--layout: wibox.layout.align.vertical
 	}
 
 	widget
@@ -543,7 +620,7 @@ Tab = (args, widget_template) ->
 		}
 		id:     "background_role"
 		bg:     button_bg_normal
-		shape:  shape(gears.shape.rounded_rect, util.scale(2.5))
+		border_width: util.scale(1)
 		widget: wibox.container.background
 	})
 
@@ -574,8 +651,37 @@ Tab = (args, widget_template) ->
 
 	tab.set_active = (is_active) =>
 		@_private.is_active_tab = is_active
+		@set_tabbar_index()
 
-		util.for_children(@, "background_role", (child) -> child.bg = (is_active and button_bg_active or button_bg_normal))
+		util.for_children(@, "background_role", (child) ->
+			child.bg = (is_active and button_bg_active or button_bg_normal)
+		)
+
+	tab.set_tabbar_index = (index, tabbar_length) =>
+		if index
+			@_private.tabbar_index = index
+		else
+			index = @_private.tabbar_index
+
+		if tabbar_length
+			@_private.tabbar_length = tabbar_length
+		else
+			tabbar_length = @_private.tabbar_length
+
+		if (not index) or (not tabbar_length)
+			return
+
+		is_active = @get_active()
+
+		util.for_children(@, "background_role", (child) ->
+			child.border_color = beautiful[is_active and "border_color_active" or "border_color_normal"]
+			child.shape = if index == 1
+				shape(custom_rounded_rect, util.scale( 10), util.scale(2.5), util.scale(2.5), util.scale( 10))
+			elseif index == tabbar_length
+				shape(custom_rounded_rect, util.scale(2.5), util.scale( 10), util.scale( 10), util.scale(2.5))
+			else
+				shape(gears.shape.rounded_rect, util.scale(2.5))
+		)
 
 	tab.get_body_widget = ()      => @_private.body_widget
 	tab.set_body_widget = (value) => @_private.body_widget = value
@@ -592,16 +698,16 @@ Tab = (args, widget_template) ->
 TabbedLayout = () ->
 	tabbed_layout = wibox.widget {
 		{
-			{
+			--{
 				{
 					id:      "all_tabs_role"
 					spacing: util.scale(2)
 					forced_height: util.scale(30)
 					layout:  wibox.layout.flex.horizontal
 				}
-				shape:  shape(gears.shape.rounded_rect, util.scale(10))
-				widget: wibox.container.background
-			}
+			--	shape:  shape(gears.shape.rounded_rect, util.scale(10))
+			--	widget: wibox.container.background
+			--}
 			bottom: base_spacing
 			widget: wibox.container.margin
 		}
@@ -615,7 +721,7 @@ TabbedLayout = () ->
 	tabbed_layout._private.tabs = {}
 
 	tabbed_layout.activate_tab = (tab) =>
-		for i, t in ipairs(tabbed_layout._private.tabs)
+		for _, t in ipairs(@_private.tabs)
 			t.active = (t == tab)
 
 		@_private.currently_active_tab = tab
@@ -627,13 +733,17 @@ TabbedLayout = () ->
 	tabbed_layout.refresh = () =>
 		tabs = @_private.tabs
 
+		len = #(@_private.tabs)
+		for i, t in ipairs(@_private.tabs)
+			t::set_tabbar_index(i, len)
+
 		util.for_children(@, "all_tabs_role", (child) ->
 			child::reset()
 
 			for index, tab in ipairs(tabs)
 				child::add(tab)
 		)
-	
+
 	tabbed_layout::refresh()
 
 	tabbed_layout.add_tab = (args) =>
@@ -692,6 +802,7 @@ SystemCenter = (args={}) ->
 	with args
 		.position ??= "left"
 		.width    ??= util.scale(400)
+		.height   ??= args.screen.workarea.height
 		.type     ??= "normal"
 		.shape    ??= beautiful.SystemCenter_shape or get_shape_for_position(.position)
 		.visible  ??= true
@@ -717,13 +828,19 @@ SystemCenter = (args={}) ->
 		container_args: args
 	}
 
+	--system_center = wibox(args)
+
+	--awful.placement.right(system_center, {
+	--	honor_workarea: true
+	--})
+
 	multimedia_tab = Tab {
 		text:        "󰎈  Media"
 		body_widget: builtin_tabs.multimedia()
 	}
 
 	system_tab = Tab {
-		text:        "     System"
+		text:        "    System"
 		body_widget: wibox.widget {
 			text:   "This is the tab for system info!"
 			widget: wibox.widget.textbox
@@ -731,12 +848,18 @@ SystemCenter = (args={}) ->
 	}
 
 	widgets_tab = Tab {
-		text:        "󰜬    Widgets"
+		text:        "󰜬   Widgets"
 		body_widget: builtin_tabs.widgets()
+	}
+
+	stable_diffusion_tab = Tab {
+		text:        "  SD"
+		body_widget: wrap_tab_block(builtin_tabs.stable_diffusion(), false)
 	}
 
 	--[ [
 	util.for_children(args.widget, "tabs_role", (child) ->
+		child::add_tab { tab: stable_diffusion_tab }
 		child::add_tab { tab: multimedia_tab }
 		child::add_tab { tab: system_tab }
 		child::add_tab { tab: widgets_tab }

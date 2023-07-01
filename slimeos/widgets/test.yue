@@ -1,0 +1,3 @@
+import "slimeos.lib.util.macro" as { $ }
+
+$NAMESPACE

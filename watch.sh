@@ -9,7 +9,12 @@ LUA_VERSION="${LUA_VERSION:-5.2}"
 # yue --target="$LUA_VERSION" -w "$PWD"
 
 clear
-yue .
+
+function compile() {
+	yue -c -l --target="$LUA_VERSION" "$@"
+}
+
+compile .
 
 function wait_for_change() {
 	inotifywait --event modify \
@@ -17,10 +22,6 @@ function wait_for_change() {
 		--recursive ./ \
 		2> /dev/null |
 		awk '{ printf "%s%s\n", $1, $3 }'
-}
-
-function compile() {
-	yue -c --target="$LUA_VERSION" "$1"
 }
 
 while true; do

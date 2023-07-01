@@ -1,18 +1,14 @@
-import "awful"
-import "gears"
-import "wibox"
-import "ruled"
-import "beautiful"
-import "menubar"
-import "naughty"
+require = require
+setmetatable = setmetatable
 
-import Object, util, wrap, ClassPlus from require("slimeos.lib")
+import gears, wibox, beautiful from require("awesome_std")
 
---[ [
-Button = { mt: {} }
-Button.mt.__index = Button.mt
-Button.mt.__name = "slimeos.widget.Button"
-setmetatable(Button, Button.mt)
+local *
+
+_module = { mt: {} }
+_module.mt.__index = _module.mt
+_module.mt.__name = "slimeos.widgets.Button"
+_module.<> = _module.mt
 
 properties = {
 	"bg_normal"
@@ -22,66 +18,85 @@ properties = {
 	"fg_selected"
 	"fg_press"
 	"mouse_effects"
+	"on_click"
 }
 
 for property in *properties
-	Button["get_" .. property] = ()      => @_private[property]
-	Button["set_" .. property] = (value) => @_private[property] = value
+	_module["get_" .. property] = ()      => @_private[property]
+	_module["set_" .. property] = (value) => @_private[property] = value
 
-Button.mt.__call = (cls, args={}) ->
-	@ = wibox.container.background()
-
-	gears.table.crush(@, cls)
-
-	if @_private == nil
-		@_private = {}
-
+_module.mouse_enter_callback = () =>
 	p = @_private
 
-	with args
+	@bg = p.bg_selected
+
+	if p.mouse_effects
+		wb = mouse.current_wibox
+
+		if not wb
+			return
+
+		p.previous_wibox = wb
+		p.original_cursor = p.original_cursor ?? wb.cursor
+		wb.cursor = "hand1"
+
+_module.mouse_leave_callback = () =>
+	p = @_private
+
+	@bg = p.bg_normal
+
+	p.current_button = nil
+
+	if p.mouse_effects and p.previous_wibox
+		p.previous_wibox.cursor = p.original_cursor
+		p.previous_wibox = nil
+
+_module.button_press_callback = (_, _, button) =>
+	p = @_private
+
+	@bg = p.bg_press
+
+	p.current_button = button
+
+_module.button_release_callback = (x, y, button) =>
+	p = @_private
+
+	@bg = p.bg_selected
+
+	if p.on_click and (p.current_button == button)
+		p.on_click(button, @, x, y)
+
+	p.current_button = nil
+
+_module.mt.__call = (cls, kwargs={}) ->
+	instance = wibox.container.background()
+
+	gears.table.crush(instance, cls)
+
+	instance._private ??= {}
+
+	with kwargs
+		p = instance._private
 		p.bg_normal   = .bg_normal   ?? beautiful.Button_bg_normal   ?? "#FFFFFF00"
 		p.bg_selected = .bg_selected ?? beautiful.Button_bg_selected ?? "#FFFFFF20"
 		p.bg_press    = .bg_press    ?? beautiful.Button_bg_press    ?? "#FFFFFF40"
 
 		p.fg_normal   = .fg_normal   ?? beautiful.Button_fg_normal
 		p.fg_selected = .fg_selected ?? beautiful.Button_fg_selected
-		p.fg_press    = .fg_press    ?? beautiful.Button_fg_press 
+		p.fg_press    = .fg_press    ?? beautiful.Button_fg_press
 
-		@bg = .initial_bg ?? p.bg_normal
-		@fg = .initial_fg ?? p.fg_normal
+		p.on_click = .on_click
+
+		instance.bg = .initial_bg ?? p.bg_normal
+		instance.fg = .initial_fg ?? p.fg_normal
 
 		p.mouse_effects = .mouse_effects ?? true
 
-	@connect_signal("mouse::enter", () ->
-		@bg = p.bg_selected
+	instance::connect_signal("mouse::enter",    cls.mouse_enter_callback)
+	instance::connect_signal("mouse::leave",    cls.mouse_leave_callback)
+	instance::connect_signal("button::press",   cls.button_press_callback)
+	instance::connect_signal("button::release", cls.button_release_callback)
 
-		if p.mouse_effects
-			wb = mouse.current_wibox
+	instance
 
-			if not wb
-				return
-
-			p.previous_wibox = wb
-			p.original_cursor = p.original_cursor ?? wb.cursor
-			wb.cursor = "hand1"
-	)
-
-	@connect_signal("mouse::leave", () ->
-		@bg = p.bg_normal
-
-		if p.mouse_effects and p.previous_wibox
-			p.previous_wibox.cursor = p.original_cursor
-			p.previous_wibox = nil
-	)
-
-	@connect_signal("button::press", (_, _, _, button) ->
-		@bg = p.bg_press
-	)
-
-	@connect_signal("button::release", (_, _, _, button) ->
-		@bg = p.bg_selected
-	)
-
-	@
-
-Button
+_module

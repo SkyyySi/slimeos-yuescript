@@ -115,6 +115,8 @@ format_lyrics_cache_key = (str) ->
 		::gsub("%s+", " ")
 		::lower()
 		::gsub(" and artist:", " AND artist:")
+		::gsub("%(ft. [^%)]*%)", "")
+		::gsub("%(feat. [^%)]*%)", "")
 		|> util.string.strip()
 		-- |> format_string_for_saving()
 
@@ -236,7 +238,8 @@ get_lyrics = (song_id, callback) ->
 
 	awful.spawn.easy_async({ "bash", "-c", script }, (stdout, stderr, reason, exit_code) ->
 		if exit_code != 0
-			show_table_error("An error occured while trying to use syrics", { :stdout, :stderr, :reason, :exit_code })
+			--show_table_error("An error occured while trying to use syrics", { :stdout, :stderr, :reason, :exit_code })
+			--notify("An error occured while trying to use syrics! More info:\n\n#{stderr}")
 			return
 
 		if stdout == ""
@@ -271,7 +274,7 @@ get_song_id = (song_title, callback) ->
 
 	awful.spawn.easy_async({ "bash", "-c", script }, (stdout, stderr, reason, exit_code) ->
 		if exit_code != 0
-			notify("An error occured while trying to use syrics! More info:\n\nstdout: \"#{stdout}\"\nstderr: \"#{stderr}\"\nreason: \"#{reason}\"\nexit_code: \"#{exit_code}\"", 0)
+			-- notify("An error occured while trying to use syrics! More info:\n\nstdout: \"#{stdout}\"\nstderr: \"#{stderr}\"\nreason: \"#{reason}\"\nexit_code: \"#{exit_code}\"", 0)
 			return
 
 		song_id = util.string.strip(stdout or "")
@@ -322,7 +325,10 @@ gears.timer {
 	call_now:  true
 	callback:  () ->
 		awesome.connect_signal("playerctl::metadata", (metadata) ->
-			song = trim_song_fmt("track:#{format_title(metadata.title)} AND artist:#{format_artists(metadata.artist)}")
+			formatted_title = format_title(metadata.title)
+			if #formatted_title > 100
+				return
+			song = trim_song_fmt("track:#{formatted_title} AND artist:#{format_artists(metadata.artist)}")
 
 			if song == prev_song
 				--print("Lyrics Error: The song has not changed")
@@ -330,7 +336,7 @@ gears.timer {
 
 			--print(song)
 
-			--lyricsbox::clear()
+			lyricsbox::clear()
 
 			prev_song = song
 

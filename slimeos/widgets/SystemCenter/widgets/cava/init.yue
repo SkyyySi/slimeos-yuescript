@@ -10,16 +10,6 @@ import split from require("slimeos.lib.util.string")
 
 local *
 
-macro EXPORT = (name, value) ->
-	if not value
-		"table.insert(_module, #{name})"
-	elseif name_number = tonumber(name)
-		"_module[#{name}] = #{value}"
-	elseif pure_name = (name::match([["([^"]*)"]]) or name::match([['([^']*)']]))
-		"_module[#{name}] = #{name}"
-	else
-		"local #{name}\n#{name} = #{value}\n_module[\"#{name}\"] = #{name}"
-
 export awesome_config_path = gears.filesystem.get_configuration_dir()
 export cava_config_path = awesome_config_path .. "config/cava/config.ini"
 export cava_command = "cava -p #{cava_config_path::gsub([[']], [['"'"']])}"
@@ -49,7 +39,7 @@ new = (kwargs={}) ->
 				id:     "counter_role"
 				halign: "center"
 				valign: "top"
-				font:   beautiful.apply_font_size(beautiful.font, scale(6))
+				font:   beautiful.apply_font_size(beautiful.font, scale(5))
 				widget: wibox.widget.textbox
 			}
 			{

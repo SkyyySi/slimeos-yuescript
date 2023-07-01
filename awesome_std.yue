@@ -12,5 +12,6 @@ export keygrabber   = keygrabber
 export mouse        = mouse
 export mousegrabber = mousegrabber
 export root         = root
+export selection    = selection
 export screen       = screen
 export tag          = tag

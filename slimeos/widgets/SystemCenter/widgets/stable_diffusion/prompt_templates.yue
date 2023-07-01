@@ -1,0 +1,454 @@
+_tostring = tostring
+tostring = (v) ->
+	if v == nil
+		return ""
+
+	_tostring(v)
+
+local *
+
+math.randomseed(os.time())
+
+import random from math
+randint = (n) -> random(1, n)
+
+chance = (n) -> randint(n) == n
+
+join = (args) ->
+	result = ""
+
+	first = true
+	for _, arg in ipairs(args)
+		if arg == nil
+			continue
+
+		if first
+			first = false
+		else
+			result ..= ", "
+
+		result ..= _tostring(arg)
+
+	result
+
+randget = (n, fn) ->
+	amount = random(0, n)
+
+	if amount == 0
+		return
+
+	join(for i = 1, amount do fn())
+
+choice = (...) ->
+	args = { ... }
+	args[randint(select("#", ...))]
+
+optchoice = (...) ->
+	args = { ... }
+	len = select("#", ...) + 1
+	index = randint(len)
+	if arg = args[len]
+		", " .. arg
+	else
+		""
+
+export rangeoptchoice = (a, b, ...) ->
+	args = { ... }
+	len = select("#", ...) + 1
+	b += 1
+	stop = math.random(a, b)
+
+	if stop == b
+		return ""
+
+	table.concat(for _ = 1, (stop - 1)
+		index = math.random(1, len)
+
+		if arg = args[index]
+			", " .. arg
+		else
+			""
+	)
+
+export class PromptTemplate
+	new: (values) =>
+		for _, v in pairs(values)
+			@[#@+1] = v
+
+	get: (n) =>
+		index = randint(#@)
+
+		if not n
+			return @[index], index
+
+		if chance(n + 1)
+			return (", " .. @[index]), index
+
+		"", 0
+	
+	<call>: (...) => @get(...)
+
+export colors = PromptTemplate {
+	"white"
+	"grey"
+	"silver"
+	"pink"
+	"red"
+	"orange"
+	"brown"
+	"gold"
+	"yellow"
+	"beige"
+	"green"
+	"aqua"
+	"cyan"
+	"blue"
+	"purple"
+	"black"
+}
+
+export hair_colors = PromptTemplate {
+	"white"
+	"grey"
+	"pink"
+	"red"
+	"orange"
+	"brown"
+	"light brown"
+	"blonde"
+	"yellow"
+	"light green"
+	"green"
+	"aqua"
+	"cyan"
+	"blue"
+	"light blue"
+	"dark blue"
+	"purple"
+	"light purple"
+	"black"
+}
+
+export hair_multicolors = PromptTemplate {
+	"multicolored hair"
+	"colored inner hair"
+	"colored tips"
+	"gradient hair"
+	"print hair"
+	"rainbow hair"
+	"split-color hair"
+	"spotted hair"
+	"streaked hair"
+	"two-tone hair"
+}
+
+export hair_size = PromptTemplate {
+	"very short hair"
+	"short hair"
+	"medium hair"
+	"long hair"
+	"very long hair"
+	"absurdly long hair"
+	"big hair"
+}
+
+export hair_extras = PromptTemplate {
+	"bun cover"
+	"hairpods"
+	"chopsticks"
+	"comb"
+	"hair ornament"
+	"hair ornament, hair bell"
+	"hair ornament, hair bobbles"
+	"hair ornament, hair bow"
+	"hair ornament, hair ribbon"
+	"hair ornament, hairclip"
+	"hair ornament, hairpin"
+	"hair ornament, hair flower"
+	"hair ornament, hair tubes"
+	"hair ornament, kanzashi"
+	"hair tie"
+	"hairband"
+	"headband"
+	"scrunchie"
+}
+
+export eye_colors = PromptTemplate {
+	"aqua"
+	"black"
+	"blue"
+	"brown"
+	"green"
+	"grey"
+	"orange"
+	"purple"
+	"pink"
+	"red"
+	"white"
+	"yellow"
+	"amber"
+}
+
+export facial_expressions = PromptTemplate {
+	"> <"
+	"X3"
+	"XD"
+	"DX"
+	"O o"
+	"0 0"
+	"3 3"
+	"6 9"
+	"@ @"
+	"^ ^"
+	"^o^"
+	"|_|"
+	"= ="
+	"+ +"
+	". ."
+	"<o> <o>"
+}
+
+export gazes = PromptTemplate {
+	"eye contact"
+	"looking afar"
+	"looking at hand"
+	"looking at hands"
+	"looking at mirror"
+	"looking at phone"
+	"looking at self"
+	"looking at viewer"
+	"looking away"
+	"looking back"
+	"looking down"
+	"looking to the side"
+	"looking up"
+}
+
+export get_secondary_legwear = (n) ->
+	PromptTemplate({
+		"pantyhose"
+		"#{colors::get()} legwear"
+		"thighhighs"
+		"single thighhigh"
+		"fishnets, fishnet pantyhose"
+		"fishnets, fishnet thighhighs"
+		"fishnets, fishnet single thighhigh"
+	})::get(n)
+
+export get_footwear = (n) ->
+	PromptTemplate({
+		"shoes"
+		"boots"
+		"boots, ankle boots"
+		"boots, thigh boots"
+		"sneakers"
+	})::get(n)
+
+export get_legwear = (n) ->
+	PromptTemplate({
+		"skirt, #{colors::get()} skirt" .. optchoice("miniskirt", "microskirt")
+		"bare legs"
+		"shorts#{get_secondary_legwear(2)}#{get_footwear(1)}"
+		"shorts, denim shorts, short shorts#{get_secondary_legwear(2)}#{get_footwear(1)}"
+		"jeans, pants#{get_footwear(1)}"
+		"pantyhose, pants#{get_footwear(1)}"
+		"#{get_secondary_legwear()}#{get_footwear(1)}"
+		--"panties, #{colors::get()} panties"
+	})::get(n)
+
+export get_top = (n) ->
+	PromptTemplate({
+		"t-shirt, (#{colors::get()} t-shirt)" .. choice("sleeveless shirt", "long sleeves", "short sleeves") .. optchoice("crop top, naval")
+		"shirt, (#{colors::get()} shirt), buttoned shirt, office lady, " .. choice("sleeveless shirt", "long sleeves", "short sleeves")
+		"tank top, (#{colors::get()} tank top), sleeveless, sleeveless shirt" .. optchoice("crop top, naval")
+		"sweater, (#{colors::get()} sweater), ribbed sweater, sweater dress" .. optchoice("turtleneck, turtleneck sweater", ", bare shoulders, off shoulder, off-shoulder sweater") .. ", " .. choice("sleeveless sweater", "long sleeves", "short sleeves")
+		"sleeveless turtleneck, (#{colors::get()} sleeveless turtleneck), crop top" .. optchoice("detatched sleeves, long sleeves")
+		--"bra, #{colors::get()} bra"
+		"sports bra, #{colors::get()} sports bra"
+	})::get(n)
+
+export get_base_position = (n) ->
+	PromptTemplate({
+		"standing"
+		"sitting"
+		"kneeling"
+	})::get(n)
+
+export get_breast_size = (n) ->
+	PromptTemplate({
+		"flat chest[np!huge breasts, gigantic breasts]"
+		"small breasts[np!huge breasts, gigantic breasts]"
+		"medium breasts[np!gigantic breasts]"
+		"large breasts"
+		"huge breasts"
+		"gigantic breasts"
+	})::get(n)
+
+export get_arm_position = (n) ->
+	PromptTemplate({
+		"arm behind back"
+		"arms behind back"
+		"arm up"
+		"arm up, arm behind head"
+		"arm up, victory pose"
+		"arm up, waving"
+		"arm up, pointing"
+		"arm up, pointing, pointing at self"
+		"arm up, pointing, pointing at viewer"
+		"arm up, pointing, pointing down"
+		"arm up, pointing, pointing forward"
+		"arm up, pointing, pointing up"
+		"arms up, air quotes"
+		"arms up, carry me"
+		"arms up, clenched hands"
+		"arms up, cupping hands"
+		"arms up, double finger gun"
+		"arms up, peace sign, v"
+		"arms up, peace sign, double v"
+		"arms up, fidgeting"
+		"arms up, finger frame"
+		"arms up, high five"
+		"arms up, horns pose"
+		"arms up, paw pose"
+		"arms up, rabbit pose"
+		"arms up"
+		"arms up"
+		"arms up, \\o/"
+		"arms up, arms behind head"
+		"outstretched arm"
+		"outstretched arms"
+		"spread arms"
+		"arm at side, arms at sides"
+	})::get(n)
+
+export get_leg_position = (n) ->
+	PromptTemplate({
+		"crossed ankles"
+		"folded"
+		"leg up"
+		"legs up"
+		"legs up, knees to chest"
+		"legs up, legs over head"
+		"leg lift"
+		"outstretched leg"
+		"split"
+		"split, pigeon pose"
+		"split, standing split"
+		"spread legs"
+		"watson cross"
+	})::get(n)
+
+export get_full_outfit = (n) ->
+	PromptTemplate({
+		do
+			detatched_sleeves = "detatched sleeves, bare shoulders, off shoulder, cleavage"
+			"((kimono)), (#{colors()} kimono), japanese clothes, long sleeves, wide sleeves, flower print, ribbon, hair ribbon, hair ornament, tassel, obi, miko, shrine, japanese architecture, temple, geta" .. choice(", #{detatched_sleeves}", "[np!#{detatched_sleeves}]")
+		"((ninja)), scarf, (#{colors()} clothes), #{choice('crop top, naval', 'dress, v-neck, short dress, cleavage cutout, cleavage')}, sleeveless#{optchoice('mask, (mouth mask)')}#{optchoice('katana, holding sword')}#{optchoice('bare legs', 'thighhighs', 'single thighhigh')}, #{optchoice("shorts", "skirt, miniskirt", "panties")}, gloves, fingerless gloves, elbow gloves, fishnets, (geta)"
+		"((maid)), victorian maid, dress, long dress, frilled dress, black dress, long sleeves, maid headdress, maid apron, cleavage, thighhighs, garter straps"
+		"((school uniform)), (#{choice('black', 'white', 'white', 'white')} shirt), long sleeves, collar, serafuku, sailor collar, (#{colors()} collar), neckerchief, (#{colors()} neckerchief), skirt, miniskirt, (#{colors()} skirt), short skirt, thighhighs"
+		"((bikini)), (#{colors()} bikini)#{optchoice('string bikini', 'frilled bikini', 'bow bikini', 'shiny bikini, latex bikini')}, beach, ocean, tropical[np!jacket, shirt, open jacket, open shirt]"
+		"egyptian, egyptian clothes, indian clothes, arabian clothes#{optchoice('((mouth veil), covered mouth), see-through mouth mask[np!(surgical mask)]')}, gerudo, jewelry, gold, gem, golden headband, golden neckband, golden dress, #{colors()} dress, ring, earrings, wristband, golden thigh strap, gold chain, pelvic curtain, see-through" .. optchoice("belly dancing, arms up, hands above head")
+		"((wedding dress, white dress)), bridal veil, veil, frilled dress, lace, lace trim, holding flower, long sleeves, long dress, frilled sleeves visual novel"
+		"(gothic, (black clothes, (contemporary))), t-shirt, long sleeves, miniskirt, skirt, black skirt, chains, choker, black choker, spiked choker, black footwear, boots, #{choice("(ankle boots)#{optchoice('(fishnets), fishnet legwear')}#{optchoice('((single thighhigh))')}", '(thigh boots)')}, armband, spiked armband, thigh strap, spiked thighstrap, jacket, black jacket"
+		"((magical girl)), (#{colors()} dress), (#{colors()} skirt), magic, wizard hat, vision \\(genshin impact\\), wand, casting spell, dress, short dress, skirt, miniskirt"
+		"((dress, #{colors()} dress)), (#{choice('long sleeves', 'sleeveless dress')}), frilled dress, lace-trimmed dress, lace, lace trim, corset, skirt, lace-trimmed skirt, #{choice('choker, lace-trimmed choker, frilled choker, ribbon choker, neck ribbon', 'necklace')}, gloves, half gloves, lace-trimmed gloves, flower, princess, noble, diadem, jewelry"
+		"idolmaster, ((idol)), alternate costume, multicolored clothes, multicolored dress, ((colorful)), stage, ribbon, ((((idol clothes)))), frills, turtleneck dress, sleeveless dress, microphone, (open mouth)"
+		do
+			jacket = "black jacket"
+			"((office lady)), shirt, (white shirt), long sleeves, choker, skirt, miniskirt, shiny skirt, black skirt, thighhighs, garter straps" .. choice(", #{jacket}", "[np!#{jacket}]")
+		do
+			neck_type = choice('off shoulder, off-shoulder sweater, bare shoulders, cleavage, bra straps[np!strapless, ((turtleneck)), (turtleneck sweater)]', 'turtleneck, turtleneck sweater')
+			color = colors()
+			"((sweater)), (#{choice('beige', 'beige', color)} sweater), contemporary, ribbed sweater, #{choice(('long sleeves, ' .. neck_type), ('short sleeves, ' .. neck_type), "sleeveless, sleeveless turtleneck[np!long sleeves, detatched sleeves, #{color} sleeves]")}, #{get_legwear()}"
+		do
+			color = colors()
+			"((china dress)), (#{color} dress), chinese clothes#{rangeoptchoice(1, 3, 'cleavage cutout', 'bodystocking', 'pantyhose, pants')}#{optchoice('sleeveless, sleeveless dress', "long sleeves, #{color} sleeves")}"
+		do
+			color = colors()
+			"((rabbit girl)), (#{color} clothes), bodysuit, #{color} bodysuit, playboy bunny, cameltoe, cleavage, rabbit ears, hairband, rabbit tail, #{choice('wrist cuffs', 'gloves, elbow gloves')}, bowtie, #{color} bowtie, thick thighs, (#{choice('pantyhose, black legwear', 'thighhighs', 'bare legs')}), high heels, shiny clothes"
+	})::get(n)
+
+export get_species = (n) ->
+	gen = (species) -> "(#{species} girl), animal ears, animal ear fluf, (#{species} ears), tail, (#{species} tail)"
+
+	PromptTemplate({
+		"#{gen('cat')}"
+		"#{gen('dog')}"
+		"#{gen('fox')}"
+		"#{gen('wolf')}"
+		"#{gen('rabbit')}"
+	})::get(n)
+
+export get_unique_pair = (getter) ->
+	a = getter()
+
+	local b
+	repeat
+		b = getter()
+	until a != b
+
+	a, b
+
+macro CHANCE_PICK = (chance, if_yes, if_no) ->
+	"if chance(#{chance}) then #{if_yes} else #{if_no}"
+
+export get_prompt = () ->
+	negative_prompt = ""
+
+	hair_color = if chance(10)
+		"(#{hair_multicolors()}, #{hair_colors()} hair, #{hair_colors()} hair)"
+	else
+		"(#{hair_colors()} hair)"
+
+	eye_color = if chance(15)
+		color_a, color_b = get_unique_pair(eye_colors)
+		-- heterochromia = eyes are differently colored, like one red and one blue
+		"(heterochromia, #{color_a} eye, #{color_b} eye)"
+	elseif chance(10)
+		-- multicolored = one eye has multiple colors, but both eyes use the same color mixture / gradient
+		color_a, color_b = get_unique_pair(eye_colors)
+		"(multicolored eyes, gradient eyes, #{color_a} eyes, #{color_b} eyes)"
+	else
+		"(#{eye_colors()} eyes)"
+
+	--if chance(8)
+	--	hair_color = join { hair_color, hair_multicolors(), hair_colors() }
+
+	outfit = if chance(2)
+		get_full_outfit()
+	else
+		legwear, legwear_index = get_legwear()
+		if legwear_index != 1
+			negative_prompt ..= "skirt, long skirt, skirt lift, "
+
+		top, top_index = get_top()
+		if top::match("sleeveless")
+			negative_prompt ..= "long sleeves, sleeves, "
+			if not top::match("detatched sleeves")
+				negative_prompt ..= "detatched sleeves, off-shoulder sleeves, "
+		if top::match("off-shoulder sweater")
+			negative_prompt ..= "turtleneck, turtleneck sweater, "
+		
+		join({top, legwear})
+
+	prompt = join({
+		hair_color
+		eye_color
+		"((" .. get_breast_size()  .. "))"
+		choice("indoors", "outdoors")
+		outfit
+		$CHANCE_PICK(8, get_species())
+		$CHANCE_PICK(2, nil, get_arm_position())
+		$CHANCE_PICK(3, nil, get_leg_position())
+		$CHANCE_PICK(3, get_base_position())
+		$CHANCE_PICK(6, facial_expressions())
+		$CHANCE_PICK(6, gazes(), "looking at viewer")
+	})
+
+	prompt = prompt::gsub("%[np![^%]]+%]", (m) ->
+		np = m::match("%[np!([^%]]+)%]")
+		negative_prompt ..= np .. ", "
+		""
+	)
+
+	prompt, negative_prompt

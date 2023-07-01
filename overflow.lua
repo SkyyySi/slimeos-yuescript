@@ -20,13 +20,6 @@ local mousegrabber = mousegrabber
 
 local overflow = { mt = {} }
 
-local util = require("slimeos.lib.util")
-
-local defaults = {
-	shape = gshape.rounded_bar,
-	width = util.scale(5)
-}
-
 -- Determine the required space to draw the layout's children and, if necessary,
 -- the scrollbar.
 function overflow:fit(context, orig_width, orig_height)
@@ -40,12 +33,12 @@ function overflow:fit(context, orig_width, orig_height)
     local scrollbar_width = self._private.scrollbar_width
     local scrollbar_enabled = self._private.scrollbar_enabled
     local used_in_dir, used_max = 0, 0
-    local is_vertical = self._private.dir == "vertical"
-    local avail_in_dir = is_vertical and orig_height or orig_width
+    local is_y = self._private.dir == "y"
+    local avail_in_dir = is_y and orig_height or orig_width
 
     -- Set the direction covered by scrolling to the maximum value
     -- to allow widgets to take as much space as they want.
-    if is_vertical then
+    if is_y then
         height = math.huge
     else
         width = math.huge
@@ -57,7 +50,7 @@ function overflow:fit(context, orig_width, orig_height)
     for _, widget in ipairs(widgets) do
         local w, h = base.fit_widget(self, context, widget, width, height)
 
-        if is_vertical then
+        if is_y then
             used_max = math.max(used_max, w)
             used_in_dir = used_in_dir + h
         else
@@ -77,7 +70,7 @@ function overflow:fit(context, orig_width, orig_height)
         used_max = used_max + scrollbar_width
     end
 
-    if is_vertical then
+    if is_y then
         return used_max, used_in_dir
     else
         return used_in_dir, used_max
@@ -88,7 +81,7 @@ end
 -- Only those widgets that are currently visible will be placed.
 function overflow:layout(context, orig_width, orig_height)
     local result = {}
-    local is_y = self._private.dir == "vertical"
+    local is_y = self._private.dir == "y"
     local widgets = self._private.widgets
     local avail_in_dir = is_y and orig_height or orig_width
     local scrollbar_width = self._private.scrollbar_width
@@ -420,7 +413,7 @@ end
 -- Wraps a callback function for `mousegrabber` that is capable of
 -- updating the scroll factor.
 local function build_grabber(container, initial_x, initial_y, geo)
-    local is_y = container._private.dir == "vertical"
+    local is_y = container._private.dir == "y"
     local bar_interval = container._private.avail_in_dir - container._private.bar_length
     local start_pos = container._private.scroll_factor * bar_interval
     local start = is_y and initial_y or initial_x
@@ -460,7 +453,7 @@ end
 --- The scrollbar widget.
 -- This widget is rendered as the scrollbar element.
 --
--- The default is `wibox.widget.separator{ shape = gears.shape.shape }`.
+-- The default is `wibox.widget.separator{ shape = gears.shape.rectangle }`.
 --
 --@DOC_wibox_layout_overflow_scrollbar_widget_EXAMPLE@
 --
@@ -488,7 +481,7 @@ function overflow:reset()
     self._private.widgets = {}
     self._private.scroll_factor = 0
 
-    local scrollbar_widget = separator({ shape = defaults.shape })
+    local scrollbar_widget = separator({ shape = gshape.rounded_bar })
     apply_scrollbar_mouse_signal(self, scrollbar_widget)
     self._private.scrollbar_widget = scrollbar_widget
 
@@ -511,13 +504,13 @@ local function new(dir, ...)
     ret._private.scroll_factor = 0
 
     -- Apply defaults. Bypass setters to avoid signals.
-    ret._private.step = 10
+    ret._private.step = 50
     ret._private.fill_space = true
     ret._private.scrollbar_width = 5
     ret._private.scrollbar_enabled = true
     ret._private.scrollbar_position = dir == "vertical" and "right" or "bottom"
 
-    local scrollbar_widget = separator({ shape = defaults.shape })
+    local scrollbar_widget = separator({ shape = gshape.rectangle })
     apply_scrollbar_mouse_signal(ret, scrollbar_widget)
     ret._private.scrollbar_widget = scrollbar_widget
 

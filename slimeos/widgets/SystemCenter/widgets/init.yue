@@ -3,5 +3,6 @@
 	"lyricsbox"
 	--"multimedia_remote"
 	"notification_center"
+	"stable_diffusion"
 	"volume_control"
 } }

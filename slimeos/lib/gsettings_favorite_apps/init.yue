@@ -16,6 +16,10 @@ export schema = "org.gnome.shell"
 export watch = () ->
 	(stdout, stderr, reason, exit_code) <- awful.spawn.easy_async { "dconf", "watch", "/org/gnome/shell/favorite-apps" }
 
+	favs = Gio.Settings({ schema: schema })::get_strv("favorite-apps")
+
+	awesome.emit_signal("slimeos::gsettings_favorite_apps::update", favs)
+
 export schema_exists = () ->
 	schema_list = Gio.Settings.list_schemas()
 

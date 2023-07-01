@@ -49,6 +49,8 @@ with t
 	.fg_urgent     = .color.white_alternate
 	.fg_minimize   = .color.white_alternate
 
+	.wibar_bg_normal = .bg_normal
+
 	.useless_gap         = scale(2)
 	.border_width        = scale(1)
 	.border_color_normal = .bg_normal

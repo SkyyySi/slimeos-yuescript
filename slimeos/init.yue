@@ -1,6 +1,22 @@
-export bars     = require("slimeos.bars")
-export boxes    = require("slimeos.boxes")
-export layouts  = require("slimeos.layouts")
-export lib      = require("slimeos.lib")
-export settings = require("slimeos.settings")
-export widgets  = require("slimeos.widgets")
+--[[
+submodules = {
+	"bars"
+	"boxes"
+	"layouts"
+	"lib"
+	"settings"
+	"widgets"
+}
+
+module = {}
+
+for submodule in *submodules
+	module[submodule] = require("slimeos.#{submodule}")
+
+module
+--]]
+
+import "slimeos.lib.util.macro" as { $ }
+
+$NAMESPACE
+

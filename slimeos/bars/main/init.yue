@@ -4,7 +4,6 @@ tostring = tostring
 
 import awful, wibox, gears, beautiful from require("awesome_std")
 import util from require("slimeos.lib")
-import List, Tuple from require("slimeos.lib.collection")
 import main_menu from require("slimeos.boxes")
 layouts = require("slimeos.layouts")
 
@@ -52,14 +51,17 @@ wrap_section = (side, widget) ->
 	--	widget: wibox.container.background
 	--}
 
-	{
-		widget
-		bg:     beautiful.bg_normal
+	wibox.widget {
+		{
+			widget: widget
+		}
+		id:     "background_role"
+		bg:     beautiful.wibar_bg_normal or beautiful.bg_normal
 		shape:  section_shapes[side]
 		widget: wibox.container.background
 	}
 
-(args={}) ->
+export.<call> = (_, args={}) ->
 	s = args.screen
 
 	-- A factor used to allow for per-screen scaling
@@ -70,7 +72,7 @@ wrap_section = (side, widget) ->
 	}
 
 	-- Each screen has its own tag table.
-	awful.tag(List([ tostring(i) for i = 1, 10 ]), s, awful.layout.layouts[1])
+	awful.tag([tostring(i) for i = 1, 10], s, awful.layout.layouts[1])
 
 	-- Create a promptbox for each screen
 	s.promptbox = awful.widget.prompt()
@@ -80,10 +82,10 @@ wrap_section = (side, widget) ->
 	s.layoutbox = awful.widget.layoutbox {
 		screen:  s
 		buttons: {
-			awful.button(Tuple({}), 1, (() -> awful.layout.inc( 1)))
-			awful.button(Tuple({}), 3, (() -> awful.layout.inc(-1)))
-			awful.button(Tuple({}), 4, (() -> awful.layout.inc(-1)))
-			awful.button(Tuple({}), 5, (() -> awful.layout.inc( 1)))
+			awful.button({}, 1, (() -> awful.layout.inc( 1)))
+			awful.button({}, 3, (() -> awful.layout.inc(-1)))
+			awful.button({}, 4, (() -> awful.layout.inc(-1)))
+			awful.button({}, 5, (() -> awful.layout.inc( 1)))
 		}
 	}
 
@@ -97,7 +99,7 @@ wrap_section = (side, widget) ->
 	--- System center
 	s.system_center = SystemCenter {
 		position: "right"
-		screen: s
+		screen:   s
 	}
 
 	s.system_center::hide()
@@ -131,6 +133,9 @@ wrap_section = (side, widget) ->
 		)
 	)
 
+	-- TODO: Make this be provided from rc.yue
+	modkey = "Mod4"
+
 	-- Create a taglist widget
 	s.taglist = awful.widget.taglist {
 		screen:  s
@@ -155,30 +160,27 @@ wrap_section = (side, widget) ->
 				)
 
 				@connect_signal("mouse::leave", () ->
-					if current_tag.selected
-						@bg = beautiful.taglist_bg_focus ?? beautiful.bg_focus ?? "#008EF9"
+					@bg = if current_tag.selected
+						beautiful.taglist_bg_focus ?? beautiful.bg_focus ?? "#008EF9"
 					elseif current_tag.urgent
-						@bg = beautiful.taglist_bg_urgent ?? beautiful.bg_urgent ?? "#FF000F"
-					elseif current_tag.occupied
-						@bg = beautiful.taglist_bg_occupied ?? beautiful.bg_minimize ?? "#444444"
+						beautiful.taglist_bg_urgent ?? beautiful.bg_urgent ?? "#FF000F"
+					elseif (#current_tag::clients()) > 0
+						beautiful.taglist_bg_occupied ?? beautiful.bg_minimize ?? "#444444"
 					elseif current_tag.volatile
-						@bg = beautiful.taglist_bg_volatile ?? beautiful.border_color_marked ?? "#FFB900"
+						beautiful.taglist_bg_volatile ?? beautiful.border_color_marked ?? "#FFB900"
 					else
-						@bg = beautiful.taglist_bg_empty ?? beautiful.bg_normal ?? "#131522"
+						beautiful.taglist_bg_empty ?? beautiful.bg_normal ?? "#131522"
 
 					@fg = beautiful.fg_normal ?? "#FFFAF4"
 				)
-			--update_callback: (current_tag, index, objects) =>
-			--	-- focus, urgent, occupied, empty, volatile
-			--	--print("'#{@}' | '#{current_tag.selected}' | '#{index}'")
 		}
 		buttons: {
-			awful.button({}, 1, ((t) -> t::view_only()))
-			awful.button({ modkey }, 1, ((t) ->
+			awful.button({}, 1, nil, ((t) -> t::view_only()))
+			awful.button({ modkey }, 1, nil, ((t) ->
 				if client.focus
 					client.focus::move_to_tag(client.focus, t)
 			))
-			awful.button({}, 3, (() -> awful.tag.viewtoggle()))
+			awful.button({}, 3, nil, (() -> awful.tag.viewtoggle()))
 			awful.button({ modkey }, 3, ((t) ->
 				if client.focus
 					client.focus::toggle_tag(t)
@@ -223,34 +225,22 @@ wrap_section = (side, widget) ->
 		}
 	}
 
-	main_wibar_buttons = {
-		awful.button({}, 3, () -> s.main_menu::toggle())
-		awful.button({}, 4, awful.tag.viewprev)
-		awful.button({}, 5, awful.tag.viewnext)
-	}
-
-	s.launcher = awful.widget.launcher {
-		image: beautiful.awesome_icon
-		menu:  s.main_menu
-	}
-
-	l = launcher {
+	s.launcher = launcher {
 		screen: s
 	}
 
-	s.main_wibar.widget = layouts.absolute_center(
-		wrap_section("left", {
-			--s.launcher
-			l.toggle_button
+	s.main_wibar_sections = {
+		left: wrap_section("left", wibox.widget {
+			s.launcher.toggle_button
 			s.taglist
 			s.promptbox
 			layout: wibox.layout.fixed.horizontal
-		}),
-		wrap_section("center", {
+		})
+		center: wrap_section("center", wibox.widget {
 			s.tasklist
 			layout: wibox.layout.fixed.horizontal
-		}),
-		wrap_section("right", {
+		})
+		right: wrap_section("right", wibox.widget {
 			{
 				awful.widget.keyboardlayout()
 				wibox.widget.systray()
@@ -261,37 +251,83 @@ wrap_section = (side, widget) ->
 			}
 			margins: util.scale(4)
 			widget:  wibox.container.margin
-		}),
-		main_wibar_buttons
-	)
+		})
+	}
+
+	s.main_wibar.widget = wibox.widget {
+		layouts.absolute_center(
+			s.main_wibar_sections.left,
+			s.main_wibar_sections.center,
+			s.main_wibar_sections.right,
+			{
+				awful.button({}, 3, () -> s.main_menu::toggle())
+				awful.button({}, 4, () -> awful.tag.viewprev(s))
+				awful.button({}, 5, () -> awful.tag.viewnext(s))
+			}
+		)
+		id:     "background_role"
+		widget: wibox.container.background
+	}
 
 	s.on_bar_refresh = (callback) =>
-		for tag in *s.tags
-			tag::connect_signal("property::selected", callback)
-		s::connect_signal("property::clients", callback)
-		client.connect_signal(  "manage", callback)
-		client.connect_signal("unmanage", callback)
+		callback_noargs = () -> callback()
 
-	do
-		callback = () ->
-			gears.timer {
-				timeout:     0.01
-				autostart:   true
-				single_shot: true
-				callback: () ->
-					c = mouse.current_client
+		for tag in *@tags
+			tag::connect_signal("property::selected", callback_noargs)
 
-					if not c
-						return
+		@connect_signal("property::clients", callback_noargs)
+		with cc = client.connect_signal
+			cc(  "manage", callback_noargs)
+			cc("unmanage", callback_noargs)
+			cc("property::fullscreen", callback_noargs)
+			cc("property::maximized",  callback_noargs)
+			cc("property::minimized",  callback_noargs)
+			cc("property::hidden",     callback_noargs)
 
-					c::activate {
-						context: "mouse_enter"
-						raise:   false
-					}
-			}
+	s::on_bar_refresh(() ->
+		util.apcall ->
+			has_maximized_client = false
 
-		for tag in *s.tags
-			tag::connect_signal("property::selected", callback)
+			for c in *s.clients
+				if (not (c.hidden or c.minimized)) and (c.maximized or c.fullscreen)
+					has_maximized_client = true
+					break
+
+			section_bg = if has_maximized_client
+				gears.shape.transparent
+			else
+				beautiful.wibar_bg_normal or beautiful.bg_normal
+
+			for _, widget in pairs(s.main_wibar_sections)
+				util.for_children(widget, "shape_role", (child) ->
+					child.bg = section_bg
+				)
+
+			wibar_bg = if has_maximized_client
+				beautiful.wibar_bg_normal or beautiful.bg_normal
+			else
+				gears.shape.transparent
+
+			util.for_children(s.main_wibar.widget, "background_role", (child) ->
+				child.bg = wibar_bg
+			)
+
+		gears.timer {
+			timeout:     0.01
+			autostart:   true
+			single_shot: true
+			callback:    () ->
+				c = mouse.current_client
+
+				if not c
+					return
+
+				c::activate {
+					context: "mouse_enter"
+					raise:   false
+				}
+		}
+	)
 
 	--[[
 	s.update_dock_tasklist_separator = () =>
