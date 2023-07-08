@@ -239,7 +239,7 @@ export class LRCData extends Object
 
 		lines = util.string.split(lrc_string, "\n")
 
-		for _, line in ipairs(lines)
+		for line in *lines
 			if mk, mv = line::match("^%[([^%[:%d]*):([^%[:]*)]$")
 				@meta[util.string.strip(mk)] = util.string.strip(mv)
 				continue
@@ -273,7 +273,7 @@ export class LRCData extends Object
 		for k, v in pairs(@meta)
 			outs ..= "[#{k}:#{v}]\n"
 
-		for _, line in ipairs(@lines)
+		for line in *@lines
 			prefix = if line.position
 				"[#{line.position}]"
 			else

@@ -320,5 +320,11 @@ client.connect_signal("request::titlebars", (c) ->
 		)
 
 	c::__update_titlebar_bg()
-	util.after_timeout(2, () -> c::__update_titlebar_bg())
+	no_run_timer = false
+	util.after_timeout(2, () ->
+		if no_run_timer
+			return
+		c::__update_titlebar_bg()
+	)
+	c::connect_signal("request::unmanage", () -> no_run_timer = true)
 )

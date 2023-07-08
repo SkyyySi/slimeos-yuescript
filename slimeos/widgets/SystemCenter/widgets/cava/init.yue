@@ -22,7 +22,7 @@ instance_set_bars = (value) =>
 
 	for_children(@, "bars_role", (child) ->
 		child::reset()
-		for _, bar in ipairs(value)
+		for bar in *value
 			child::add(bar)
 	)
 

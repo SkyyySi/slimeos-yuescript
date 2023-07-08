@@ -84,14 +84,14 @@ connect_child = (widget, child) ->
 
 with old_set_children = wibox.layout.manual.set_children
 	_module.set_children = (value) =>
-		for _, child in ipairs(value)
+		for child in *value
 			connect_child(@, child)
 
 		old_set_children(@, value)
 
 with old_add = wibox.layout.manual.add
 	_module.add = (...) =>
-		for _, child in ipairs({ ... })
+		for child in *{ ... }
 			connect_child(@, child)
 
 		old_add(@, ...)

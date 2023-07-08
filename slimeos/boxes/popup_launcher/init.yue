@@ -20,7 +20,7 @@ export.<> = mt
 export base_spacing = scale(10)
 export base_shape   = (cr, w, h) -> gears.shape.rounded_rect(cr, w, h, scale(10))
 
-export app_cache = { app.desktop_id, app for _, app in ipairs(extrautils.apps.get_all()) when app.show }
+export app_cache = { app.desktop_id, app for app in *extrautils.apps.get_all() when app.show }
 
 export create_app_widget = (app_data, container, app_widget_template) ->
 	widget = wibox.widget(app_widget_template)

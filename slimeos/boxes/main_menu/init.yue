@@ -54,7 +54,7 @@ get_all_apps = () ->
 
 		category_was_found = false
 
-		for _, app_category in ipairs(app_info::get_string_list("Categories"))
+		for app_category in *app_info::get_string_list("Categories")
 			for i, known_category in ipairs(app_categories)
 				if app_category == known_category
 					category_was_found = true

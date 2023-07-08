@@ -7,7 +7,7 @@ print = (...) ->
 	outs = ""
 	first = true
 
-	for _, arg in ipairs(args)
+	for arg in *args
 		repr = tostring
 
 		if type(arg) == "table"

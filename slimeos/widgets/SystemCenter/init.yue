@@ -721,7 +721,7 @@ TabbedLayout = () ->
 	tabbed_layout._private.tabs = {}
 
 	tabbed_layout.activate_tab = (tab) =>
-		for _, t in ipairs(@_private.tabs)
+		for t in *@_private.tabs
 			t.active = (t == tab)
 
 		@_private.currently_active_tab = tab

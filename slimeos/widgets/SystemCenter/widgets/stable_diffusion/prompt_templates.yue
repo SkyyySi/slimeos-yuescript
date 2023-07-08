@@ -18,7 +18,7 @@ join = (args) ->
 	result = ""
 
 	first = true
-	for _, arg in ipairs(args)
+	for arg in *args
 		if arg == nil
 			continue
 

@@ -123,7 +123,7 @@ _module.get_all_app_datas = (args={}) ->
 
 		category_was_found = false
 
-		for _, app_category in ipairs(gappinfo::get_string_list("Categories"))
+		for app_category in *gappinfo::get_string_list("Categories")
 			for i, known_category in ipairs(_module.app_categories)
 				if app_category == known_category
 					category_was_found = true

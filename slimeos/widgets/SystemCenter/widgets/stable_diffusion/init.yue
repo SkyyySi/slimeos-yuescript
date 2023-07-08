@@ -357,7 +357,7 @@ progress_updater = (widget, image_callback, progress_callback) ->
 		progress_updater(widget, image_callback, progress_callback)
 
 get_active_client = () ->
-	for _, c in ipairs(client.get())
+	for c in *client.get()
 		if c.active
 			return c
 
@@ -653,7 +653,7 @@ create_model_chooser = () ->
 
 			models = json.decode(models_json)
 
-			menu_items = for _, model in ipairs(models)
+			menu_items = for model in *models
 				{
 					model.title
 					() ->

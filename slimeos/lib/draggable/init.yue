@@ -68,5 +68,5 @@ export connect_widget = (widget, args={}) ->
 		.threshhold ??= scale(3)
 		.direction ??= "horizontal" ---@type "horizontal"|"vertical"|"any"
 
-	for _, child in ipairs(widget.children)
+	for child in *widget.children
 		child::connect_signal("button::press", create_callback(widget, args))

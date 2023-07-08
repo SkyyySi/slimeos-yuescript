@@ -56,7 +56,7 @@ export fit = (context, orig_width, orig_height) =>
 	-- First, determine widget sizes.
 	-- Only when the content doesn't fit and needs scrolling should
 	-- we reduce content size to make space for a scrollbar.
-	for _, widget in ipairs(widgets)
+	for widget in *widgets
 		w, h = base.fit_widget(self, context, widget, width, height)
 
 		if is_vertical

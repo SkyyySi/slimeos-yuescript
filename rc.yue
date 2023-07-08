@@ -7,18 +7,27 @@ macro LUA = (code) ->
 		type: "lua"
 	}
 
-$LUA [==[
-if something then
-	print("YES")
-end
-]==]
+--$LUA [==[
+--if something then
+--	print("YES")
+--end
+--]==]
 
-macro FENNEL = (input) ->
+macro FENNEL = (var, input, is_local="false") ->
+	if not input
+		input = var
+		var = "_"
+
 	path = os.tmpname()
 
 	file = assert(io.open(path, "w"))
 
 	code = ""
+
+	declaration = if is_local == "false"
+		""
+	else
+		"local "
 
 	try
 		file::write(input)
@@ -30,7 +39,7 @@ macro FENNEL = (input) ->
 			::gsub("%s*$", "")
 		command::close()
 
-		code = "(function()\n\t#{stdout}\nend)()"
+		code = "#{declaration}#{var} = (function()\n\t#{stdout::gsub('\n', '\n\t')}\nend)()"
 
 		file::close()
 	catch err
@@ -42,7 +51,11 @@ macro FENNEL = (input) ->
 		type: "lua"
 	}
 
-$FENNEL [[(print "Hello, world!")]]
+--$FENNEL [==[
+--(print "Hello, world!")
+--
+--(fn myfunc [foo bar])
+--]==]
 
 require = require
 xpcall  = xpcall
@@ -360,7 +373,7 @@ parse_action = (app_info) ->
 	-- TODO: This appears to not be working half the time (the try-catch did not fix it)
 	actions = {}
 	try
-		for _, action in ipairs(app_info::list_actions())
+		for action in *app_info::list_actions()
 			action_entry = "Desktop Action #{action}"
 			action_icon = keyfile::get_string(action_entry, "Icon")
 
@@ -381,6 +394,9 @@ parse_action = (app_info) ->
 
 --- 
 client.connect_signal("manage", (c) ->
+	if not c.class
+		return
+
 	gio_search_results = Gio.DesktopAppInfo.search(c.class)[1]
 
 	if gio_search_results == nil
@@ -500,11 +516,11 @@ update_client_shape = do
 awesome.connect_signal("beautiful::gaps_status_changed", () ->
 	forced_rect_shape = not beautiful.gaps_enabled
 
-	for _, c in ipairs(client.get())
+	for c in *client.get()
 		update_client_shape(c)
 )
 
-for _, c in ipairs(client.get())
+for c in *client.get()
 	update_client_shape(c)
 client.connect_signal("manage", update_client_shape)
 client.connect_signal("property::fullscreen", update_client_shape)
