@@ -7,10 +7,39 @@
 		"mouse",
 		"mousegrabber",
 		"root",
-		"tag"
+		"tag",
+		"selection"
 	],
 	"Lua.workspace.library": [
 		"/home/simon/projects/lua/slimeos/src/types",
 		"/home/simon/.vscode-oss/extensions/sumneko.lua-3.6.20-linux-x64/server/meta/526dc7ea"
-	]
+	],
+	"files.associations": {
+		"*.rasi": "rasi",
+		"cairo.h": "c",
+		"gdk.h": "c",
+		"glib.h": "c",
+		"cstdlib": "c",
+		"cmath": "c",
+		"chrono": "c",
+		"functional": "c",
+		"charconv": "c",
+		"optional": "c",
+		"format": "c",
+		"ratio": "c",
+		"system_error": "c",
+		"array": "c",
+		"tuple": "c",
+		"type_traits": "c",
+		"utility": "c",
+		"bitset": "c",
+		"string_view": "c",
+		"random": "c",
+		"variant": "c",
+		"*.tcc": "c",
+		"stdlib.h": "c",
+		"math.h": "c",
+		"numbers": "c",
+		"valarray": "c"
+	}
 }

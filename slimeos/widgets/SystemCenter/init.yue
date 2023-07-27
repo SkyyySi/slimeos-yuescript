@@ -204,6 +204,9 @@ multimedia_remote_controls = () ->
 		icon_updater: () =>
 			awesome.connect_signal("playerctl::metadata", (metadata) ->
 				util.for_children(@, "image_role", (child) ->
+					if not icons
+						return
+
 					child.image = beautiful.icons[metadata.playing and "Pause" or "Play"]
 				)
 			)

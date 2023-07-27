@@ -288,6 +288,9 @@ export.<call> = (_, args={}) ->
 		util.apcall ->
 			has_maximized_client = false
 
+			if (s == nil) or (not s == nil)
+				return
+
 			for c in *s.clients
 				if (not (c.hidden or c.minimized)) and (c.maximized or c.fullscreen)
 					has_maximized_client = true

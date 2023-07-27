@@ -138,14 +138,14 @@ do
 
 --- {{{ Auto reload
 --[[
-awful.spawn.with_line_callback([[bash -c '
+awful.spawn.with_line_callback([=[bash -c '
 inotifywait --event modify \
 	--include '"'"'.*\.lua'"'"' \
 	--recursive ./ \
 	--monitor \
 	--quiet \
 	2> /dev/null
-'] ], { stdout: (line) -> awesome.restart() })
+']=], { stdout: (line) -> awesome.restart() })
 --]]
 --- }}}
 
@@ -155,7 +155,13 @@ inotifywait --event modify \
 --- The reason xrender is used here is purely because Xephyr does not work
 --- with glx at all, with the window just showing a "screenshot" of when picom
 --- was started.
-awful.spawn.once { "picom", --[[ "--backend=xrender" ]] }
+run_once = (command) ->
+	(stdout, stderr, reason, exit_code) <- awful.spawn.easy_async { "pgrep", "-f", "-U", os.getenv("USER"), command[1] }
+
+	if exit_code == 1
+		awful.spawn(command)
+
+run_once { "picom", --[[ "--backend=xrender" ]] }
 --- }}}
 
 --- {{{ Variable definitions
@@ -303,8 +309,8 @@ do
 --- {{{ Per-screen settings
 --- Wallpapers
 wallpapers = {
-	[screen[1]]: "/usr/share/backgrounds/gnome/blobs-d.svg"
-	[screen[2]]: "/usr/share/backgrounds/gnome/drool-d.svg"
+	[1]: "/usr/share/backgrounds/gnome/blobs-d.svg"
+	[2]: "/usr/share/backgrounds/gnome/drool-d.svg"
 }
 
 screen.connect_signal("request::wallpaper", () =>
@@ -314,7 +320,7 @@ screen.connect_signal("request::wallpaper", () =>
 			{
 				horizontal_fit_policy: "fit"
 				vertical_fit_policy:   "fit"
-				image:  wallpapers[@]
+				image:  wallpapers[@index]
 				resize: true
 				widget: wibox.widget.imagebox
 			}
@@ -540,7 +546,7 @@ tag_has_maxmimized_client = (t) ->
 
 require("awesome-extrautils")()
 
-do
+if screen[2] != nil
 	rwdesktop = require("awesome-rwdesktop")()
 	global notify = util.notify
 	--notify(rwdesktop)
@@ -550,6 +556,113 @@ do
 	}
 
 --{{{ Experiments
+do
+	import "slimeos.widgets.Button"
+
+	box = wibox {
+		width:   200
+		height:  100
+		visible: true
+		ontop:   true
+		widget:  {
+			{
+				font:   "Source Sans Pro, Bold 22"
+				halign: "center"
+				valign: "center"
+				markup: "Restart"
+				widget: wibox.widget.textbox
+			}
+			on_click: () -> awesome.restart()
+			widget:   Button
+		}
+	}
+
+	awful.placement.top_left(box, margins: 10, honor_workarea: true)
+
+macro CIMPORT = (module) ->
+	modname = (module::match(".*%.(.*)") or module)
+
+	if module::match(".*/#{modname}")
+		module = module::gsub("/#{modname}$", "")
+
+	path = module::gsub("%.", "/")
+
+	"const #{modname::gsub('-', '_')} = do
+	old_path = package.cpath
+	package.cpath ..= " .. [[";#{gears.filesystem.get_configuration_dir()}/]] .. path .. [[.so"]] .. "
+	module = require(\"#{modname}\")
+	package.cpath = old_path
+	module
+"
+
+--[ [
+try
+	import "slimeos.widgets.filter"
+
+	starting_surface = "/slimeos-yuescript/test.png" --[[do
+		import GdkPixbuf, cairo from require("lgi")
+		--$CIMPORT slimeos.widgets.c_filter
+		package.cpath ..= ";/home/simon/projects/awesome/slimeos-yuescript/slimeos/widgets/?.so"
+		const c_filter = require("c_filter")
+
+		pixbuf = GdkPixbuf.Pixbuf.new_from_file("/home/simon/projects/awesome/slimeos-yuescript/test.png")
+		blurred_pixbuf = GdkPixbuf.Pixbuf(c_filter.blur_pixbuf(pixbuf._native, 10))
+		print("pixbuf = #{pixbuf}\nblurred_pixbuf = #{blurred_pixbuf}")
+
+		surface = awesome.pixbuf_to_surface(blurred_pixbuf._native, gears.surface())
+
+		if cairo.Surface::is_type_of(surface)
+			surface
+		else
+			cairo.Surface(surface, true)
+	--]]
+
+	--[ [
+	--imagebox = wibox.widget {
+	--	image:  starting_surface -- "/slimeos-yuescript/test.png"
+	--	widget: wibox.widget.imagebox
+	--}
+	imagebox = wibox.widget {
+		font:   "Source Sans Pro 16"
+		halign: "center"
+		valign: "center"
+		markup: "<b>Hello</b> <i>world</i>"
+		widget: wibox.widget.textbox
+	}
+
+	--gears.timer {
+	--	timeout:     2
+	--	autostart:   true
+	--	single_shot: true
+	--	callback:    () -> imagebox.image = "/slimeos-yuescript/test2.png"
+	--}
+
+	<- util.after_timeout(0.01)
+
+	box = wibox {
+		width:   500
+		height:  250
+		visible: true
+		ontop:   true
+		bg:      "#FFFFFF40"
+		widget:  {
+			imagebox
+			{
+				imagebox
+				radius:        10
+				--edge_strategy: "repeat" -- "repeat"|"black"|"transparent"
+				widget:        filter.blur
+			}
+			layout: wibox.layout.flex.horizontal
+		}
+	}
+
+	awful.placement.left(box, margins: 10, honor_workarea: true)
+	--]]
+catch err
+	util.notify_error(err)
+--]]
+
 --- Rubato
 --[[
 do

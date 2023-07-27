@@ -1,0 +1,466 @@
+import awful, gears, wibox from require("awesome_std")
+
+import Gdk, GdkPixbuf, cairo from require("lgi")
+
+package.cpath ..= ";/home/simon/projects/awesome/slimeos-yuescript/slimeos/widgets/?.so"
+import "c_filter"
+
+local *
+
+--[[
+load_pixbuf_from_image_string = (image_string) ->
+	loader = GdkPixbuf.PixbufLoader()
+	local pixbuf
+
+	with loader
+		::write(image_string)
+		::close()
+		pixbuf = ::get_pixbuf()
+
+	assert(pixbuf?, "Could not convert string to Pixbuf!")
+
+	pixbuf
+
+load_pixbuf_from_path = (path) ->
+	GdkPixbuf.Pixbuf.new_from_file(path)
+--]]
+
+load_pixbuf_from_surface = (surface, width, height) ->
+	Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
+
+convert_pixbuf_to_surface = (pixbuf) ->
+	surface = awesome.pixbuf_to_surface(pixbuf._native, gears.surface())
+
+	if cairo.Surface::is_type_of(surface)
+		surface
+	else
+		cairo.Surface(surface, true)
+
+convert_pixbuf_to_pixel_table = (pixbuf) ->
+	pixelstr = pixbuf::get_pixels()
+
+	channels = 4
+
+	pixels = for i = 1, #pixelstr, channels
+		{
+			r: pixelstr::sub(i,   i  )::byte() -- or 0
+			g: pixelstr::sub(i+1, i+1)::byte() -- or 0
+			b: pixelstr::sub(i+2, i+2)::byte() -- or 0
+			a: pixelstr::sub(i+3, i+3)::byte() -- or 0
+		}
+
+	pixels.rowstride = pixbuf::get_rowstride()
+	pixels.width = pixbuf::get_width()
+	pixels.height = pixbuf::get_height()
+
+	pixels
+
+--[[
+load_pixbuf_from_pixel_table = (pixels) ->
+	c = string.char
+	load_pixbuf_from_matrix(table.concat([ (c(p.r)..c(p.g)..c(p.b)..c(p.a)) for p in *pixels ]))
+--]]
+
+convert_pixels_to_matrix = (pixels) ->
+	rowstride = pixels.rowstride / 4
+	matrix = [ [ pixels[(y*rowstride) + x] for x = 1, (#pixels / rowstride) ] for y = 0, (rowstride - 1) ]
+
+	matrix.rowstride = pixels.rowstride
+	matrix.width = pixels.width
+	matrix.height = pixels.height
+
+	matrix
+
+load_pixbuf_from_matrix = (matrix, width=matrix.width, height=matrix.height, rowstride=matrix.rowstride, has_alpha=true) ->
+	c = string.char
+
+	bytes = table.concat([ table.concat([ (c(p.r)..c(p.g)..c(p.b)..c(p.a)) for p in *row ]) for row in *matrix ])
+	GdkPixbuf.Pixbuf.new_from_data(
+		bytes
+		GdkPixbuf.Colorspace.RGB
+		has_alpha
+		8
+		width
+		height
+		rowstride
+	)
+
+--[[
+average_table = (tb) ->
+	accum = {}
+
+	for i in *tb
+		for k, v in pairs(i)
+			accum[k] = if accum[k]?
+				accum[k] + v
+			else
+				v
+
+	for k, v in pairs(accum)
+		accum[k] = v / #(accum[k])
+
+	accum
+--]]
+
+clamp = (v, floor, ceiling) ->
+	if v < floor
+		floor
+	elseif v > ceiling
+		ceiling
+	else
+		v
+
+remap_function = (x) ->
+	x
+	--[[
+	x /= 256
+	result = x ^ 1 -- -(x-1) ^ 2 + 1
+	math.floor(clamp((result * 256), 0, 255))
+	--]]
+
+	--[[
+	if x < 128
+		0
+	else
+		255
+	--]]
+
+	--[[
+	-x + 255
+	--]]
+
+blur_matrix = (matrix, edge_strategy, radius=5) ->
+	assert((radius % 2 == 1), "The radius needs to be an odd number!")
+	half = math.floor(radius / 2)
+
+	result = {
+		rowstride: matrix.rowstride
+		width: matrix.width
+		height: matrix.height
+	}
+
+	if edge_strategy == "repeat"
+		for y, row in ipairs(matrix)
+			result[y] = {}
+
+			for x = 1, #row
+				result[y][x] = {}
+
+				for channel in *{ "r", "g", "b", "a" }
+					number = 0
+
+					for y_offset = -half, half
+						current_row = matrix[clamp((y + y_offset), 1, #row)]
+
+						for x_offset = -half, half
+							current_col = current_row[clamp((x + x_offset), 1, #matrix)]
+							number += current_col[channel] or 0
+
+					number /= radius ^ 2
+
+					if channel != "a"
+						number = remap_function(number)
+
+					result[y][x][channel] = number
+	elseif edge_strategy == "black"
+		for y, row in ipairs(matrix)
+			result[y] = {}
+
+			for x = 1, #row
+				result[y][x] = {}
+
+				for channel in *{ "r", "g", "b", "a" }
+					number = 0
+
+					for y_offset = -half, half
+						current_row = matrix[y + y_offset] or {}
+
+						for x_offset = -half, half
+							current_col = current_row[x + x_offset] or { a: 255 }
+							number += current_col[channel] or 0
+
+					number /= radius ^ 2
+
+					if channel != "a"
+						number = remap_function(number)
+
+					result[y][x][channel] = number
+	else -- if edge_strategy == "transparent"
+		for y, row in ipairs(matrix)
+			result[y] = {}
+
+			for x = 1, #row
+				result[y][x] = {}
+
+				for channel in *{ "r", "g", "b", "a" }
+					number = 0
+
+					for y_offset = -half, half
+						current_row = matrix[y + y_offset] or {}
+
+						for x_offset = -half, half
+							current_col = current_row[x + x_offset] or {}
+							number += current_col[channel] or 0
+
+					number /= radius ^ 2
+
+					if channel != "a"
+						number = remap_function(number)
+
+					result[y][x][channel] = number
+
+	result
+
+add_noise_to_matrix = (matrix, intensity={}, monochrome=true) ->
+	with intensity
+		.r ??= 0
+		.g ??= 0
+		.b ??= 0
+		.a ??= 0
+
+	result = {
+		rowstride: matrix.rowstride
+		width: matrix.width
+		height: matrix.height
+	}
+
+	import random, floor from math
+
+	for y, row in ipairs(matrix)
+		result[y] = {}
+
+		for x, col in ipairs(row)
+			result[y][x] = {}
+
+			if monochrome
+				number = 0
+
+				for channel in *{ "r", "g", "b" }
+					int = intensity[channel]
+					number += random(0, floor(255 * int))
+
+				number /= 3
+
+				for channel in *{ "r", "g", "b" }
+					int = intensity[channel]
+					result[y][x][channel] = clamp(((col[channel] * (1 - int)) + number), 0, 255)
+
+				int = intensity.a
+				result[y][x].a = clamp(((col.a * (1 - int)) + random(0, floor(255 * int))), 0, 255)
+			else
+				for channel in *{ "r", "g", "b", "a" }
+					int = intensity[channel]
+					result[y][x][channel] = clamp(((col[channel] * (1 - int)) + random(0, floor(255 * int))), 0, 255)
+
+	result
+
+--[[
+---@param matrix table<integer, table<integer, any>>
+print_matrix = (matrix) ->
+	for row in *matrix
+		--print("[" .. table.concat([tostring(col) for col in *row], ", ") .. "]")
+		print("[" .. table.concat(["(%d, %d)"::format(col.r, col.a) for col in *row], ", ") .. "]")
+--]]
+
+fill_context_with_surface = (cr, surface) ->
+	cr::set_source_surface(surface, 0, 0)
+	cr::paint()
+
+export gen_property = (object, property) ->
+	object["get_" .. property] = () =>
+		--print("Getting property '#{property}'")
+		@_private[property]
+
+	object["set_" .. property] = (value) =>
+		--print("Setting property '#{property}' to #{value}")
+		@_private[property] = value
+		@emit_signal(("property::" .. property), value)
+		@_private.force_redraw = true
+		@emit_signal("widget::redraw_needed")
+
+	object
+
+export base = do
+	module = { mt: {} }
+	module.<> = module.mt
+
+	module.get_widget = () =>
+		@_private.widget
+
+	module.set_widget = (widget) =>
+		if @_private.child_redraw_listener == nil
+			@_private.child_redraw_listener = () ->
+				@_private.force_redraw = true
+				@emit_signal("widget::redraw_needed")
+
+		child_redraw_listener = @_private.child_redraw_listener
+
+		if @_private.widget?
+			@_private.widget::disconnect_signal("widget::redraw_needed", child_redraw_listener)
+
+		widget::connect_signal("widget::redraw_needed", child_redraw_listener)
+
+		wibox.widget.base.set_widget_common(@, widget)
+
+	module.get_children = () =>
+		{ @_private.widget }
+
+	module.set_children = (children) =>
+		@set_widget(children[1])
+
+	module.draw = (context, cr, w, h) =>
+		--print("width = #{w}, height = #{h}")
+
+		child = @get_widget()
+
+		if child == nil
+			return
+
+		if (not @_private.force_redraw) and (@_private.cached_surface?)
+			fill_context_with_surface(cr, @_private.cached_surface)
+			return
+
+		--print("@draw_override? = #{@draw_override?}")
+		surface = if @draw_override?
+			@draw_override(cr, w, h, child)
+		elseif @process_matrix == nil
+			fill_context_with_surface(cr, wibox.widget.draw_to_image_surface(child, w, h))
+		else
+			matrix = wibox.widget.draw_to_image_surface(child, w, h)
+				|> load_pixbuf_from_surface(w, h)
+				|> convert_pixbuf_to_pixel_table()
+				|> convert_pixels_to_matrix()
+
+			processed_matrix = @process_matrix(matrix)
+
+			load_pixbuf_from_matrix(processed_matrix)
+				|> convert_pixbuf_to_surface()
+
+		@_private.force_redraw = false
+		@_private.cached_surface = surface
+
+		fill_context_with_surface(cr, surface)
+
+	module.mt.__call = (cls, kwargs={}) ->
+		if cls.parse_kwargs
+			cls.parse_kwargs(kwargs)
+
+		@ = gears.object({enable_properties: true})
+		@_private ??= {}
+		gears.table.crush(@, wibox.widget.base.make_widget())
+		gears.table.crush(@, cls)
+		for k, v in pairs(kwargs)
+			@[k] = v
+
+		@
+
+	module
+
+copy = (tb) ->
+	other = { k, v for k, v in pairs(tb) }
+	other.<> = tb.<>
+	other
+
+--[[
+export blur = copy(base)
+
+gen_property(blur, "radius")
+gen_property(blur, "edge_strategy")
+
+blur.process_matrix = (matrix) =>
+	blur_matrix(matrix, @edge_strategy, @radius)
+		|> blur_matrix(@edge_strategy, @radius)
+		|> blur_matrix(@edge_strategy, @radius)
+
+blur.parse_kwargs = (kwargs) ->
+	with kwargs
+		.radius ??= 15
+		.edge_strategy ??= "transparent"
+--]]
+
+export blur = copy(base)
+
+gen_property(blur, "radius")
+--gen_property(blur, "edge_strategy") -- not yet re-implemented
+
+macro GET_NATIVE = (lgi_object) -> "#{lgi_object}._native"
+
+blur.draw_override = (cr, w, h, child) =>
+	wibox.widget.draw_to_image_surface(child, w, h)
+		|> load_pixbuf_from_surface(w, h)
+		|> $GET_NATIVE()
+		|> c_filter.add_shadow_to_pixbuf(@radius, 0.5)
+		--|> c_filter.blur_pixbuf(@radius)
+		--|> c_filter.combine_pixbufs(pixbuf_orig, pixbuf_blurred, 0)
+		|> GdkPixbuf.Pixbuf()
+		|> convert_pixbuf_to_surface(@no_use_kernel)
+		|> fill_context_with_surface(cr, _)
+
+blur.parse_kwargs = (kwargs) ->
+	with kwargs
+		.radius ??= 15
+		.no_use_kernel ??= false
+		--.edge_strategy ??= "transparent"
+
+export noise = copy(base)
+
+gen_property(noise, "intensity")
+
+noise.process_matrix = (matrix) =>
+	intensity = @get_intensity()
+
+	if type(intensity) == "table"
+		add_noise_to_matrix(matrix, intensity)
+	else
+		add_noise_to_matrix(matrix, {r: intensity, g: intensity, b: intensity, a: 0})
+
+noise.parse_kwargs = (kwargs) ->
+	with kwargs
+		--.intensity ??= 0.5
+
+export recolor = copy(base)
+
+recolor.draw_override = (cr, w, h, child) =>
+	--print("Called draw_override!")
+	wibox.widget.draw_to_image_surface(child, w, h)
+		|> gears.color.recolor_image(@color or "#000000")
+		|> fill_context_with_surface(cr, _)
+
+recolor.parse_kwargs = (kwargs) ->
+	with kwargs
+		--.color ??= "#000000"
+
+--[[
+do
+	pixbuf = load_pixbuf_from_path(image_path)
+
+	pixels = convert_pixbuf_to_pixel_table(pixbuf)
+
+	matrix = convert_pixels_to_matrix(pixels)
+
+	blurred_pixbuf = load_pixbuf_from_matrix(blur_matrix(matrix, 21))
+
+	imagebox.image = convert_pixbuf_to_surface(blurred_pixbuf)
+
+	--print()
+	--print_matrix(blur_matrix(matrix))
+	--print()
+	--for pixel in *pixels
+	--	out = "rgba(%d, %d, %d, %d)"::format(pixel.r, pixel.g, pixel.b, pixel.a)
+	--	if out != "rgba(0, 0, 0, 0)"
+	--		print(out)
+--]]
+
+--[[
+do
+	local m = {
+		{ 0, 0, 0 }
+		{ 0, 0, 0 }
+		{ 9, 0, 0 }
+	}
+	print()
+	print_matrix(m)
+	print()
+	print_matrix(blur_matrix(m, 3))
+	print()
+--]]

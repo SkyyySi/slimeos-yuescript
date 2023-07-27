@@ -78,6 +78,9 @@ get_dominant_color = (c, manual) ->
 	for x_pos = 0, x_lim, 2
 		for y_pos = 0, 8, 1
 			pb = pixbuf_get_from_surface(content, x_offset + x_pos, y_offset + y_pos, 1, 1)
+			if not pb
+				return color_cache::get(client_class)
+
 			bytes = pb::get_pixels()
 			color = "#" .. bytes::gsub(".", (col) -> ("%02x")::format(col::byte()))
 

@@ -70,7 +70,7 @@ export notify = (msg, timeout=5, use_monospace=false) ->
 
 export notify_error = (msg) ->
 	naughty.notification {
-		message: "ERROR: #{msg}\n#{yue.traceback(2)}"
+		message: "ERROR: #{msg}\n#{yue.traceback(4)}"
 		urgency: "critical"
 		timeout: 0
 	}
