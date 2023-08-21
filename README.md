@@ -5,8 +5,14 @@
 Requirements:
 
 - `awesome-luajit-git` from the AUR
-- [`luautf8`](https://github.com/starwing/luautf8) (provided by `community/lua51-luautf8`)
+- [`luautf8`](https://github.com/starwing/luautf8) (provided by `lua51-luautf8`)
 - `playerctl`
+
+Installing them all using `paru`:
+
+```
+paru -S awesome-luajit-git playerctl lua51-luautf8
+```
 
 Additional info:
 
